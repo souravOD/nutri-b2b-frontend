@@ -3,6 +3,10 @@
 import type * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState } from "react"
+import AuthGuard from "@/components/auth-guard"
+import TenantProvider from "@/components/auth/TenantProvider"
+
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +24,21 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { Activity, BadgeCheck, Boxes, CircleAlert, Home, Package, Settings, Users } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Bell,
+  Boxes,
+  Building,
+  ChevronRight,
+  GraduationCap,
+  Home,
+  Package,
+  Search,
+  Settings,
+  Shield,
+  User,
+  Users,
+} from "lucide-react"
 import TopNav from "./top-nav"
 
 type AppShellProps = {
@@ -28,11 +46,21 @@ type AppShellProps = {
   title?: string
 }
 
-const navItems = [
+const mainNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
   { title: "Products", href: "/products", icon: Package },
-  { title: "Customers", href: "/customers/1", icon: Users },
+  { title: "Customers", href: "/customers", icon: Users },
   { title: "Jobs", href: "/jobs", icon: Boxes },
+  { title: "Search", href: "/search", icon: Search },
+  { title: "Alerts", href: "/alerts", icon: Bell },
+  { title: "Compliance", href: "/compliance", icon: Shield },
+]
+
+const moreNavItems = [
+  { title: "Profile", href: "/profile", icon: User },
+  { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Tenant Selector", href: "/tenant", icon: Building },
+  { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
 ]
 
 export default function AppShell({ children, title = "Odyssey Nutrition" }: AppShellProps) {
@@ -40,8 +68,14 @@ export default function AppShell({ children, title = "Odyssey Nutrition" }: AppS
     <SidebarProvider defaultOpen>
       <AppSidebar />
       <SidebarInset>
+        {/* Top bar is always visible; guard will redirect unauthenticated users */}
         <TopNav title={title} />
-        <div className="px-4 md:px-6 py-4">{children}</div>
+        <TenantProvider>
+        {/* Protect the app content area */}
+        <AuthGuard>
+          <div className="px-4 md:px-6 py-4">{children}</div>
+        </AuthGuard>
+        </TenantProvider>
       </SidebarInset>
     </SidebarProvider>
   )
@@ -49,6 +83,8 @@ export default function AppShell({ children, title = "Odyssey Nutrition" }: AppS
 
 function AppSidebar() {
   const pathname = usePathname()
+  const [moreOpen, setMoreOpen] = useState(false)
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-2">
@@ -65,9 +101,9 @@ function AppSidebar() {
           <SidebarGroupLabel>{"Navigation"}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")}>
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
@@ -78,49 +114,35 @@ function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
         <SidebarGroup>
-          <SidebarGroupLabel>{"Monitoring"}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/jobs">
-                    <Activity />
-                    <span>{"Ingestion Jobs"}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/alerts">
-                    <CircleAlert />
-                    <span>{"Alerts"}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
+          <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md px-2 py-1 text-sm">
+                {"More"}
+                <ChevronRight className={`h-4 w-4 transition-transform ${moreOpen ? "rotate-90" : ""}`} />
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {moreNavItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={pathname === item.href}>
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/settings">
-                <Settings />
-                <span>{"Settings"}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/compliance">
-                <BadgeCheck />
-                <span>{"Compliance"}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
         <div className="p-2">
           <SidebarTrigger className="w-full justify-start">
             <span className="group-data-[collapsible=icon]:hidden">{"Collapse"}</span>

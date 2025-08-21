@@ -1,0 +1,14 @@
+[
+  {"name":"Walmart","slug":"walmart","team_name":"walmart","domains":["walmart.com","walmart.ca"]},
+  {"name":"Target","slug":"target","team_name":"target","domains":["target.com"]},
+  {"name":"Kroger","slug":"kroger","team_name":"kroger","domains":["kroger.com","thekrogerco.com"]},
+  {"name":"Costco","slug":"costco","team_name":"costco","domains":["costco.com"]},
+  {"name":"Whole Foods Market","slug":"wholefoods","team_name":"wholefoods","domains":["wholefoodsmarket.com"]},
+  {"name":"ALDI (US)","slug":"aldi","team_name":"aldi","domains":["aldi.us","aldi.com"]},
+  {"name":"Lidl (US)","slug":"lidl","team_name":"lidl","domains":["lidl.com"]},
+  {"name":"Trader Joe's","slug":"traderjoes","team_name":"traderjoes","domains":["traderjoes.com"]},
+  {"name":"Publix","slug":"publix","team_name":"publix","domains":["publix.com"]},
+  {"name":"H-E-B","slug":"heb","team_name":"heb","domains":["heb.com"]},
+  {"name":"Albertsons","slug":"albertsons","team_name":"albertsons","domains":["albertsons.com"]},
+  {"name":"odysseyts","slug":"odysseyts","team_name":"odysseyts","domains":["odysseyts.com"]}
+]
