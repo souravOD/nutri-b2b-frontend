@@ -6,6 +6,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 // You can keep using your client provider directly; it's fine in a server layout
 import { AuthProvider } from "@/hooks/useAuth";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Odyssey Nutrition B2B Console",
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body className="font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider><Suspense fallback={null}>{children}</Suspense></AuthProvider>
         <Toaster />
       </body>
     </html>

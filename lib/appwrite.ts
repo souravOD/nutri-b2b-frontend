@@ -1,6 +1,6 @@
 "use client";
 
-import { Client, Account, Databases, Storage, Functions } from "appwrite";
+import { Client, Account, Databases, Storage, Functions, Teams, ID } from "appwrite";
 
 // Accept either PROJECT or PROJECT_ID (your .env uses _PROJECT_ID)
 const endpoint =
@@ -20,6 +20,12 @@ export const account   = new Account(client);
 export const databases = new Databases(client);
 export const storage   = new Storage(client);
 export const functions = new Functions(client);
+
+// ✅ NEW: export a Teams client
+export const teams = new Teams(client);
+
+// ✅ NEW: re-export ID so callers can do `import { ID } from "@/lib/appwrite"`
+export { ID };
 
 let cache: { jwt: string; expMs: number } | null = null;
 
