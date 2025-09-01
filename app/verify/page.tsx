@@ -96,7 +96,7 @@ async function afterVerifiedRedirect(router: ReturnType<typeof useRouter>) {
     const me = await account.get()
 
     // Attach to vendor/team via server (domain → vendor.domains → vendor.team_id)
-    const resp = await fetch("/api/auth/complete-registration", {
+    const resp = await fetch("/auth/complete-registration", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ userId: me.$id, email: me.email, fullName: me.name }),

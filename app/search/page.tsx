@@ -12,16 +12,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Package, Users, Briefcase, Filter, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/backend"
 
 type Product = {
   id: string
   name: string
+  // show externalId as SKU (we’ll map it below)
   sku: string
-  brand: string
+  brand?: string
   category: string
   status: "Active" | "Inactive" | "Pending"
-  tags: string[]
   image?: string
+
+  // tags (generic) + dietaryTags (explicit)
+  tags: string[]
+  dietaryTags?: string[]
+
+  // new product details
+  barcode?: string
+  packageWeight?: string | null
+  servingSize?: string | null
+  servingsPerContainer?: number | string | null
+  description?: string | null
+  ingredients?: string | null
+
+  // price
+  price?: number | null
+  currency?: string | null
+
+  // full nutrition profile (ordered later in UI)
+  nutrition?: {
+    calories?: number
+    protein_g?: number
+    fat_g?: number
+    carbs_g?: number
+    fiber_g?: number
+    sugar_g?: number
+    sodium_mg?: number
+  }
 }
 
 type Customer = {
@@ -31,6 +59,9 @@ type Customer = {
   status: "Active" | "Inactive" | "Pending"
   tags: string[]
   matchCount: number
+  email?: string
+  phone?: string
+  location?: { city?: string; state?: string; postal?: string; country?: string }
 }
 
 type Job = {
@@ -40,6 +71,131 @@ type Job = {
   status: "Running" | "Completed" | "Failed" | "Pending"
   createdAt: string
   progress?: number
+}
+
+// --- Normalizers for backend -> Search page shapes ---
+type StatusTri = "Active" | "Inactive" | "Pending";
+
+function normStatus(v: any): StatusTri {
+  const s = String(v ?? "Active").toLowerCase();
+  if (s.startsWith("pend")) return "Pending";
+  if (s === "archived" || s.startsWith("inac") || s === "inactive") return "Inactive";
+  return "Active";
+}
+
+const NUT_ORDER = [
+  { key: "calories",   label: "Calories", unit: "kcal" },
+  { key: "protein_g",  label: "Protein",  unit: "g"    },
+  { key: "fat_g",      label: "Fat",      unit: "g"    },
+  { key: "carbs_g",    label: "Carbs",    unit: "g"    },
+  { key: "fiber_g",    label: "Fiber",    unit: "g"    },
+  { key: "sugar_g",    label: "Sugar",    unit: "g"    },
+  { key: "sodium_mg",  label: "Sodium",   unit: "mg"   },
+] as const
+
+function toSearchProduct(src: any): Product {
+  // union tags + dietaryTags (keep both; tags used for generic chips/search)
+  const tags = Array.isArray(src?.tags) ? src.tags : []
+  const dietary = Array.isArray(src?.dietaryTags) ? src.dietaryTags : []
+  const allTags = [...new Set([...tags, ...dietary])]
+
+  // ingredients may come as string or array
+  const ingredients =
+    Array.isArray(src?.ingredients) ? src.ingredients.join(", ") :
+    typeof src?.ingredients === "string" ? src.ingredients :
+    null
+
+  // serving size / per-container fields can have different casings
+  const servingSize = src?.serving_size ?? src?.servingSize ?? null
+  const servingsPerContainer = src?.servings_per_container ?? src?.servingsPerContainer ?? null
+
+  // prefer externalId as SKU, else fall back
+  const sku = String(src?.externalId ?? src?.sku ?? src?.barcode ?? "No SKU")
+
+  return {
+    id: String(src?.id ?? src?.product_id ?? ""),
+    name: String(src?.name ?? src?.title ?? ""),
+    sku,
+    brand: src?.brand ?? src?.manufacturer ?? undefined,
+    category: String(src?.category ?? src?.category_name ?? "No Category"),
+    status: normStatus(src?.status),
+    image: src?.image ?? src?.image_url ?? src?.imageUrl ?? undefined,
+
+    tags: allTags,
+    dietaryTags: dietary,
+
+    barcode: src?.barcode ?? undefined,
+    packageWeight: src?.packageWeight ?? null,
+    servingSize,
+    servingsPerContainer,
+    description: src?.description ?? null,
+    ingredients,
+
+    price: typeof src?.price === "number" ? src.price : null,
+    currency: src?.currency ?? null,
+
+    nutrition: src?.nutrition
+      ? {
+          calories:   src.nutrition.calories   ?? src.nutrition.calories_g   ?? undefined,
+          protein_g:  src.nutrition.protein_g  ?? undefined,
+          fat_g:      src.nutrition.fat_g      ?? undefined,
+          carbs_g:    src.nutrition.carbs_g    ?? undefined,
+          fiber_g:    src.nutrition.fiber_g    ?? undefined,
+          sugar_g:    src.nutrition.sugar_g    ?? undefined,
+          sodium_mg:  src.nutrition.sodium_mg  ?? undefined,
+        }
+      : undefined,
+  }
+}
+
+function toSearchCustomer(src: any): Customer {
+  const name =
+    src?.fullName ||
+    [src?.firstName, src?.lastName].filter(Boolean).join(" ") ||
+    src?.name ||
+    "Unnamed Customer";
+
+  // Tags can arrive as customTags or tags
+  const tags = Array.isArray(src?.customTags)
+    ? src.customTags
+    : Array.isArray(src?.tags)
+    ? src.tags
+    : [];
+
+  // Location can be nested (location: { city, state, postal, country }) or flat
+  const location =
+    src?.location ?? {
+      city: src?.city,
+      state: src?.state,
+      postal: src?.postal,
+      country: src?.country,
+    };
+
+  return {
+    id: String(src?.id ?? src?.customer_id ?? ""),
+    name,
+    type: (src?.type ?? src?.customer_type ?? "Retailer") as Customer["type"],
+    status: normStatus(src?.status),
+    tags,
+    matchCount: Number(src?.match_count ?? src?.matches ?? 0) || 0,
+    email: src?.email ?? undefined,
+    phone: src?.phone ?? undefined,
+    location,
+  };
+}
+
+// Accept arrays or objects like {data: [...]} / {items: [...]}
+const pluckItems = (raw: any): any[] =>
+  Array.isArray(raw) ? raw : (raw?.data ?? raw?.items ?? []);
+
+// Small debounce hook for search-as-you-type
+function useDebounced<T>(value: T, delay = 350) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
 }
 
 const dummyProducts: Product[] = [
@@ -135,6 +291,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState(searchParams.get("q") || "")
   const [activeTab, setActiveTab] = useState("products")
   const [isLoading, setIsLoading] = useState(false)
+  const debouncedQ = useDebounced(query, 350);
 
   // Filters state
   const [productFilters, setProductFilters] = useState({
@@ -161,15 +318,27 @@ export default function SearchPage() {
 
   // Load initial data
   useEffect(() => {
-    setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setProducts(Array.isArray(dummyProducts) ? dummyProducts : [])
-      setCustomers(Array.isArray(dummyCustomers) ? dummyCustomers : [])
-      setJobs(Array.isArray(dummyJobs) ? dummyJobs : [])
-      setIsLoading(false)
-    }, 500)
-  }, [])
+  setIsLoading(true);
+  const load = async () => {
+    try {
+      const [pr, cr] = await Promise.all([
+        apiFetch("/products?limit=200"),
+        apiFetch("/customers?limit=200"),
+      ]);
+      const [pjson, cjson] = await Promise.all([
+        pr.json().catch(() => null),
+        cr.json().catch(() => null),
+      ]);
+
+      setProducts(pluckItems(pjson).map(toSearchProduct));
+      setCustomers(pluckItems(cjson).map(toSearchCustomer));
+      setJobs(Array.isArray(dummyJobs) ? dummyJobs : []); // keep Jobs tab as-is
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  load();
+}, []);
 
   // Update URL when query changes
   useEffect(() => {
@@ -194,18 +363,74 @@ export default function SearchPage() {
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  // Remote search whenever the debounced query changes
+  useEffect(() => {
+    let aborted = false;
+
+    const run = async () => {
+      // If query is empty → reload baseline (no q)
+      if (!debouncedQ) {
+        const [pr, cr] = await Promise.all([
+          apiFetch("/products?limit=200"),
+          apiFetch("/customers?limit=200"),
+        ]);
+        const [pjson, cjson] = await Promise.all([
+          pr.json().catch(() => null),
+          cr.json().catch(() => null),
+        ]);
+        if (aborted) return;
+        setProducts(pluckItems(pjson).map(toSearchProduct));
+        setCustomers(pluckItems(cjson).map(toSearchCustomer));
+        return;
+      }
+
+      // Active query → ask backend with ?q=
+      setIsLoading(true);
+      try {
+        const [pr, cr] = await Promise.all([
+          apiFetch(`/products?q=${encodeURIComponent(debouncedQ)}&limit=200`),
+          apiFetch(`/customers?q=${encodeURIComponent(debouncedQ)}&limit=200`),
+        ]);
+        const [pjson, cjson] = await Promise.all([
+          pr.json().catch(() => null),
+          cr.json().catch(() => null),
+        ]);
+        if (aborted) return;
+        setProducts(pluckItems(pjson).map(toSearchProduct));
+        setCustomers(pluckItems(cjson).map(toSearchCustomer));
+      } finally {
+        if (!aborted) setIsLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      aborted = true;
+    };
+  }, [debouncedQ]);
+
   // Safe filtering functions with null checks
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return []
 
     return products.filter((product) => {
       if (!product) return false
+      const hay = [
+        product.name,
+        product.sku,
+        product.brand,
+        product.category,
+        product.barcode,
+        product.description,
+        product.ingredients,
+        ...(product.tags || []),
+        ...(product.dietaryTags || []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
 
-      const matchesQuery =
-        !query ||
-        (product.name || "").toLowerCase().includes(query.toLowerCase()) ||
-        (product.sku || "").toLowerCase().includes(query.toLowerCase()) ||
-        (product.brand || "").toLowerCase().includes(query.toLowerCase())
+      const matchesQuery = !query || hay.includes(query.toLowerCase())
 
       const matchesStatus = productFilters.status === "all" || product.status === productFilters.status
       const matchesCategory = productFilters.category === "all" || product.category === productFilters.category
@@ -226,7 +451,11 @@ export default function SearchPage() {
       const matchesQuery =
         !query ||
         (customer.name || "").toLowerCase().includes(query.toLowerCase()) ||
-        (customer.type || "").toLowerCase().includes(query.toLowerCase())
+        (customer.type || "").toLowerCase().includes(query.toLowerCase()) ||
+        (customer.email || "").toLowerCase().includes(query.toLowerCase()) ||
+        (
+          ((customer.location?.city || "") + " " + (customer.location?.state || "")).trim()
+        ).toLowerCase().includes(query.toLowerCase())
 
       const matchesStatus = customerFilters.status === "all" || customer.status === customerFilters.status
       const matchesType = customerFilters.type === "all" || customer.type === customerFilters.type
@@ -544,6 +773,67 @@ export default function SearchPage() {
                             <span>•</span>
                             <span>{product.category || "No Category"}</span>
                           </div>
+                          {/* Package / Serving meta */}
+                          {(product.packageWeight || product.servingSize) && (
+                            <div className="text-sm text-muted-foreground">
+                              {product.packageWeight && <span>Package: {product.packageWeight}</span>}
+                              {product.packageWeight && product.servingSize && <span> • </span>}
+                              {product.servingSize && (
+                                <span>
+                                  Serving: {product.servingSize}
+                                  {product.servingsPerContainer ? ` × ${product.servingsPerContainer}/pkg` : ""}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Description */}
+                          {product.description && (
+                            <div className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                              {product.description}
+                            </div>
+                          )}
+
+                          {/* Ingredients */}
+                          {product.ingredients && (
+                            <div className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                              <span className="font-medium text-foreground">Ingredients: </span>
+                              {product.ingredients}
+                            </div>
+                          )}
+
+                          {/* Dietary tags (chips) */}
+                          {product.dietaryTags?.length ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {product.dietaryTags.map((t) => (
+                                <span
+                                  key={t}
+                                  className="rounded-full border px-2 py-0.5 text-xs"
+                                  aria-label={`dietary tag ${t}`}
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {/* Nutrition grid */}
+                          {product.nutrition && (
+                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                              {NUT_ORDER.map(({ key, label, unit }) => {
+                                const v = (product.nutrition as any)?.[key]
+                                if (v == null) return null
+                                return (
+                                  <div key={key} className="rounded-md border p-2">
+                                    <div className="text-xs text-muted-foreground">{label}</div>
+                                    <div className="text-sm font-medium">
+                                      {v} {unit}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
                           {Array.isArray(product.tags) && product.tags.length > 0 && (
                             <div className="flex gap-1 flex-wrap">
                               {product.tags.map((tag) => (
@@ -675,6 +965,17 @@ export default function SearchPage() {
                             <span>•</span>
                             <span>{customer.matchCount || 0} matches</span>
                           </div>
+                          {(customer.email || customer.location?.city || customer.location?.state) && (
+                          <div className="text-sm text-muted-foreground">
+                            {customer.email && <span>{customer.email}</span>}
+                            {customer.email && (customer.location?.city || customer.location?.state) && <span> • </span>}
+                            {(customer.location?.city || customer.location?.state) && (
+                              <span>
+                                {[customer.location?.city, customer.location?.state].filter(Boolean).join(", ")}
+                              </span>
+                            )}
+                          </div>
+                          )}
                           {Array.isArray(customer.tags) && customer.tags.length > 0 && (
                             <div className="flex gap-1">
                               {customer.tags.slice(0, 3).map((tag) => (

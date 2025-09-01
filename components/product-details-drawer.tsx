@@ -9,11 +9,14 @@ interface ProductDetailsDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   product: any | null
+  
 }
 
 export default function ProductDetailsDrawer({ open, onOpenChange, product }: ProductDetailsDrawerProps) {
   if (!product) return null
-
+  const n = product.nutrition ?? {};
+  const fmt = (x?: number, unit = "") =>
+  typeof x === "number" && Number.isFinite(x) ? `${x}${unit}` : "—";
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
@@ -53,8 +56,8 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
                 <div className="font-medium">{product.servingSize || "—"}</div>
               </div>
               <div>
-                <span className="text-muted-foreground">Package Size:</span>
-                <div className="font-medium">{product.packageSize || "—"}</div>
+                <span className="text-muted-foreground">Package Weight:</span>
+                <div className="font-medium">{product.packageWeight || "—"}</div>
               </div>
             </div>
           </div>
@@ -62,21 +65,20 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
           <Separator />
 
           <div>
-            <h3 className="font-semibold mb-3">Match Score</h3>
-            <div className="flex items-center gap-2">
-              <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-lg font-bold">
-                {product.matchScore}%
-              </div>
-              <span className="text-sm text-muted-foreground">
-                {product.matchScore >= 80
-                  ? "Excellent match"
-                  : product.matchScore >= 60
-                    ? "Good match"
-                    : product.matchScore >= 40
-                      ? "Fair match"
-                      : "Poor match"}
-              </span>
-            </div>
+            {typeof product.matchScore === "number" && (
+              <>
+                <h3 className="font-semibold mb-3">Match Score</h3>
+                <div className="flex items-center gap-2">
+                  <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-lg font-bold">
+                    {product.matchScore}%
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    Based on your matching rules and customer profile.
+                  </span>
+                </div>
+                <Separator />
+              </>
+            )}
           </div>
 
           <Separator />
@@ -127,37 +129,17 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
 
           {product.nutrition && (
             <>
+            
               <Separator />
               <div>
                 <h3 className="font-semibold mb-3">Nutrition Facts</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm font-medium mb-2">Per serving ({product.servingSize})</div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex justify-between">
-                      <span>Calories:</span>
-                      <span className="font-medium">{product.nutrition.calories}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Protein:</span>
-                      <span className="font-medium">{product.nutrition.protein}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Carbs:</span>
-                      <span className="font-medium">{product.nutrition.carbs}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Fat:</span>
-                      <span className="font-medium">{product.nutrition.fat}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Sugar:</span>
-                      <span className="font-medium">{product.nutrition.sugar}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Sodium:</span>
-                      <span className="font-medium">{product.nutrition.sodium}mg</span>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div><span className="text-muted-foreground">Calories:</span><div className="font-medium">{fmt(n.calories)}</div></div>
+                  <div><span className="text-muted-foreground">Protein:</span><div className="font-medium">{fmt(n.protein, " g")}</div></div>
+                  <div><span className="text-muted-foreground">Carbs:</span><div className="font-medium">{fmt(n.carbs, " g")}</div></div>
+                  <div><span className="text-muted-foreground">Fat:</span><div className="font-medium">{fmt(n.fat, " g")}</div></div>
+                  <div><span className="text-muted-foreground">Sugar:</span><div className="font-medium">{fmt(n.sugar, " g")}</div></div>
+                  <div><span className="text-muted-foreground">Sodium:</span><div className="font-medium">{fmt(n.sodium, " mg")}</div></div>
                 </div>
               </div>
             </>
@@ -169,7 +151,13 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
               <div>
                 <h3 className="font-semibold mb-3">Ingredients</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm leading-relaxed">{product.ingredients}</p>
+                  {Array.isArray(product.ingredients) && product.ingredients.length > 0 ? (
+                    <p className="text-sm leading-relaxed">{product.ingredients.join(", ")}</p>
+                  ) : typeof product.ingredients === "string" && product.ingredients.trim() ? (
+                    <p className="text-sm leading-relaxed">{product.ingredients}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">—</p>
+                  )}
                 </div>
               </div>
             </>

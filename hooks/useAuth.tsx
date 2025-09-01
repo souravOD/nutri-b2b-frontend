@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { account } from "@/lib/appwrite";
+import { syncSupabaseFromAppwrite } from "@/lib/sync";
 
 type User = { $id: string; name?: string | null; email: string } | null;
 type Ctx = {
@@ -24,11 +25,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { refresh(); }, []);
 
   const signIn = async (email: string, password: string) => {
-    await account.createEmailPasswordSession(email, password); await refresh();
+    await account.createEmailPasswordSession(email, password);
+    await syncSupabaseFromAppwrite(); // <-- create rows in Supabase on first login
+    await refresh();
   };
   const signUp = async (name: string, email: string, password: string) => {
     await account.create("unique()", email, password, name);
-    await account.createEmailPasswordSession(email, password); await refresh();
+    await account.createEmailPasswordSession(email, password);
+    await syncSupabaseFromAppwrite(); // <-- create rows right after registration
+    await refresh();
   };
   const signOut = async () => { await account.deleteSession("current"); await refresh(); };
 
