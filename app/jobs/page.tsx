@@ -8,6 +8,7 @@ import StatusBadge from "@/components/status-badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { apiFetch } from "@/lib/backend"
 
 type Job = {
   id: string
@@ -25,9 +26,21 @@ export default function JobsPage() {
   const [selectedJob, setSelectedJob] = React.useState<Job | null>(null)
 
   const load = React.useCallback(async () => {
-    const res = await fetch("/api/jobs")
-    const json = await res.json()
-    setJobs(json.items as Job[])
+    const res = await apiFetch("/jobs")
+    const { data } = await res.json()
+    // Transform backend shape → your UI shape (no UI logic change)
+   setJobs(
+     (data ?? []).map((j: any) => ({
+       id: j.id,
+       type: j.mode,                         // "products" | "customers" | "api_sync"
+       source: j.params?.source ?? "CSV",
+       status: j.status,                     // "queued" | "running" | "completed" | "failed" | "canceled"
+       progress: j.progressPct ?? 0,
+       errorCount: j.totals?.errors ?? 0,
+       createdAt: j.createdAt,
+       updatedAt: j.updatedAt,
+     }))
+   )
   }, [])
   React.useEffect(() => {
     load()
@@ -82,7 +95,7 @@ export default function JobsPage() {
       <div className="mb-3 flex gap-2">
         <Button
           onClick={async () => {
-            const res = await fetch("/api/jobs", {
+            const res = await fetch("/jobs", {
               method: "POST",
               body: JSON.stringify({ type: "import", source: "CSV" }),
             })

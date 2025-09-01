@@ -1,7 +1,20 @@
+// app/api/customers/route.ts
 import { NextResponse } from "next/server"
-import { seed, store } from "../_store"
+import { apiFetch } from "@/lib/backend"
 
 export async function GET() {
-  seed()
-  return NextResponse.json({ items: store.customers })
+  const res = await apiFetch("/customers")
+  const data = await res.json().catch(() => null)
+  return NextResponse.json(data, { status: res.status })
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null)
+  const res = await apiFetch("/customers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => null)
+  return NextResponse.json(data, { status: res.status })
 }

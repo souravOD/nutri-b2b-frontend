@@ -1,14 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import AppShell from "@/components/app-shell"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuContent, 
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
@@ -22,10 +22,12 @@ import ProductFilters, { defaultFilters } from "@/components/product-filters"
 import ActiveFiltersChips from "@/components/active-filters-chips"
 import type { ColumnDef } from "@tanstack/react-table"
 import Image from "next/image"
-import { MoreHorizontal, Search, Columns, Eye, EyeOff } from "lucide-react"
+import { apiFetch } from "@/lib/backend"
 import ProductForm from "@/components/product-form"
 import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
+import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal } from "lucide-react";
+
 
 type Product = {
   id: string
@@ -36,7 +38,7 @@ type Product = {
   brand?: string
   barcode?: string
   servingSize?: string
-  packageSize?: string
+  packageWeight?: string
   imageUrl?: string
   diets?: string[]
   certifications?: string[]
@@ -49,25 +51,134 @@ type Product = {
     sugar?: number
     sodium?: number
   }
-  ingredients?: string
+  ingredients?: string[]      // ← make this an array
   tags: string[]
   updatedAt: string
   country?: string
 }
 
+/* ---------- helpers: normalize incoming data safely ---------- */
+function normalizeTags(tags: unknown): string[] {
+  if (Array.isArray(tags)) return tags.filter(Boolean).map(String);
+  if (typeof tags === "string") {
+    return tags.split(/[,\u2022|]/).map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function toProduct(raw: any): Product {
+  const id =
+    raw?.id ?? raw?.fid ?? raw?._id ?? raw?.productId ?? raw?.uuid ??
+    raw?.sku ?? raw?.code ?? raw?.barcode ?? "";
+
+  const dietaryTags = normalizeTags(raw?.dietaryTags);
+  const tags = [
+    ...normalizeTags(raw?.tags ?? raw?.tagList),
+    ...dietaryTags,
+  ].filter(Boolean);
+
+  const allergens = Array.isArray(raw?.allergens)
+    ? raw.allergens.map(String)
+    : normalizeTags(raw?.allergens);
+
+  const ingredients = Array.isArray(raw?.ingredients)
+    ? raw.ingredients.map(String)
+    : normalizeTags(raw?.ingredients); // also supports comma/semi-colon lists
+
+  // nutrition normalization: map *_g and *_mg → UI’s expected keys
+  const n = raw?.nutrition ?? {};
+  const nutrition = (n && typeof n === "object")
+    ? {
+        calories: toNum(n.calories ?? n.cal),
+        protein:  toNum(n.protein_g ?? n.protein),
+        carbs:    toNum(n.carbs_g   ?? n.carbs),
+        fat:      toNum(n.fat_g     ?? n.fat),
+        sugar:    toNum(n.sugar_g   ?? n.sugar),
+        sodium:   toNum(n.sodium_mg ?? n.sodium),
+      }
+    : undefined;
+
+  return {
+    id: String(id),
+    name: String(raw?.name ?? raw?.productName ?? raw?.title ?? ""),
+    sku: String(raw?.externalId ?? raw?.external_id ?? raw?.sku ?? raw?.code ?? raw?.barcode ?? id ?? ""),
+    status: (raw?.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
+    category: String(raw?.category ?? raw?.categoryName ?? raw?.categoryId ?? ""),
+    brand: raw?.brand ?? raw?.brandName ?? raw?.manufacturer ?? undefined,
+    barcode: raw?.barcode ?? raw?.upc ?? raw?.ean ?? undefined,
+    servingSize: raw?.servingSize ?? raw?.serving_size ?? undefined,
+    packageWeight: raw?.packageWeight ?? raw?.packageWeight ?? undefined,
+    imageUrl: raw?.imageUrl ?? raw?.image_url ?? raw?.image ?? undefined,
+    diets: Array.isArray(raw?.diets) ? raw.diets : undefined,
+    certifications: Array.isArray(raw?.certifications) ? raw.certifications : undefined,
+    allergens,
+    nutrition,
+    ingredients,
+    tags,
+    updatedAt: String(raw?.updatedAt ?? raw?.updated_at ?? new Date().toISOString()),
+    country: raw?.country ?? raw?.countryCode ?? undefined,
+  };
+}
+
+function toNum(x: any): number | undefined {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+
+
+type ParamState = {
+  q?: string | null;
+  view?: "table" | "cards" | null;
+};
+
+function useUrlState() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const get = React.useCallback((): Required<Pick<ParamState, "q" | "view">> => {
+    const q = searchParams.get("q") ?? "";
+    const view = (searchParams.get("view") as "table" | "cards") || "table";
+    return { q, view };
+  }, [searchParams]);
+
+  const set = React.useCallback(
+    (next: Partial<ParamState>) => {
+      const current = new URLSearchParams(searchParams.toString());
+      Object.entries(next).forEach(([key, value]) => {
+        if (value == null || value === "") {
+          current.delete(key);
+        } else {
+          current.set(key, String(value));
+        }
+      });
+      const qs = current.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
+
+  return { get, set };
+}
+
 export default function ProductsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const { get, set } = useUrlState()
+  const url = get()
   const { toast } = useToast()
 
-  const [query, setQuery] = React.useState(searchParams.get("q") || "")
-  const [view, setView] = React.useState<"table" | "cards">((searchParams.get("view") as "table" | "cards") || "table")
+  const handleSearch = (value: string) => set({ q: value || null })
+  const handleViewChange = (v: "table" | "cards") => set({ view: v })
+  const query = url.q.trim().toLowerCase()
+  const view = url.view
   const [data, setData] = React.useState<Product[]>([])
   const [selected, setSelected] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState(true)
   const [filters, setFilters] = React.useState(defaultFilters)
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [detailsOpen, setDetailsOpen] = React.useState(false)
+  
 
   // Column visibility
   const [columnVisibility, setColumnVisibility] = React.useState({
@@ -79,17 +190,21 @@ export default function ProductsPage() {
   })
 
   const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch("/api/products")
-      const json = await res.json()
-      setData(json.items as Product[])
-    } catch (error) {
-      console.error("Failed to load products:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  setLoading(true)
+  try {
+    const res = await apiFetch("/products")
+    const json = await res.json()
+
+    // Accept: [ ... ]  OR  {items:[...]}  OR  {data:[...]}  OR  {results:[...]}
+    const items = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : (json?.items ?? []));
+
+    setData(items.map(toProduct));
+  } catch (error) {
+    console.error("Failed to load products:", error)
+  } finally {
+    setLoading(false)
+  }
+}, [])
 
   React.useEffect(() => {
     load()
@@ -179,25 +294,26 @@ export default function ProductsPage() {
   }
 
   const handleFilterRemove = (key: string, value?: string) => {
-    if (value && Array.isArray(filters[key])) {
-      const current = filters[key] as string[]
-      setFilters({ ...filters, [key]: current.filter((v) => v !== value) })
+    const f = filters as Record<string, any>; // type-only shim, no runtime change
+    if (value && Array.isArray(f[key])) {
+      const current = f[key] as string[];
+      setFilters({ ...filters, [key]: current.filter((v) => v !== value) });
     } else {
       setFilters({
         ...filters,
         [key]:
           key === "status" || key === "country"
             ? "all"
-            : Array.isArray(filters[key])
-              ? []
-              : key.includes("missing")
-                ? false
-                : key === "hasImage"
-                  ? null
-                  : "",
-      })
+            : Array.isArray(f[key])
+            ? []
+            : key.includes("missing")
+            ? false
+            : key === "hasImage"
+            ? null
+            : "",
+      });
     }
-  }
+  };
 
   const handleBulkAction = (action: "activate" | "deactivate") => {
     const newStatus = action === "activate" ? "active" : "inactive"
@@ -320,18 +436,22 @@ export default function ProductsPage() {
     {
       id: "tags",
       header: "Tags",
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          {row.original.tags.slice(0, 3).map((t) => (
-            <Badge key={t} variant="secondary">
-              {t}
-            </Badge>
-          ))}
-          {row.original.tags.length > 3 && (
-            <span className="text-xs text-muted-foreground">{`+${row.original.tags.length - 3}`}</span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const tags = row.original.tags ?? [] // already normalized, but guard anyway
+        if (!tags.length) return null
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 3).map((t) => (
+              <Badge key={t} variant="secondary">
+                {t}
+              </Badge>
+            ))}
+            {tags.length > 3 && (
+              <span className="text-xs text-muted-foreground">{`+${tags.length - 3}`}</span>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: "updatedAt",
@@ -394,14 +514,14 @@ export default function ProductsPage() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative" role="search">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search products..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-64 pl-10"
-              aria-label="Search products"
-            />
+                placeholder="Search products..."
+                value={url.q}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-64 pl-10"
+                aria-label="Search products"
+             />
           </div>
 
           <ProductFilters filters={filters} onChange={handleFilterChange} onClear={handleFilterClear} data={data} />
@@ -433,7 +553,7 @@ export default function ProductsPage() {
             <div className="text-sm text-muted-foreground">
               {filtered.length} of {data.length} products
             </div>
-            <Tabs value={view} onValueChange={(v) => setView(v as "table" | "cards")}>
+            <Tabs value={view} onValueChange={(v) => handleViewChange(v as "table" | "cards")}>
               <TabsList>
                 <TabsTrigger value="table">{"Table"}</TabsTrigger>
                 <TabsTrigger value="cards">{"Cards"}</TabsTrigger>
@@ -449,7 +569,7 @@ export default function ProductsPage() {
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Search className="h-12 w-12 text-muted-foreground" />
+              <SearchIcon className="h-12 w-12 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold mb-2">No products found</h3>
             <p className="text-muted-foreground mb-4">
@@ -471,7 +591,7 @@ export default function ProductsPage() {
             columns={visibleColumns}
             selectable
             onSelectionChange={(rows) => setSelected(rows as Product[])}
-            onRowClick={handleRowClick}
+            {...({ onRowClick: handleRowClick } as any)}
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -493,11 +613,14 @@ export default function ProductsPage() {
                     <div className="font-medium">{p.name}</div>
                     <div className="text-xs text-muted-foreground">{p.sku}</div>
                     <div className="mt-1 flex gap-1 flex-wrap">
-                      {p.tags.slice(0, 3).map((t) => (
+                      {(p.tags ?? []).slice(0, 3).map((t) => (
                         <Badge key={t} variant="secondary">
                           {t}
                         </Badge>
                       ))}
+                      {(p.tags ?? []).length > 3 && (
+                        <Badge variant="outline">+{(p.tags ?? []).length - 3}</Badge>
+                      )}
                     </div>
                   </div>
                   <div className="ml-auto">

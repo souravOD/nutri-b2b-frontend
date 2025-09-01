@@ -1,0 +1,14 @@
+# Ignore local env and logs
+.env*
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test artifacts
+coverage
+**/__tests__/**
+**/*.spec.*
+**/*.test.*
+
+# Node modules are managed by Vercel
+node_modules
