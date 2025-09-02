@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import AppShell from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,13 +11,14 @@ import { cn } from "@/lib/utils";
 type Metrics = {
   totalProducts?: number;
   activeCustomers?: number;
-  profilesWithMatchesPct?: number; // optional
-  pendingJobs?: number;            // optional
+  profilesWithMatchesPct?: number;
+  pendingJobs?: number;
 };
 
-type ListResponse<T> = { data?: T[] } | T[]; // our APIs sometimes return {data: []}, sometimes [].
+type ListResponse<T> = { data?: T[] } | T[];
 
-function pickArray<T = unknown>(maybe: ListResponse<T>): T[] {
+// normalize our list responses (sometimes [], sometimes { data: [] })
+function toArray<T>(maybe: ListResponse<T>): T[] {
   if (Array.isArray(maybe)) return maybe;
   if (maybe && typeof maybe === "object" && "data" in maybe) {
     const d = (maybe as any).data;
@@ -37,80 +37,79 @@ export default function DashboardPage() {
   });
 
   React.useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        // 1) Try metrics first (if backend supports it)
-        let usedFallback = false;
-        try {
-          const mRes = await apiFetch("/metrics");
-          if (mRes.ok) {
-            const m = await mRes.json();
-            // Normalize a few common shapes
-            const normalized: Metrics = {
-              totalProducts:
-                m.totalProducts ?? m.products ?? m.counts?.products ?? 0,
-              activeCustomers:
-                m.activeCustomers ??
-                m.customersActive ??
-                m.counts?.customersActive ??
-                m.customers ??
-                0,
-              profilesWithMatchesPct:
-                m.profilesWithMatchesPct ??
-                m.matchRate ??
-                m.profiles_with_matches_pct ??
-                0,
-              pendingJobs:
-                m.pendingJobs ?? m.jobs?.pending ?? m.counts?.jobsPending ?? 0,
-            };
+    const ac = new AbortController();
+    let mounted = true;
+    const safeSet = (fn: () => void) => {
+      if (mounted && !ac.signal.aborted) fn();
+    };
 
-            // If both key counts are clearly 0, we’ll still do a fallback pass.
-            if (
-              (normalized.totalProducts ?? 0) === 0 &&
-              (normalized.activeCustomers ?? 0) === 0
-            ) {
-              usedFallback = true;
-            } else {
-              setMetrics((prev) => ({ ...prev, ...normalized }));
-            }
-          } else {
-            usedFallback = true;
-          }
-        } catch {
-          usedFallback = true;
+    const load = async (attempt = 0) => {
+      try {
+        // Prefer consolidated metrics endpoint
+        const r = await apiFetch("/metrics", { signal: ac.signal });
+        if (ac.signal.aborted) return;
+
+        if (r.ok) {
+          const m = await r.json();
+          if (ac.signal.aborted) return;
+          safeSet(() =>
+            setMetrics({
+              totalProducts: m.totalProducts ?? m.products ?? m.counts?.products ?? 0,
+              activeCustomers:
+                m.activeCustomers ?? m.customersActive ?? m.counts?.customersActive ?? m.customers ?? 0,
+              profilesWithMatchesPct:
+                m.profilesWithMatchesPct ?? m.matchRate ?? m.profiles_with_matches_pct ?? 0,
+              pendingJobs: m.pendingJobs ?? m.jobs?.pending ?? m.counts?.jobsPending ?? 0,
+            })
+          );
+          return;
         }
 
-        // 2) Fallback: count straight from lists (products/customers)
-        if (usedFallback) {
-          const [pRes, cRes] = await Promise.all([
-            apiFetch("/products"),
-            apiFetch("/customers"),
-          ]);
-          const products = pRes.ok ? pickArray(await pRes.json()) : [];
-          const customers = cRes.ok ? pickArray(await cRes.json()) : [];
+        // first-paint race: retry once on 401/403
+        if ((r.status === 401 || r.status === 403) && attempt < 1) {
+          setTimeout(() => {
+            if (!ac.signal.aborted) load(attempt + 1);
+          }, 350);
+          return;
+        }
 
-          // If your API marks an "active" flag on the customer rows, filter here.
-          // Otherwise, we’ll treat all fetched customers as active.
-          const activeCustomers = customers.filter((c: any) =>
-            typeof c?.status === "string"
-              ? c.status === "active"
-              : true
-          ).length;
+        // Fallback: derive from lists
+        const [pRes, cRes] = await Promise.all([
+          apiFetch("/products", { signal: ac.signal }),
+          apiFetch("/customers", { signal: ac.signal }),
+        ]);
+        if (ac.signal.aborted) return;
 
+        const products = pRes.ok ? toArray(await pRes.json()) : [];
+        const customers = cRes.ok ? toArray(await cRes.json()) : [];
+
+        const activeCustomers = customers.filter((c: any) => {
+          const s = (c?.status ?? "").toString().toLowerCase();
+          return !s || s === "active";
+        }).length;
+
+        safeSet(() =>
           setMetrics({
             totalProducts: products.length,
             activeCustomers,
-            profilesWithMatchesPct: 0, // you can wire this to a matches endpoint later
+            profilesWithMatchesPct: 0,
             pendingJobs: 0,
-          });
-        }
+          })
+        );
+      } catch (err: any) {
+        // Ignore aborts from StrictMode/unmount
+        if (err?.name === "AbortError") return;
+        // Optional: console.error("dashboard load failed", err);
       } finally {
-        setLoading(false);
+        safeSet(() => setLoading(false));
       }
     };
 
     load();
+    return () => {
+      mounted = false;
+      ac.abort();
+    };
   }, []);
 
   if (loading) {
@@ -129,22 +128,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <AppShell title="Odyssey Nutrition">
+    <AppShell title="Odyssey B2B">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Products"
-          value={metrics.totalProducts ?? 0}
-          sub="View All"
-          href="/products"
-        />
-
-        <StatCard
-          label="Active Customers"
-          value={metrics.activeCustomers ?? 0}
-          sub="Manage"
-          href="/customers"
-        />
-
+        <StatCard label="Total Products" value={metrics.totalProducts ?? 0} sub="View All" href="/products" />
+        <StatCard label="Active Customers" value={metrics.activeCustomers ?? 0} sub="Manage" href="/customers" />
         <StatCard
           label="Profiles with Matches"
           value={
@@ -155,13 +142,7 @@ export default function DashboardPage() {
           sub="View Analysis"
           href="/search?tab=profiles"
         />
-
-        <StatCard
-          label="Pending Jobs"
-          value={metrics.pendingJobs ?? 0}
-          sub="View Jobs"
-          href="/jobs"
-        />
+        <StatCard label="Pending Jobs" value={metrics.pendingJobs ?? 0} sub="View Jobs" href="/jobs" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -185,7 +166,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* You can keep your existing Recent Activity / other panels here */}
         <Card className="p-4 lg:col-span-2">
           <h3 className="font-semibold mb-2">Recent Activity</h3>
           <div className="text-sm text-muted-foreground">
