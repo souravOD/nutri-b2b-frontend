@@ -63,19 +63,20 @@ const moreNavItems = [
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
 ]
 
-export default function AppShell({ children, title = "Odyssey Nutrition" }: AppShellProps) {
+export default function AppShell({ children, title = "Odyssey Nutrition" }: { children: React.ReactNode; title?: string }) {
   return (
     <SidebarProvider defaultOpen>
       <AppSidebar />
       <SidebarInset>
-        {/* Top bar is always visible; guard will redirect unauthenticated users */}
+        {/* Top bar is always visible; guard protects the main content */}
         <TopNav title={title} />
-        <TenantProvider>
-        {/* Protect the app content area */}
+        {/* 🔁 AuthGuard FIRST, so nothing below renders until auth is settled */}
         <AuthGuard>
-          <div className="px-4 md:px-6 py-4">{children}</div>
+          {/* TenantProvider now runs only after auth; prevents unauthenticated DB lookups */}
+          <TenantProvider>
+            <div className="px-4 md:px-6 py-4">{children}</div>
+          </TenantProvider>
         </AuthGuard>
-        </TenantProvider>
       </SidebarInset>
     </SidebarProvider>
   )
