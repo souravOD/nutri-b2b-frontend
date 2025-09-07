@@ -1,31 +1,30 @@
-import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import './globals.css'
+// app/layout.tsx (SERVER component - no "use client")
+import type { Metadata } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
+// You can keep using your client provider directly; it's fine in a server layout
+import { AuthProvider } from "@/hooks/useAuth";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
-}
+  title: "Odyssey Nutrition B2B Console",
+  description: "B2B platform for dietary compliance and product matching",
+  generator: "v0.dev",
+};
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
-      <body>{children}</body>
+    <html
+      lang="en"
+      // Apply font variables from next/font here (no inline <style> injection)
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+    >
+      <body className="font-sans antialiased">
+        <AuthProvider><Suspense fallback={null}>{children}</Suspense></AuthProvider>
+        <Toaster />
+      </body>
     </html>
-  )
+  );
 }
