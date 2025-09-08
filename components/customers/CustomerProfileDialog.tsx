@@ -33,7 +33,19 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
   const [error, setError] = useState<string | null>(null)
   const [customer, setCustomer] = useState<UICustomer | null>(null)
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState<{ name: string; email: string; phone?: string; tags: string[] }>({ name: "", email: "", phone: "", tags: [] })
+  const [form, setForm] = useState<{
+    name: string;
+    email: string;
+    phone?: string;
+    tags: string[];
+    location: { city: string; state: string; postal: string; country: string };
+  }>({
+    name: "",
+    email: "",
+    phone: "",
+    tags: [],
+    location: { city: "", state: "", postal: "", country: "" },
+  });
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
@@ -50,6 +62,12 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
             email: data.email ?? "",
             phone: data.phone ?? "",
             tags: Array.isArray(data.tags) ? data.tags : [],
+            location: {
+              city: data.location?.city ?? "",
+              state: data.location?.state ?? "",
+              postal: data.location?.postal ?? "",
+              country: data.location?.country ?? "",
+            },
           })
         }
       } catch {
@@ -67,10 +85,22 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
     if (!id) return
     setLoading(true)
     try {
-      const updated = await updateCustomer(id, { name: form.name, email: form.email, phone: form.phone, tags: form.tags })
-      setCustomer(updated)
-      setEditing(false)
-      onSaved?.(updated)
+      const updated = await updateCustomer(id, {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        tags: form.tags,
+        location: {
+          city: form.location.city || undefined,
+          state: form.location.state || undefined,
+          postal: form.location.postal || undefined,
+          country: form.location.country || undefined,
+        },
+      });
+      const fresh = await getCustomer(id);          // includes healthProfile
+      setCustomer(fresh);
+      setEditing(false);
+      onSaved?.(fresh);
     } catch {
       setError("Save failed. Please try again.")
     } finally {
@@ -156,6 +186,57 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
             <Label htmlFor="tags">Tags (comma separated)</Label>
             <Input id="tags" value={(form.tags || []).join(", ")} onChange={(e) => setForm(s => ({ ...s, tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }))} disabled={!editing} placeholder="vip, gluten-free" />
           </div>
+          {/* Location */}
+          <div className="space-y-2">
+            <Label htmlFor="city">City</Label>
+            <Input
+              id="city"
+              value={form.location.city}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, location: { ...s.location, city: e.target.value } }))
+              }
+              disabled={!editing}
+              placeholder="Austin"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="state">State</Label>
+            <Input
+              id="state"
+              value={form.location.state}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, location: { ...s.location, state: e.target.value } }))
+              }
+              disabled={!editing}
+              placeholder="TX"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="postal">Postal</Label>
+            <Input
+              id="postal"
+              value={form.location.postal}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, location: { ...s.location, postal: e.target.value } }))
+              }
+              disabled={!editing}
+              inputMode="numeric"
+              placeholder="10001"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="country">Country</Label>
+            <Input
+              id="country"
+              value={form.location.country}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, location: { ...s.location, country: e.target.value } }))
+              }
+              disabled={!editing}
+              placeholder="US"
+            />
+          </div>
+
         </div>
 
         {/* Health/Profile view (no matches, no dietary, no notes) */}

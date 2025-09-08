@@ -289,6 +289,19 @@ export default function CustomerDetailView({
                   {customer.phone ? (
                     <p className="text-sm text-muted-foreground">{customer.phone}</p>
                   ) : null}
+                  {(customer.location?.city ||
+                    customer.location?.state ||
+                    customer.location?.postal ||
+                    customer.location?.country) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[customer.location?.city,
+                        customer.location?.state,
+                        customer.location?.postal,
+                        customer.location?.country]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
               </div>
 

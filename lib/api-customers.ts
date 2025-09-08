@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/backend";
 import { UICustomer, toUICustomer } from "@/types/customer";
 
+export type CustomerLocation = {
+  city?: string; state?: string; postal?: string; country?: string;
+};
+
 function pluckItems(raw: any): any[] {
   if (Array.isArray(raw)) return raw;
   // v3 often returns { data: [...] }

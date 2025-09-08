@@ -802,21 +802,6 @@ export default function SearchPage() {
                             </div>
                           )}
 
-                          {/* Dietary tags (chips) */}
-                          {product.dietaryTags?.length ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {product.dietaryTags.map((t) => (
-                                <span
-                                  key={t}
-                                  className="rounded-full border px-2 py-0.5 text-xs"
-                                  aria-label={`dietary tag ${t}`}
-                                >
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-
                           {/* Nutrition grid */}
                           {product.nutrition && (
                             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">

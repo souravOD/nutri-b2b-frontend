@@ -1,4 +1,11 @@
 // types/customer.ts
+export type UILocation = {
+  city?: string | null;
+  state?: string | null;
+  postal?: string | null;
+  country?: string | null;
+};
+
 export type UIHealthProfile = {
   customerId: string
   heightCm?: number
@@ -38,6 +45,7 @@ export type UICustomer = {
     notes?: string;
   };
   updatedAt?: string;
+  location?: UILocation | null;
   healthProfile?: UIHealthProfile | null
 };
 
@@ -58,6 +66,7 @@ export function toUICustomer(src: any): UICustomer {
       conditions: src.conditions ?? src.restrictions?.conditions ?? [],
       notes: src.restrictions?.notes ?? src.notes ?? undefined,
     },
+    location: src.location ?? null,
     updatedAt: src.updated_at ?? src.updatedAt,
 
     healthProfile: src.healthProfile? {
