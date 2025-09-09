@@ -123,9 +123,13 @@ export async function updateCustomerHealth(
 }
 
 export async function createCustomerWithHealth(input: {
-  name: string;
+  // 🔽 accept both; form sends fullName
+  fullName?: string;
+  name?: string;
   email: string;
   phone?: string;
+  // 🔽 accept both; form sends customTags
+  customTags?: string[] | string;
   tags?: string[] | string;
   health?: {
     age?: number;
@@ -142,15 +146,18 @@ export async function createCustomerWithHealth(input: {
   };
 }) {
   const payload: any = {
-    fullName: input.name?.trim(),
+    // 🔽 prefer fullName; fallback to legacy name
+    fullName: (input.fullName ?? input.name ?? "").trim(),
     email: input.email?.trim(),
     phone: input.phone?.trim() || undefined,
-    customTags: normalizeTags(input.tags),
+    // 🔽 prefer customTags; fallback to legacy tags
+    customTags: normalizeTags(input.customTags ?? input.tags),
   };
 
   if (input.health) {
     const { bmi, bmr, tdeeCached, derivedLimits, ...safeHealth } = input.health;
-    payload.health = safeHealth; // backend will compute derived metrics
+    // backend will compute derived fields
+    payload.health = safeHealth;
   }
 
   const res = await apiFetch("/customers", {

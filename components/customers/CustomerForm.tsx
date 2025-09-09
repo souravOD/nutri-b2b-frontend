@@ -48,6 +48,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   const [carbs, setCarbs] = React.useState<number | "">("")
   const [fat, setFat] = React.useState<number | "">("")
   const [calories, setCalories] = React.useState<number | "">("")
+  const [saving, setSaving] = React.useState(false);
 
   const addTag = () => {
     const v = tagInput.trim()
@@ -78,68 +79,53 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
 
   const handleSubmit = async () => {
     if (!name.trim() || !email.trim()) {
-      toast({ variant: "destructive", title: "Name and email are required" })
-      return
+      toast({ variant: "destructive", title: "Name and email are required" });
+      return;
     }
+    if (saving) return;                    // 🔒 guard against double fire
+    setSaving(true);
 
+    // decide if any health fields were provided
     const healthProvided =
       age !== "" || gender || activity || height !== "" || weight !== "" ||
       preferred.length || avoid.length || conditions.length ||
-      protein !== "" || carbs !== "" || fat !== "" || calories !== ""
+      protein !== "" || carbs !== "" || fat !== "" || calories !== "";
 
-    const payload = {
-      name: name.trim(),
+    // build payload ONCE with backend field names
+    const payload: any = {
+      fullName: name.trim(),               // ⬅️ was "name"
       email: email.trim(),
       phone: phone.trim() || undefined,
-      tags,
-      // store “Preferred” in dietGoals and “Avoid” in avoidAllergens
+      customTags: tags,                    // ⬅️ was "tags"
       health: healthProvided ? {
-        age: num(age),
-        gender: gender || undefined,
-        activityLevel: activity || undefined,
-        heightCm: num(height),
-        weightKg: num(weight),
+        age:        (age === "" ? undefined : Number(age)),
+        gender:     (gender || undefined),
+        activityLevel: (activity || undefined),  // ⬅️ activityLevel key
+        heightCm:   (height === "" ? undefined : Number(height)),
+        weightKg:   (weight === "" ? undefined : Number(weight)),
         conditions,
-        dietGoals: preferred,
+        dietGoals:      preferred,
         avoidAllergens: avoid,
         macroTargets: {
-          protein_g: num(protein),
-          carbs_g: num(carbs),
-          fat_g: num(fat),
-          calories: num(calories),
+          protein_g: (protein === "" ? undefined : Number(protein)),
+          carbs_g:   (carbs   === "" ? undefined : Number(carbs)),
+          fat_g:     (fat     === "" ? undefined : Number(fat)),
+          calories:  (calories=== "" ? undefined : Number(calories)),
         },
       } : undefined,
     };
-    await createCustomerWithHealth(payload);
-
-    if (healthProvided) {
-      payload.health = {
-        age: num(age),
-        gender: (gender || undefined) as any,
-        activityLevel: (activity || undefined) as any,
-        heightCm: num(height),
-        weightKg: num(weight),
-        conditions,
-        dietGoals: preferred,
-        avoidAllergens: avoid,
-        macroTargets: {
-          protein_g: num(protein),
-          carbs_g: num(carbs),
-          fat_g: num(fat),
-          calories: num(calories),
-        },
-      }
-    }
 
     try {
-      const created = await createCustomerWithHealth(payload)
-      toast({ title: "Customer created" })
-      onCreated?.(created)
-      onClose?.()
+      const created = await createCustomerWithHealth(payload);   // ✅ exactly ONE call
+      toast({ title: "Customer created" });
+      onCreated?.(created);
+      onClose?.();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Create failed", description: String(e?.message ?? e) })
+      toast({ variant: "destructive", title: "Create failed", description: String(e?.message ?? e) });
+    } finally {
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <Card className="p-4 space-y-4">
@@ -316,8 +302,13 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
       {/* Footer */}
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} className="bg-black text-white hover:bg-gray-800">
-          Add Customer
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={saving}
+          className="bg-black text-white hover:bg-gray-800"
+        >
+          {saving ? "Adding…" : "Add Customer"}
         </Button>
       </div>
     </Card>
