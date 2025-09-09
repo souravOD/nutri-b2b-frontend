@@ -1,13 +1,10 @@
 import { apiFetch } from "@/lib/backend";
 import { UICustomer, toUICustomer } from "@/types/customer";
 
-<<<<<<< HEAD
-=======
 export type CustomerLocation = {
   city?: string; state?: string; postal?: string; country?: string;
 };
 
->>>>>>> frontend-ready-vercel-v2
 function pluckItems(raw: any): any[] {
   if (Array.isArray(raw)) return raw;
   // v3 often returns { data: [...] }
@@ -69,7 +66,7 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  patch: { name?: string; email?: string; phone?: string; tags?: string[] | string }
+  patch: { name?: string; email?: string; phone?: string; tags?: string[] | string; location?: CustomerLocation }
 ): Promise<UICustomer> {
   const body: any = {
     ...(patch.name ? { fullName: patch.name.trim() } : {}),
@@ -78,6 +75,15 @@ export async function updateCustomer(
   };
   const customTags = normalizeTags(patch.tags);
   if (customTags) body.customTags = customTags;
+
+  if (patch.location) {
+    body.location = {
+      city: patch.location.city?.trim() || undefined,
+      state: patch.location.state?.trim() || undefined,
+      postal: patch.location.postal?.trim() || undefined,
+      country: patch.location.country?.trim()?.toUpperCase() || undefined,
+    };
+  }
 
   const res = await apiFetch(`/customers/${encodeURIComponent(id)}`, {
     method: "PATCH",

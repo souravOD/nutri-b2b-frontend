@@ -802,7 +802,6 @@ export default function SearchPage() {
                             </div>
                           )}
 
-<<<<<<< HEAD
                           {/* Dietary tags (chips) */}
                           {product.dietaryTags?.length ? (
                             <div className="mt-2 flex flex-wrap gap-2">
@@ -818,8 +817,6 @@ export default function SearchPage() {
                             </div>
                           ) : null}
 
-=======
->>>>>>> frontend-ready-vercel-v2
                           {/* Nutrition grid */}
                           {product.nutrition && (
                             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
