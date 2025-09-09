@@ -4,24 +4,34 @@ import { getJWT, refreshJWT } from "@/lib/jwt";
 
 // Use the same host you open in the browser (localhost vs 127.0.0.1)
 const RAW_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-const BASE = RAW_BASE.replace(/\/+$/, "");
+
+// Normalize the backend origin (adds protocol if missing, strips trailing /)
+function normalizeBase(raw?: string) {
+  const s = (raw ?? "").trim();
+  const withProto = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  return withProto.replace(/\/+$/, "");
+}
+
+// Use env or localhost (both normalized)
+const BASE = normalizeBase(process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000");
 
 function normalizePath(path: string) {
   if (!path) return "/";
   let p = path.startsWith("/") ? path : `/${path}`;
-  // Strip leading "/api" and optional version like "/v1"
-  p = p.replace(/^\/api(?:\/v\d+)?(\/|$)/, "/");
-  // Also strip a leading stand-alone version if someone passes "/v1/products"
-  p = p.replace(/^\/v\d+(\/|$)/, "/");
+  p = p.replace(/^\/api(?:\/v\d+)?(\/|$)/, "/"); // drop leading /api(/vX) if passed
+  p = p.replace(/^\/v\d+(\/|$)/, "/");          // drop lone /vX if passed
   return p;
 }
 
 async function doFetch(path: string, init?: RequestInit, forceFresh = false) {
   const jwt = forceFresh ? await refreshJWT() : await getJWT();
 
-  const url = `${BASE}${normalizePath(path)}`;
+  // NEW: allow absolute URLs, otherwise join with normalized BASE
+  const url = /^https?:\/\//i.test(path)
+    ? path
+    : `${BASE}${normalizePath(path)}`;
+
   const headers = new Headers(init?.headers || {});
-  // Set JSON only when there is a body; avoid needless preflight on GETs
   if (init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
