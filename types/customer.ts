@@ -1,4 +1,14 @@
 // types/customer.ts
+<<<<<<< HEAD
+=======
+export type UILocation = {
+  city?: string | null;
+  state?: string | null;
+  postal?: string | null;
+  country?: string | null;
+};
+
+>>>>>>> frontend-ready-vercel-v2
 export type UIHealthProfile = {
   customerId: string
   heightCm?: number
@@ -38,6 +48,10 @@ export type UICustomer = {
     notes?: string;
   };
   updatedAt?: string;
+<<<<<<< HEAD
+=======
+  location?: UILocation | null;
+>>>>>>> frontend-ready-vercel-v2
   healthProfile?: UIHealthProfile | null
 };
 
@@ -58,6 +72,10 @@ export function toUICustomer(src: any): UICustomer {
       conditions: src.conditions ?? src.restrictions?.conditions ?? [],
       notes: src.restrictions?.notes ?? src.notes ?? undefined,
     },
+<<<<<<< HEAD
+=======
+    location: src.location ?? null,
+>>>>>>> frontend-ready-vercel-v2
     updatedAt: src.updated_at ?? src.updatedAt,
 
     healthProfile: src.healthProfile? {
