@@ -157,6 +157,24 @@ function productToFormValues(p: any) {
   }
 }
 
+const fmtCurrency = (v?: string | number, currency = "USD") => {
+  if (v === undefined || v === null || v === "") return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  try { return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n); }
+  catch { return String(n); }
+};
+
+const Chip = ({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "danger" }) => (
+  <span className={
+    "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium " +
+    (tone === "danger"
+      ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20"
+      : "bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-600/20")
+  }>
+    {children}
+  </span>
+);
 
 /* ---------- helpers: normalize incoming data safely ---------- */
 function normalizeTags(tags: unknown): string[] {
@@ -299,6 +317,45 @@ export default function ProductsPage() {
     }
   }
 
+  async function openDetails(p: Product) {
+    try {
+      const res = await apiFetch(`/products/${p.id}`)
+      const full = await res.json()
+
+      // keep your normalized shape, then augment with extra fields
+      const normalized = toProduct(full)
+      const merged: Product = {
+        ...normalized,
+        // add-through fields not included in toProduct normalization
+        gtinType: full?.gtinType ?? full?.gtin_type,
+        price: full?.price,
+        currency: full?.currency,
+        categoryId: full?.categoryId ?? full?.category_id,
+        subCategoryId: full?.subCategoryId ?? full?.sub_category_id,
+        cuisineId: full?.cuisineId ?? full?.cuisine_id,
+        marketId: full?.marketId ?? full?.market_id,
+        description: full?.description,
+        sourceUrl: full?.sourceUrl ?? full?.source_url,
+        regulatoryCodes: Array.isArray(full?.regulatoryCodes) ? full.regulatoryCodes : normalized.regulatoryCodes,
+        certifications: Array.isArray(full?.certifications) ? full.certifications : normalized.certifications,
+        allergens: Array.isArray(full?.allergens) ? full.allergens : normalized.allergens,
+        ingredients: Array.isArray(full?.ingredients) ? full.ingredients : normalized.ingredients,
+        // prefer backend nutrition if present; fallback to normalized
+        nutrition: full?.nutrition ?? normalized.nutrition,
+        // prefer dietaryTags / tags from backend if present
+        tags: Array.isArray(full?.dietaryTags)
+          ? full.dietaryTags
+          : (Array.isArray(full?.tags) ? full.tags : normalized.tags),
+      }
+
+      setSelectedProduct(merged)
+    } catch {
+      // fallback to whatever we had in the row/card
+      setSelectedProduct(p)
+    }
+    setDetailsOpen(true)
+  }
+
   // Column visibility
   const [columnVisibility, setColumnVisibility] = React.useState({
     brand: true,
@@ -400,8 +457,7 @@ export default function ProductsPage() {
   const filtered = applyFilters(data)
 
   const handleRowClick = (product: Product) => {
-    setSelectedProduct(product)
-    setDetailsOpen(true)
+    void openDetails(product)
   }
 
   const handleFilterChange = (newFilters: any) => {
