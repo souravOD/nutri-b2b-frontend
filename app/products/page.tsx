@@ -37,57 +37,126 @@ type Product = {
   category: string
   brand?: string
   barcode?: string
+  gtinType?: "UPC" | "EAN" | "ISBN"
+  price?: string | number
+  currency?: string
+  categoryId?: string
+  subCategoryId?: string
+  cuisineId?: string
+  marketId?: string
+  description?: string
   servingSize?: string
   packageWeight?: string
-  imageUrl?: string
-  diets?: string[]
+  sourceUrl?: string
+  regulatoryCodes?: string[]
   certifications?: string[]
   allergens?: string[]
+  ingredients?: string[]
+  tags: string[]
   nutrition?: {
     calories?: number
-    protein?: number
-    carbs?: number
-    fat?: number
-    sugar?: number
-    sodium?: number
+    protein_g?: number
+    fat_g?: number
+    carbs_g?: number
+    sugar_g?: number
+    added_sugar_g?: number
+    saturated_fat_g?: number
+    sodium_mg?: number
+    potassium_mg?: number
+    phosphorus_mg?: number
   }
-  ingredients?: string[]      // ← make this an array
-  tags: string[]
+  imageUrl?: string
+  diets?: string[]
   updatedAt: string
   country?: string
 }
 
+// type Product = {
+//   id: string
+//   name: string
+//   sku: string
+//   status: "active" | "inactive"
+//   category: string
+//   brand?: string
+//   barcode?: string
+//   servingSize?: string
+//   packageWeight?: string
+//   imageUrl?: string
+//   diets?: string[]
+//   certifications?: string[]
+//   allergens?: string[]
+//   nutrition?: {
+//     calories?: number
+//     protein?: number
+//     carbs?: number
+//     fat?: number
+//     sugar?: number
+//     sodium?: number
+//   }
+//   ingredients?: string[]      // ← make this an array
+//   tags: string[]
+//   updatedAt: string
+//   country?: string
+// }
 
-function productToFormValues(p: Product | null) {
-  if (!p) return undefined as any;
+
+function productToFormValues(p: any) {
+  if (!p) return undefined
+  const n = p.nutrition || {}
+
+  const join = (arr?: string[]) =>
+    Array.isArray(arr) ? arr.filter(Boolean).join(", ") : ""
+
+  const toStr = (v: any) => (v === null || v === undefined ? "" : String(v))
+
   return {
-    name: p.name ?? "",
-    sku: p.sku ?? "",
-    status: p.status ?? "active",
-    category: p.category ?? "",
-    description: "",
+    // required
+    name: toStr(p.name),
+    sku: toStr(p.externalId ?? p.external_id ?? p.sku ?? p.code ?? ""),
 
-    brand: p.brand ?? "",
-    barcode: p.barcode ?? "",
+    // enums/ids
+    status: (p.status === "inactive" ? "inactive" : "active"),
+    category: toStr(p.categoryId ?? p.category ?? ""),
+    sub_category_id: toStr(p.subCategoryId ?? ""),
+    cuisine_id: toStr(p.cuisineId ?? ""),
+    market_id: toStr(p.marketId ?? ""),
 
-    // CSV inputs on the form
-    ingredients_csv: Array.isArray(p.ingredients) ? p.ingredients.join(", ") : "",
-    allergens_csv: Array.isArray(p.allergens) ? p.allergens.join(", ") : "",
-    certifications_csv: Array.isArray(p.certifications) ? p.certifications.join(", ") : "",
-    regulatory_codes_csv: "",
+    // misc fields
+    description: toStr(p.description ?? ""),
+    brand: toStr(p.brand ?? ""),
+    barcode: toStr(p.barcode ?? ""),
+    gtin_type: toStr(p.gtinType ?? p.gtin_type ?? ""),
+    price: toStr(p.price ?? ""),
+    currency: toStr(p.currency ?? "USD"),
+    serving_size: toStr(p.servingSize ?? p.serving_size ?? ""),
+    package_weight: toStr(p.packageWeight ?? p.package_weight ?? ""),
+    source_url: toStr(p.sourceUrl ?? p.source_url ?? ""),
 
-    // tags array (already array in UI type)
-    tags: p.tags || [],
+    // CSV inputs
+    ingredients_csv: join(p.ingredients),
+    allergens_csv: join(p.allergens),
+    certifications_csv: join(p.certifications),
+    regulatory_codes_csv: join(p.regulatoryCodes),
 
-    // nutrition
-    n_calories: p.nutrition?.calories ?? "",
-    n_protein_g: p.nutrition?.protein ?? "",
-    n_fat_g: p.nutrition?.fat ?? "",
-    n_carbs_g: p.nutrition?.carbs ?? "",
-    n_sugar_g: p.nutrition?.sugar ?? "",
-    n_sodium_mg: p.nutrition?.sodium ?? "",
-  } as any;
+    // tags array (your form expects array)
+    tags: Array.isArray(p.dietaryTags) ? p.dietaryTags
+         : Array.isArray(p.tags) ? p.tags
+         : [],
+
+    // nutrition → n_*
+    n_calories:         toStr(n.calories ?? n.calories_g ?? ""),
+    n_protein_g:        toStr(n.protein_g ?? n.protein ?? ""),
+    n_fat_g:            toStr(n.fat_g ?? n.fat ?? ""),
+    n_carbs_g:          toStr(n.carbs_g ?? n.carbs ?? ""),
+    n_sugar_g:          toStr(n.sugar_g ?? n.sugar ?? ""),
+    n_added_sugar_g:    toStr(n.added_sugar_g ?? ""),
+    n_saturated_fat_g:  toStr(n.saturated_fat_g ?? ""),
+    n_sodium_mg:        toStr(n.sodium_mg ?? n.sodium ?? ""),
+    n_potassium_mg:     toStr(n.potassium_mg ?? ""),
+    n_phosphorus_mg:    toStr(n.phosphorus_mg ?? ""),
+  }
 }
+
 
 /* ---------- helpers: normalize incoming data safely ---------- */
 function normalizeTags(tags: unknown): string[] {
@@ -149,6 +218,8 @@ function toProduct(raw: any): Product {
     tags,
     updatedAt: String(raw?.updatedAt ?? raw?.updated_at ?? new Date().toISOString()),
     country: raw?.country ?? raw?.countryCode ?? undefined,
+    
+
   };
 }
 
@@ -212,6 +283,21 @@ export default function ProductsPage() {
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
+  const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
+
+  async function openEdit(p: Product) {
+    try {
+      // Always fetch full product by id so all fields are available
+      const res = await apiFetch(`/products/${p.id}`)
+      const full = await res.json()
+
+      setEditItem(full)
+      setEditInit(productToFormValues(full)) // map to form fields (next section)
+      setEditOpen(true)
+    } catch (e) {
+      console.error("Failed to load product for edit", e)
+    }
+  }
 
   // Column visibility
   const [columnVisibility, setColumnVisibility] = React.useState({
@@ -289,15 +375,15 @@ export default function ProductsPage() {
       // Nutrition bounds
       if (
         filters.proteinMin &&
-        (!product.nutrition?.protein || product.nutrition.protein < Number.parseFloat(filters.proteinMin))
+        (!product.nutrition?.protein_g || product.nutrition.protein_g < Number.parseFloat(filters.proteinMin))
       )
         return false
-      if (filters.sugarMax && product.nutrition?.sugar && product.nutrition.sugar > Number.parseFloat(filters.sugarMax))
+      if (filters.sugarMax && product.nutrition?.sugar_g && product.nutrition.sugar_g > Number.parseFloat(filters.sugarMax))
         return false
       if (
         filters.sodiumMax &&
-        product.nutrition?.sodium &&
-        product.nutrition.sodium > Number.parseFloat(filters.sodiumMax)
+        product.nutrition?.sodium_mg &&
+        product.nutrition.sodium_mg > Number.parseFloat(filters.sodiumMax)
       )
         return false
       if (
@@ -520,7 +606,7 @@ export default function ProductsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => handleRowClick(row.original)}>{"View Details"}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setEditItem(row.original); setEditOpen(true); }}>{"Edit"}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openEdit(row.original)}>{"Edit"}</DropdownMenuItem>
             <DropdownMenuItem className="text-rose-600" onClick={() => handleDelete(row.original)}>{"Delete"}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -610,8 +696,8 @@ export default function ProductsPage() {
             <ImportWizard onComplete={load} />
             <ProductForm
               mode="edit"
-              productId={editItem?.id as any}
-              initialValues={productToFormValues(editItem)}
+              productId={editItem?.id}
+              initialValues={editInit ?? undefined}
               open={editOpen}
               onOpenChange={setEditOpen}
               renderTrigger={false}
