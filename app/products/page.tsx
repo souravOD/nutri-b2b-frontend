@@ -57,6 +57,38 @@ type Product = {
   country?: string
 }
 
+
+function productToFormValues(p: Product | null) {
+  if (!p) return undefined as any;
+  return {
+    name: p.name ?? "",
+    sku: p.sku ?? "",
+    status: p.status ?? "active",
+    category: p.category ?? "",
+    description: "",
+
+    brand: p.brand ?? "",
+    barcode: p.barcode ?? "",
+
+    // CSV inputs on the form
+    ingredients_csv: Array.isArray(p.ingredients) ? p.ingredients.join(", ") : "",
+    allergens_csv: Array.isArray(p.allergens) ? p.allergens.join(", ") : "",
+    certifications_csv: Array.isArray(p.certifications) ? p.certifications.join(", ") : "",
+    regulatory_codes_csv: "",
+
+    // tags array (already array in UI type)
+    tags: p.tags || [],
+
+    // nutrition
+    n_calories: p.nutrition?.calories ?? "",
+    n_protein_g: p.nutrition?.protein ?? "",
+    n_fat_g: p.nutrition?.fat ?? "",
+    n_carbs_g: p.nutrition?.carbs ?? "",
+    n_sugar_g: p.nutrition?.sugar ?? "",
+    n_sodium_mg: p.nutrition?.sodium ?? "",
+  } as any;
+}
+
 /* ---------- helpers: normalize incoming data safely ---------- */
 function normalizeTags(tags: unknown): string[] {
   if (Array.isArray(tags)) return tags.filter(Boolean).map(String);
@@ -178,7 +210,8 @@ export default function ProductsPage() {
   const [filters, setFilters] = React.useState(defaultFilters)
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [detailsOpen, setDetailsOpen] = React.useState(false)
-  
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [editItem, setEditItem] = React.useState<Product | null>(null)
 
   // Column visibility
   const [columnVisibility, setColumnVisibility] = React.useState({
@@ -332,6 +365,22 @@ export default function ProductsPage() {
     setSelected([])
   }
 
+  async function handleDelete(p: Product) {
+    if (!p?.id) return;
+    try {
+      const res = await apiFetch(`/products/${p.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const msg = await res.text();
+        toast({ title: "Delete failed", description: msg, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Deleted", description: `${p.name} removed.` });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Failed to delete", variant: "destructive" });
+    }
+  }
+
   const columns: ColumnDef<Product>[] = [
     {
       id: "image",
@@ -471,9 +520,8 @@ export default function ProductsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => handleRowClick(row.original)}>{"View Details"}</DropdownMenuItem>
-            <DropdownMenuItem>{"Edit"}</DropdownMenuItem>
-            <DropdownMenuItem>{"Duplicate"}</DropdownMenuItem>
-            <DropdownMenuItem className="text-rose-600">{"Delete"}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setEditItem(row.original); setEditOpen(true); }}>{"Edit"}</DropdownMenuItem>
+            <DropdownMenuItem className="text-rose-600" onClick={() => handleDelete(row.original)}>{"Delete"}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -560,7 +608,15 @@ export default function ProductsPage() {
               </TabsList>
             </Tabs>
             <ImportWizard onComplete={load} />
-            <ProductForm mode="create" onSaved={load} />
+            <ProductForm
+              mode="edit"
+              productId={editItem?.id as any}
+              initialValues={productToFormValues(editItem)}
+              open={editOpen}
+              onOpenChange={setEditOpen}
+              renderTrigger={false}
+              onSaved={() => { setEditOpen(false); load(); }}
+            />
           </div>
         </div>
 

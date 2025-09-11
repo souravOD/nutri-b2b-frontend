@@ -85,6 +85,10 @@ type ProductFormProps = {
   mode?: "create" | "edit"
   initialValues?: Partial<FormValues>
   onSaved?: () => void
+  productId?: string                // for edit, target product
+  open?: boolean                    // controlled dialog (for Edit from row)
+  onOpenChange?: (open: boolean) => void
+  renderTrigger?: boolean           // hide built-in button when embedding
 }
 
 export default function ProductForm({
@@ -98,8 +102,14 @@ export default function ProductForm({
     tags: [],
   },
   onSaved = () => {},
+  productId,
+  open: controlledOpen,
+  onOpenChange,
+  renderTrigger = true,
 }: ProductFormProps) {
-  const [open, setOpen] = React.useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen
+  const setOpen = onOpenChange ?? setUncontrolledOpen
   const [serverError, setServerError] = React.useState<string | null>(null)
   const { toast } = useToast()
 
@@ -230,8 +240,11 @@ export default function ProductForm({
         source_url: strOrNull(values.source_url),
       }
 
-      const res = await apiFetch("/products", {
-        method: "POST",
+      const endpoint = (mode === "edit" && productId) ? `/products/${productId}` : "/products";
+      const method = (mode === "edit" && productId) ? "PUT" : "POST";
+
+      const res = await apiFetch(endpoint, {
+        method,
         body: JSON.stringify(body),
       })
 
@@ -272,9 +285,11 @@ export default function ProductForm({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>{mode === "create" ? "Add Product" : "Edit Product"}</Button>
-      </DialogTrigger>
+      {renderTrigger && (
+        <DialogTrigger asChild>
+          <Button>{mode === "create" ? "Add Product" : "Edit Product"}</Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? "Add Product" : "Edit Product"}</DialogTitle>
