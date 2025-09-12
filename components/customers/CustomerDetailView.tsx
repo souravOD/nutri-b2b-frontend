@@ -17,6 +17,7 @@ import DietaryRestrictionSelector, {
 } from "@/components/dietary-restriction-selector"
 import ProductDetailsDrawer from "@/components/product-details-drawer"
 import ProductNotesDialog from "@/components/product-notes-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import type { UICustomer } from "@/types/customer"
 import { updateCustomerHealth } from "@/lib/api-customers"
@@ -177,9 +178,11 @@ export default function CustomerDetailView({
 
   // ------------ Matches area state (and product dialogs) ------------
   const [products, setProducts] = React.useState<Product[]>([])
+  const [allProducts, setAllProducts] = React.useState<Product[]>([])
   const [view, setView] = React.useState<"grid" | "list">("grid")
   const [filter, setFilter] = React.useState("all")
   const [matching, setMatching] = React.useState(false)
+  const [limit, setLimit] = React.useState<number>(25)
 
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [detailsProduct, setDetailsProduct] = React.useState<Product | null>(null)
@@ -192,7 +195,7 @@ export default function CustomerDetailView({
     if (!customer?.id) return
     setMatching(true)
     try {
-      const items = await getMatches(String(customer.id))
+      const items = await getMatches(String(customer.id), limit)
       const mapped: Product[] = items.map((p: any) => {
         const raw01 =
           typeof p._score === "number"
@@ -232,10 +235,13 @@ export default function CustomerDetailView({
             : p.ingredients ?? "",
         }
       })
-      setProducts(mapped.sort((a, b) => b.matchScore - a.matchScore))
+      const sorted = mapped.sort((a, b) => b.matchScore - a.matchScore)
+      setAllProducts(sorted)
+      const sliced = Number.isFinite(limit) ? sorted.slice(0, limit) : sorted
+      setProducts(sliced)
       toast({
         title: "Match completed",
-        description: `${mapped.length} products matched.`,
+        description: `${sliced.length} products matched.`,
       })
     } catch (e: any) {
       toast({
@@ -246,11 +252,15 @@ export default function CustomerDetailView({
     } finally {
       setMatching(false)
     }
-  }, [customer?.id, toast])
+  }, [customer?.id, toast, limit])
 
   React.useEffect(() => {
     if (showMatches && customer?.id) runMatch()
   }, [showMatches, customer?.id, runMatch])
+
+  React.useEffect(() => {
+    setProducts(allProducts.slice(0, limit))
+  }, [limit, allProducts])
 
   const filteredProducts = products.filter((p) => {
     switch (filter) {
@@ -588,6 +598,19 @@ export default function CustomerDetailView({
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+              </div>
+              <div className="flex items-center gap-2 pl-2">
+                <span className="text-sm text-muted-foreground">Show</span>
+                <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+                  <SelectTrigger className="h-8 w-[110px]">
+                    <SelectValue placeholder="Top N" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">Top 25</SelectItem>
+                    <SelectItem value="50">Top 50</SelectItem>
+                    <SelectItem value="100">Top 100</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button onClick={runMatch} disabled={matching} className="bg-black text-white hover:bg-gray-800">
                 {matching ? "Running..." : "Run New Match"}

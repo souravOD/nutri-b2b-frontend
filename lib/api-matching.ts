@@ -5,8 +5,9 @@ function pluckItems(raw: any): any[] {
   return raw?.data ?? raw?.items ?? [];
 }
 
-export async function getMatches(customerId: string) {
-  const res = await apiFetch(`/matching/${customerId}`);
+export async function getMatches(customerId: string, limit?: number) {
+  const qs = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+  const res = await apiFetch(`/matching/${customerId}${qs}`);
   const json = await res.json();
   return pluckItems(json);
 }
