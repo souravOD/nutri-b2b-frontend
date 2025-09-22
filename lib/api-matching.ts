@@ -11,3 +11,14 @@ export async function getMatches(customerId: string, limit?: number) {
   const json = await res.json();
   return pluckItems(json);
 }
+
+export async function previewMatches(customerId: string, body: {
+  required?: string[]; preferred?: string[]; allergens?: string[]; conditions?: string[]; limit?: number;
+}) {
+  const res = await apiFetch(`/matching/${encodeURIComponent(customerId)}/preview`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  return (Array.isArray(json) ? json : (json?.data ?? json?.items ?? [])) as any[];
+}
