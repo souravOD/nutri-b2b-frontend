@@ -3,12 +3,19 @@
 import { Client, Account, Databases, Storage, Functions, Teams, ID } from "appwrite";
 
 // Accept either PROJECT or PROJECT_ID (your .env uses _PROJECT_ID)
-const endpoint =
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "";
+const rawEndpoint = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "").trim();
 const project =
-  process.env.NEXT_PUBLIC_APPWRITE_PROJECT ||
-  process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ||
-  "";
+  (process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "").trim();
+
+// Allow relative proxy endpoints like "/api/appwrite" by resolving to window.origin in the browser
+function resolveEndpoint(raw: string): string {
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw; // absolute
+  if (typeof window !== "undefined" && raw.startsWith("/")) return `${window.location.origin}${raw}`;
+  return raw; // fallback
+}
+
+const endpoint = resolveEndpoint(rawEndpoint);
 
 if (process.env.NODE_ENV !== "production") {
   if (!endpoint) console.error("[appwrite] Missing NEXT_PUBLIC_APPWRITE_ENDPOINT");
