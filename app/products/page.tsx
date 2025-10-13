@@ -26,7 +26,7 @@ import { apiFetch } from "@/lib/backend"
 import ProductForm from "@/components/product-form"
 import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
-import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal } from "lucide-react";
+import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal, Plus } from "lucide-react";
 
 
 type Product = {
@@ -299,6 +299,7 @@ export default function ProductsPage() {
   const [filters, setFilters] = React.useState(defaultFilters)
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [detailsOpen, setDetailsOpen] = React.useState(false)
+  const [createOpen, setCreateOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
   const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
@@ -702,6 +703,19 @@ export default function ProductsPage() {
   return (
     <AppShell title="Products">
       <div className="space-y-4">
+        {/* Header row (match Customers page UX) */}
+        <div className="container mx-auto px-6 pt-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your product catalog. Import from CSV or add manually.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative" role="search">
             <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -851,6 +865,15 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* Create dialog (controlled), mirrors Customers page UX */}
+      <ProductForm
+        mode="create"
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        renderTrigger={false}
+        onSaved={() => { setCreateOpen(false); load(); }}
+      />
 
       <ProductDetailsDrawer open={detailsOpen} onOpenChange={setDetailsOpen} product={selectedProduct} />
     </AppShell>
