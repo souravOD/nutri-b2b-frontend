@@ -1,0 +1,34 @@
+# Exclude dev and local files from Docker build context
+.git
+.github
+.next
+node_modules
+.vercel
+.vscode
+.idea
+
+# Env and local config
+.env*
+env.local
+env.*.local
+
+# Logs and cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store
+
+# OS/Editor
+*.swp
+*.swo
+.DS_Store
+
+# Misc docs/scripts not needed in image
+docs
+SCAN_REPORT.txt
+PROJECT_TREE.txt
+seed-vendors.sh
+seed-vendors.ps1
+patch_appwrite_schema.sh
+provision_appwrite_collections.sh

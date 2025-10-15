@@ -17,10 +17,12 @@ import DietaryRestrictionSelector, {
 } from "@/components/dietary-restriction-selector"
 import ProductDetailsDrawer from "@/components/product-details-drawer"
 import ProductNotesDialog from "@/components/product-notes-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import type { UICustomer } from "@/types/customer"
 import { updateCustomerHealth } from "@/lib/api-customers"
 import { getMatches } from "@/lib/api-matching"
+import { apiFetch } from "@/lib/backend"
 
 type Product = {
   id: string
@@ -177,9 +179,11 @@ export default function CustomerDetailView({
 
   // ------------ Matches area state (and product dialogs) ------------
   const [products, setProducts] = React.useState<Product[]>([])
+  const [allProducts, setAllProducts] = React.useState<Product[]>([])
   const [view, setView] = React.useState<"grid" | "list">("grid")
   const [filter, setFilter] = React.useState("all")
   const [matching, setMatching] = React.useState(false)
+  const [limit, setLimit] = React.useState<number>(25)
 
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [detailsProduct, setDetailsProduct] = React.useState<Product | null>(null)
@@ -192,7 +196,7 @@ export default function CustomerDetailView({
     if (!customer?.id) return
     setMatching(true)
     try {
-      const items = await getMatches(String(customer.id))
+      const items = await getMatches(String(customer.id), limit)
       const mapped: Product[] = items.map((p: any) => {
         const raw01 =
           typeof p._score === "number"
@@ -232,10 +236,13 @@ export default function CustomerDetailView({
             : p.ingredients ?? "",
         }
       })
-      setProducts(mapped.sort((a, b) => b.matchScore - a.matchScore))
+      const sorted = mapped.sort((a, b) => b.matchScore - a.matchScore)
+      setAllProducts(sorted)
+      const sliced = Number.isFinite(limit) ? sorted.slice(0, limit) : sorted
+      setProducts(sliced)
       toast({
         title: "Match completed",
-        description: `${mapped.length} products matched.`,
+        description: `${sliced.length} products matched.`,
       })
     } catch (e: any) {
       toast({
@@ -246,11 +253,87 @@ export default function CustomerDetailView({
     } finally {
       setMatching(false)
     }
-  }, [customer?.id, toast])
+  }, [customer?.id, toast, limit])
+
+  const handlePreview = React.useCallback(async () => {
+  if (!customer?.id) return
+  setMatching(true)
+  try {
+    // build preview body from your local dietary UI state (adjust names if needed)
+    const fromRequired = (dietary.required ?? []).map((s) => s.replace(/^No\s+/i, ""))
+    const body = {
+      required: dietary.required,
+      preferred: dietary.preferred,
+      allergens: Array.from(new Set([...(dietary.allergens ?? []), ...fromRequired])),
+      conditions: dietary.conditions,
+      limit,
+    }
+
+    const res = await apiFetch(`/matching/${encodeURIComponent(String(customer.id))}/preview`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    const items = (Array.isArray(json) ? json : (json?.data ?? json?.items ?? [])) as any[]
+
+    // -- same mapping as runMatch() --
+    const mapped: Product[] = items.map((p: any) => {
+      const raw01 =
+        typeof p._score === "number"
+          ? p._score
+          : typeof p.score === "number"
+          ? p.score
+          : typeof p.score_pct === "number"
+          ? p.score_pct / 100
+          : undefined
+      const scorePct = raw01 != null ? Math.round(raw01 * 100) : 0
+      return {
+        id: String(p.id ?? p.productId ?? p.product_id),
+        name: p.name ?? "",
+        sku: p.externalId ?? p.barcode ?? p.sku ?? "",
+        category: p.category ?? p.categoryName ?? "",
+        brand: p.brand ?? "",
+        imageUrl: p.imageUrl ?? "/diverse-products-still-life.png",
+        matchScore: scorePct,
+        diets: p.dietaryTags ?? p.diets ?? [],
+        certifications: p.certifications ?? [],
+        allergens: p.allergens ?? [],
+        barcode: p.barcode ?? "",
+        servingSize: p.servingSize ?? p.serving_size ?? "",
+        packageSize: p.packageSize ?? p.package_weight ?? "",
+        nutrition: p.nutrition
+          ? {
+              calories: p.nutrition.calories ?? p.nutrition.cal,
+              protein: p.nutrition.protein_g ?? p.nutrition.protein,
+              carbs: p.nutrition.carbs_g ?? p.nutrition.carbs,
+              fat: p.nutrition.fat_g ?? p.nutrition.fat,
+              sugar: p.nutrition.sugar_g ?? p.nutrition.sugar,
+              sodium: p.nutrition.sodium_mg ?? p.nutrition.sodium,
+            }
+          : undefined,
+        ingredients: Array.isArray(p.ingredients) ? p.ingredients.join(", ") : p.ingredients ?? "",
+      }
+    })
+    const sorted = mapped.sort((a, b) => b.matchScore - a.matchScore)
+    setAllProducts(sorted)
+    const sliced = Number.isFinite(limit) ? sorted.slice(0, limit) : sorted
+    setProducts(sliced)
+
+    toast({ title: "Preview completed", description: `${sliced.length} products (not saved).` })
+  } catch (e: any) {
+    toast({ variant: "destructive", title: "Preview failed", description: String(e?.message ?? e) })
+  } finally {
+    setMatching(false)
+  }
+}, [customer?.id, dietary, limit, toast])
 
   React.useEffect(() => {
     if (showMatches && customer?.id) runMatch()
   }, [showMatches, customer?.id, runMatch])
+
+  React.useEffect(() => {
+    setProducts(allProducts.slice(0, limit))
+  }, [limit, allProducts])
 
   const filteredProducts = products.filter((p) => {
     switch (filter) {
@@ -568,30 +651,61 @@ export default function CustomerDetailView({
         {/* RIGHT: Matches (optional) */}
         {showMatches && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Tabs value={filter} onValueChange={setFilter}>
-                  <TabsList>
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value=">=80%">≥ 80%</TabsTrigger>
-                    <TabsTrigger value=">=60%">≥ 60%</TabsTrigger>
-                    <TabsTrigger value=">=40%">≥ 40%</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <Tabs value={view} onValueChange={(v) => setView(v as "grid" | "list")}>
-                  <TabsList>
-                    <TabsTrigger value="grid">
-                      <Grid className="h-4 w-4" />
-                    </TabsTrigger>
-                    <TabsTrigger value="list">
-                      <List className="h-4 w-4" />
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+            {/* Toolbar / Controls row */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {/* Left: filters + controls — can wrap/scroll */}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-x-auto">
+                <div className="flex items-center gap-2">
+                  <Tabs value={filter} onValueChange={setFilter}>
+                    <TabsList>
+                      <TabsTrigger value="all">All</TabsTrigger>
+                      <TabsTrigger value=">=80%">≥ 80%</TabsTrigger>
+                      <TabsTrigger value=">=60%">≥ 60%</TabsTrigger>
+                      <TabsTrigger value=">=40%">≥ 40%</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <Tabs value={view} onValueChange={(v) => setView(v as "grid" | "list")}>
+                    <TabsList>
+                      <TabsTrigger value="grid"><Grid className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="list"><List className="h-4 w-4" /></TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                <div className="flex items-center gap-2 pl-2">
+                  <span className="text-sm text-muted-foreground">Show</span>
+                  <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+                    <SelectTrigger className="h-8 w-[110px]">
+                      <SelectValue placeholder="Top N" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">Top 25</SelectItem>
+                      <SelectItem value="50">Top 50</SelectItem>
+                      <SelectItem value="100">Top 100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <Button onClick={runMatch} disabled={matching} className="bg-black text-white hover:bg-gray-800">
-                {matching ? "Running..." : "Run New Match"}
-              </Button>
+
+              {/* Right: actions — fixed, no clipping */}
+              <div className="ml-auto flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  onClick={handlePreview}
+                  className="whitespace-nowrap"
+                  disabled={matching}
+                >
+                  {matching ? "Testing..." : "Test run (don’t save)"}
+                </Button>
+
+                <Button
+                  onClick={runMatch}
+                  disabled={matching}
+                  className="bg-black text-white hover:bg-gray-800 whitespace-nowrap"
+                >
+                  {matching ? "Running..." : "Run New Match"}
+                </Button>
+              </div>
             </div>
 
             {/* products */}

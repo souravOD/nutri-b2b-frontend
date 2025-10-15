@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { account, databases } from "@/lib/appwrite"
 import { Query } from "appwrite"
+import { PublicEnv } from "@/lib/env.client";
 
 /**
  * OnboardingGate (safe, idempotent)
@@ -27,18 +28,22 @@ export default function OnboardingGate({
   const [message, setMessage] = React.useState<string>("")
   const ranRef = React.useRef(false)
 
-  // Harden env handling: fail fast if Vercel didn't inject real values
-  function needEnv(name: string): string {
-    const raw = (process.env as Record<string, string | undefined>)[name]
-    const val = (raw ?? "").trim()
-    if (!val || val === name) {
-      throw new Error(`Missing/invalid ${name}. Set it in Vercel → Project → Environment Variables.`)
+  // compile-time env guard (client-safe: uses static keys so Next.js inlines them)
+  function must(v: string | undefined, name: string): string {
+    const s = (v ?? "").trim();
+    if (!s) {
+      throw new Error(
+        `Missing/invalid ${name}. Set it in Vercel → Project → Environment Variables.`
+      );
     }
-    return val
+    return s;
   }
-  const DB_ID = needEnv("NEXT_PUBLIC_APPWRITE_DB_ID")
-  const USERPROFILES_COL = needEnv("NEXT_PUBLIC_APPWRITE_USERPROFILES_COL")
 
+  const DB_ID = must(process.env.NEXT_PUBLIC_APPWRITE_DB_ID, "NEXT_PUBLIC_APPWRITE_DB_ID");
+  const USERPROFILES_COL = must(
+    process.env.NEXT_PUBLIC_APPWRITE_USERPROFILES_COL,
+    "NEXT_PUBLIC_APPWRITE_USERPROFILES_COL"
+  );
   React.useEffect(() => {
     if (ranRef.current) return
     ranRef.current = true

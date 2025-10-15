@@ -3,6 +3,7 @@
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { account, databases } from "@/lib/appwrite"
+import { getJWT } from "@/lib/jwt"
 import { Query } from "appwrite"
 
 const PUBLIC_PATHS = new Set<string>([
@@ -58,15 +59,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           if (!hasProfile) { router.replace("/login?needs_admin_attach=1"); return }
         }
 
-        // 4) 🔁 ONE-TIME SUPABASE SYNC (this is the missing piece)
-        //    After profile exists, call backend /onboard/self with an Appwrite JWT
+        // 4) 🔁 ONE-TIME SUPABASE SYNC
+        //    After profile exists, call backend /onboard/self with a real Appwrite JWT
         //    so Supabase gets (users, user_links, users.vendor_id) upserted.
         const syncKey = `sb-sync-${me.$id}`
         if (sessionStorage.getItem(syncKey) !== "1" && BACKEND_BASE) {
-          sessionStorage.setItem(syncKey, "1")
           try {
-            const { jwt } = await account.createJWT()
-            await fetch(`${BACKEND_BASE}/onboard/self`, {
+            // IMPORTANT: account.createJWT() is monkey‑patched to avoid network hits
+            // and will return an empty token. Always use getJWT() which performs the
+            // real network call (with caching + cooldown) to retrieve a valid JWT.
+            const jwt = await getJWT()
+            if (!jwt) throw new Error("No Appwrite JWT available")
+            const res = await fetch(`${BACKEND_BASE}/onboard/self`, {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${jwt}`,
@@ -79,9 +83,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 fullName: me.name,    // optional nice-to-have
               }),
             })
+            if (res.ok) {
+              sessionStorage.setItem(syncKey, "1")
+            } else {
+              sessionStorage.removeItem(syncKey)
+            }
             // ignore response; endpoint is idempotent and might already have synced
           } catch {
             // don’t block UI if sync fails; dashboard will surface 403 if truly missing
+            sessionStorage.removeItem(syncKey)
           }
         }
 

@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/backend";
 import { UICustomer, toUICustomer } from "@/types/customer";
 
+export type CustomerLocation = {
+  city?: string; state?: string; postal?: string; country?: string;
+};
+
 function pluckItems(raw: any): any[] {
   if (Array.isArray(raw)) return raw;
   // v3 often returns { data: [...] }
@@ -62,7 +66,7 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  patch: { name?: string; email?: string; phone?: string; tags?: string[] | string }
+  patch: { name?: string; email?: string; phone?: string; tags?: string[] | string; location?: CustomerLocation }
 ): Promise<UICustomer> {
   const body: any = {
     ...(patch.name ? { fullName: patch.name.trim() } : {}),
@@ -71,6 +75,15 @@ export async function updateCustomer(
   };
   const customTags = normalizeTags(patch.tags);
   if (customTags) body.customTags = customTags;
+
+  if (patch.location) {
+    body.location = {
+      city: patch.location.city?.trim() || undefined,
+      state: patch.location.state?.trim() || undefined,
+      postal: patch.location.postal?.trim() || undefined,
+      country: patch.location.country?.trim()?.toUpperCase() || undefined,
+    };
+  }
 
   const res = await apiFetch(`/customers/${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -110,9 +123,13 @@ export async function updateCustomerHealth(
 }
 
 export async function createCustomerWithHealth(input: {
-  name: string;
+  // 🔽 accept both; form sends fullName
+  fullName?: string;
+  name?: string;
   email: string;
   phone?: string;
+  // 🔽 accept both; form sends customTags
+  customTags?: string[] | string;
   tags?: string[] | string;
   health?: {
     age?: number;
@@ -129,15 +146,18 @@ export async function createCustomerWithHealth(input: {
   };
 }) {
   const payload: any = {
-    fullName: input.name?.trim(),
+    // 🔽 prefer fullName; fallback to legacy name
+    fullName: (input.fullName ?? input.name ?? "").trim(),
     email: input.email?.trim(),
     phone: input.phone?.trim() || undefined,
-    customTags: normalizeTags(input.tags),
+    // 🔽 prefer customTags; fallback to legacy tags
+    customTags: normalizeTags(input.customTags ?? input.tags),
   };
 
   if (input.health) {
     const { bmi, bmr, tdeeCached, derivedLimits, ...safeHealth } = input.health;
-    payload.health = safeHealth; // backend will compute derived metrics
+    // backend will compute derived fields
+    payload.health = safeHealth;
   }
 
   const res = await apiFetch("/customers", {

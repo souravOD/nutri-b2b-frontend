@@ -152,7 +152,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col gap-2">
             <Button asChild variant="default">
-              <a href="/ingest">Import Data (CSV/API)</a>
+              <a href="/onboarding">Import Data (CSV/API)</a>
             </Button>
             <Button asChild variant="outline">
               <a href="/products/new">Add New Product</a>

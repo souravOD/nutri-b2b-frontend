@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X } from "lucide-react"
+import { listDiets, listAllergens, listConditions } from "@/lib/api-taxonomy";
+import { apiFetch } from "@/lib/backend"
 
 export type DietarySelection = {
   required: string[]
@@ -35,7 +37,25 @@ const defaultOptions = {
 export default function DietaryRestrictionSelector({ value, onChange, options = defaultOptions }: Props) {
   const [customInput, setCustomInput] = React.useState("")
   const [addToSection, setAddToSection] = React.useState<"preferred" | "required">("preferred")
-
+  const [dbDiets, setDbDiets] = React.useState<string[]>([])
+  const [dbAllergens, setDbAllergens] = React.useState<string[]>([])
+  const [dbConds, setDbConds] = React.useState<string[]>([])
+  const [showAllDiets, setShowAllDiets] = React.useState(false)
+  const [showAllAllergens, setShowAllAllergens] = React.useState(false)
+  const [showAllConds, setShowAllConds] = React.useState(false)
+  React.useEffect(() => {
+    (async () => {
+      const j1 = await (await apiFetch("/taxonomy/diets?top=10")).json()
+      const j2 = await (await apiFetch("/taxonomy/allergens?top=10")).json()
+      const j3 = await (await apiFetch("/taxonomy/conditions?top=10")).json()
+      const diets      = (j1?.data ?? j1 ?? []).map((x: any) => x.code ?? x.label ?? x)
+      const allergens  = (j2?.data ?? j2 ?? []).map((x: any) => x.code ?? x.label ?? x)
+      const conditions = (j3?.data ?? j3 ?? []).map((x: any) => x.conditionCode ?? x)
+      setDbDiets(diets)
+      setDbAllergens(allergens)
+      setDbConds(conditions)
+    })()
+  }, [])
   const toggle = (bucket: keyof DietarySelection, item: string) => {
     const set = new Set(value[bucket])
     if (set.has(item)) {
@@ -171,7 +191,7 @@ export default function DietaryRestrictionSelector({ value, onChange, options = 
         <div className="space-y-3">
           <Label className="text-sm font-medium">Diet</Label>
           <div className="flex flex-wrap gap-2">
-            {options.diet?.map((diet) => {
+            {(showAllDiets ? dbDiets : dbDiets.slice(0, 10)).concat(dbDiets.length ? [] : (options.diet ?? [])).map((diet) => {
               const isSelected = value.preferred.includes(diet)
               return (
                 <Button
@@ -187,13 +207,20 @@ export default function DietaryRestrictionSelector({ value, onChange, options = 
                 </Button>
               )
             })}
+            {dbDiets.length > 10 && !showAllDiets && (
+              <Button size="sm" variant="ghost" onClick={async () => {
+                setShowAllDiets(true)
+                const full = await (await apiFetch("/taxonomy/diets?top=10&all=1")).json()
+                setDbDiets((full?.data ?? full ?? []).map((x: any) => x.code ?? x.label ?? x))
+              }}>Show all</Button>
+            )}
           </div>
         </div>
 
         <div className="space-y-3">
           <Label className="text-sm font-medium">Allergens</Label>
           <div className="flex flex-wrap gap-2">
-            {options.allergens?.map((allergen) => {
+            {(showAllAllergens ? dbAllergens : dbAllergens.slice(0, 10)).concat(dbAllergens.length ? [] : (options.allergens ?? [])).map((allergen) => {
               const isSelected = value.allergens.includes(allergen)
               return (
                 <Button
@@ -209,13 +236,20 @@ export default function DietaryRestrictionSelector({ value, onChange, options = 
                 </Button>
               )
             })}
+            {dbAllergens.length > 10 && !showAllAllergens && (
+              <Button size="sm" variant="ghost" onClick={async () => {
+                setShowAllAllergens(true)
+                const full = await (await apiFetch("/taxonomy/allergens?top=10&all=1")).json()
+                setDbAllergens((full?.data ?? full ?? []).map((x: any) => x.code ?? x.label ?? x))
+              }}>Show all</Button>
+            )}
           </div>
         </div>
 
         <div className="space-y-3">
           <Label className="text-sm font-medium">Conditions</Label>
           <div className="flex flex-wrap gap-2">
-            {options.conditions?.map((condition) => {
+            {(showAllConds ? dbConds : dbConds.slice(0, 10)).concat(dbConds.length ? [] : (options.conditions ?? [])).map((condition) => {
               const isSelected = value.conditions.includes(condition)
               return (
                 <Button
@@ -231,6 +265,13 @@ export default function DietaryRestrictionSelector({ value, onChange, options = 
                 </Button>
               )
             })}
+            {dbConds.length > 10 && !showAllConds && (
+              <Button size="sm" variant="ghost" onClick={async () => {
+                setShowAllConds(true)
+                const full = await (await apiFetch("/taxonomy/conditions?top=10&all=1")).json()
+                setDbConds((full?.data ?? full ?? []).map((x: any) => x.conditionCode ?? x))
+              }}>Show all</Button>
+            )}
           </div>
         </div>
       </div>

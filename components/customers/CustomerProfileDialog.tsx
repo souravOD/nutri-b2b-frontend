@@ -17,8 +17,9 @@ import { deleteCustomer } from "@/lib/api-customers" // we’ll add this helper 
 import CustomerDetailView from "./CustomerDetailView"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
+import { useRouter } from "next/navigation";
 
 type Props = {
   open: boolean
@@ -35,6 +36,8 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<{ name: string; email: string; phone?: string; tags: string[] }>({ name: "", email: "", phone: "", tags: [] })
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter(); // optional
 
   useEffect(() => {
     if (!id || !open) { setCustomer(null); setError(null); return }
@@ -191,12 +194,28 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this customer?</AlertDialogTitle>
-            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              This action cannot be undone. The customer and related data will be permanently removed.
+            </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            {/* IMPORTANT: type='button' avoids accidental form submit */}
+            <AlertDialogCancel asChild>
+              <Button type="button" variant="outline" disabled={deleting}>
+                Cancel
+              </Button>
+            </AlertDialogCancel>
+
+            <AlertDialogAction asChild>
+              <Button
+                type="button"
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                disabled={deleting}
+                onClick={onDelete}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
