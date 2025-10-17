@@ -60,8 +60,15 @@ export async function createCustomer(payload: {
     status: payload.status,
   };
   const res = await apiFetch("/customers", { method: "POST", body: JSON.stringify(body) });
-  const raw = await res.json();
-  return toUICustomer(raw?.data ?? raw);
+  // Surface backend errors instead of silently succeeding
+  const text = await res.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!res.ok) {
+    const msg = (data && (data.detail || data.message || data.error)) || `Create failed (${res.status})`;
+    throw new Error(String(msg));
+  }
+  return toUICustomer((data as any)?.data ?? data);
 }
 
 export async function updateCustomer(
@@ -164,6 +171,13 @@ export async function createCustomerWithHealth(input: {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  return data?.data ?? data;
+  // Respect HTTP status codes; raise clear error to UI
+  const text = await res.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!res.ok) {
+    const msg = (data && (data.detail || data.message || data.error)) || `Create failed (${res.status})`;
+    throw new Error(String(msg));
+  }
+  return (data as any)?.data ?? data;
 }
