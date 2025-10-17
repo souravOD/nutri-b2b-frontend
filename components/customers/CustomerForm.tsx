@@ -78,9 +78,28 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   const num = (v: number | "" ) => (v === "" ? undefined : Number(v))
 
   const handleSubmit = async () => {
-    if (!name.trim() || !email.trim()) {
-      toast({ variant: "destructive", title: "Name and email are required" });
+    const nameStr = name.trim();
+    const emailStr = email.trim();
+    if (!nameStr) {
+      toast({ variant: "destructive", title: "Name is required" });
       return;
+    }
+    if (!emailStr) {
+      toast({ variant: "destructive", title: "Email is required" });
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailRe.test(emailStr)) {
+      toast({ variant: "destructive", title: "Invalid email address" });
+      return;
+    }
+    const phoneStr = phone.trim();
+    if (phoneStr) {
+      const phoneRe = /^[+]?([0-9][\s-]?){7,15}$/; // allows +, spaces and dashes
+      if (!phoneRe.test(phoneStr)) {
+        toast({ variant: "destructive", title: "Invalid phone number" });
+        return;
+      }
     }
     if (saving) return;                    // 🔒 guard against double fire
     setSaving(true);
@@ -137,11 +156,11 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
         </div>
         <div>
           <Label>Email</Label>
-          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email address" />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email address" />
         </div>
         <div>
           <Label>Phone</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter phone number" />
+          <Input type="tel" inputMode="tel" pattern="^[+]?([0-9][\\s-]?){7,15}$" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter phone number" />
         </div>
       </div>
 
@@ -156,7 +175,14 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
           {tags.map((t) => (
             <Badge key={t} variant="secondary" className="gap-1">
               {t}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => setTags(tags.filter((x) => x !== t))} />
+              <button
+                type="button"
+                onClick={() => setTags(tags.filter((x) => x !== t))}
+                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                aria-label={`Remove ${t}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </Badge>
           ))}
         </div>
@@ -185,13 +211,27 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
           {preferred.map((v) => (
             <Badge key={`p-${v}`} variant="secondary" className="gap-1">
               {v}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => setPreferred(preferred.filter((x) => x !== v))} />
+              <button
+                type="button"
+                onClick={() => setPreferred(preferred.filter((x) => x !== v))}
+                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                aria-label={`Remove ${v}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </Badge>
           ))}
           {avoid.map((v) => (
             <Badge key={`a-${v}`} variant="destructive" className="gap-1">
               {v}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => setAvoid(avoid.filter((x) => x !== v))} />
+              <button
+                type="button"
+                onClick={() => setAvoid(avoid.filter((x) => x !== v))}
+                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                aria-label={`Remove ${v}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </Badge>
           ))}
         </div>
@@ -268,7 +308,14 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
                 {conditions.map((c) => (
                   <Badge key={c} variant="secondary" className="gap-1">
                     {c}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => setConditions(conditions.filter((x) => x !== c))} />
+                    <button
+                      type="button"
+                      onClick={() => setConditions(conditions.filter((x) => x !== c))}
+                      className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                      aria-label={`Remove ${c}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>

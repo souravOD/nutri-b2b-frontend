@@ -50,7 +50,8 @@ export function toUICustomer(src: any): UICustomer {
     phone: src.phone ?? src.phone_number ?? undefined,
     status: (src.status === "archived" || src.is_deleted) ? "archived" : "active",
     avatar: src.avatar ?? undefined,
-    tags: src.tags ?? src.custom_tags ?? [],
+    // Accept camelCase from backend as well as snake_case
+    tags: src.tags ?? src.customTags ?? src.custom_tags ?? [],
     restrictions: {
       required: src.restrictions?.required ?? [],                // or derive strings like "No <Allergen>"
       preferred: src.restrictions?.preferred ?? [],
