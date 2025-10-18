@@ -296,6 +296,7 @@ export default function ProductsPage() {
   const [data, setData] = React.useState<Product[]>([])
   const [selected, setSelected] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [filters, setFilters] = React.useState(defaultFilters)
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
   const [detailsOpen, setDetailsOpen] = React.useState(false)
@@ -336,6 +337,9 @@ export default function ProductsPage() {
         cuisineId: full?.cuisineId ?? full?.cuisine_id,
         marketId: full?.marketId ?? full?.market_id,
         description: full?.description,
+        // include product-level notes for display in drawer
+        // @ts-ignore allow passing through untyped field
+        notes: full?.notes,
         sourceUrl: full?.sourceUrl ?? full?.source_url,
         regulatoryCodes: Array.isArray(full?.regulatoryCodes) ? full.regulatoryCodes : normalized.regulatoryCodes,
         certifications: Array.isArray(full?.certifications) ? full.certifications : normalized.certifications,
@@ -367,21 +371,31 @@ export default function ProductsPage() {
   })
 
   const load = React.useCallback(async () => {
-  setLoading(true)
-  try {
-    const res = await apiFetch("/products")
-    const json = await res.json()
+    setLoading(true)
+    try {
+      const res = await apiFetch("/products")
+      const text = await res.text()
+      let json: any = null
+      try { json = text ? JSON.parse(text) : null } catch { json = null }
+      if (!res.ok) {
+        const msg = (json && (json.detail || json.message || json.error)) || `Request failed (${res.status})`
+        console.error("Products load error:", msg)
+        setError(`Could not load products: ${msg}`)
+        setData([])
+        return
+      }
 
-    // Accept: [ ... ]  OR  {items:[...]}  OR  {data:[...]}  OR  {results:[...]}
-    const items = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : (json?.items ?? []));
-
-    setData(items.map(toProduct));
-  } catch (error) {
-    console.error("Failed to load products:", error)
-  } finally {
-    setLoading(false)
-  }
-}, [])
+      // Accept: [ ... ]  OR  {items:[...]}  OR  {data:[...]}  OR  {results:[...]}
+      const items = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : (json?.items ?? []))
+      setData(items.map(toProduct))
+      setError(null)
+    } catch (error) {
+      console.error("Failed to load products:", error)
+      setError("Could not load products. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   React.useEffect(() => {
     load()
@@ -715,6 +729,11 @@ export default function ProductsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your product catalog. Import from CSV or add manually.
           </p>
+          {error && (
+            <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
+              {error}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative" role="search">

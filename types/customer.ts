@@ -27,6 +27,7 @@ export type UICustomer = {
   name: string;
   email: string;
   phone?: string;
+  notes?: string;
   status: "active" | "archived";
   avatar?: string;
   tags: string[];
@@ -48,6 +49,7 @@ export function toUICustomer(src: any): UICustomer {
     name: src.name ?? src.fullName ?? [src.firstName, src.lastName].filter(Boolean).join(" ") ?? "",
     email: src.email ?? "",
     phone: src.phone ?? src.phone_number ?? undefined,
+    notes: src.notes ?? undefined,
     status: (src.status === "archived" || src.is_deleted) ? "archived" : "active",
     avatar: src.avatar ?? undefined,
     // Accept camelCase from backend as well as snake_case

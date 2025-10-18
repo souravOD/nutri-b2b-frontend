@@ -30,7 +30,7 @@ export default function ProductNotesDialog({ open, onOpenChange, initial = "", o
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Product Notes</DialogTitle>
-          <p className="text-sm text-muted-foreground">Add your notes about this product for future reference.</p>
+          <p className="text-sm text-muted-foreground">Add your notes about this product (shared across customers).</p>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -49,9 +49,7 @@ Examples:
               className="mt-1 min-h-[150px]"
             />
           </div>
-          <div className="text-xs text-muted-foreground">
-            These notes are saved locally and will help you remember important details about this product.
-          </div>
+          <div className="text-xs text-muted-foreground">Saved to your account for this product.</div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

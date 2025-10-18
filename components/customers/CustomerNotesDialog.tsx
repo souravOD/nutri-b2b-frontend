@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { getCustomer, updateCustomer } from "@/lib/api-customers"
 
 type Props = {
   open: boolean
@@ -12,26 +13,39 @@ type Props = {
   onOpenChange: (open: boolean) => void
 }
 
-const keyFor = (id: string) => `customer-notes:${id}`
-
 export default function CustomerNotesDialog({ open, customerId, customerName, onOpenChange }: Props) {
   const [text, setText] = useState("")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (!customerId) return
-    const v = localStorage.getItem(keyFor(customerId))
-    setText(v ?? "")
-    setSaving(false)
-    setSaved(false)
+    if (!customerId || !open) return
+    ;(async () => {
+      try {
+        const c = await getCustomer(customerId)
+        setText(c.notes ?? "")
+      } catch {
+        setText("")
+      } finally {
+        setSaving(false)
+        setSaved(false)
+      }
+    })()
   }, [customerId, open])
 
   const onSave = () => {
     if (!customerId) return
     setSaving(true)
-    localStorage.setItem(keyFor(customerId), text)
-    setTimeout(() => { setSaving(false); setSaved(true) }, 250)
+    ;(async () => {
+      try {
+        await updateCustomer(customerId, { notes: text })
+        setSaved(true)
+      } catch {
+        // soft-fail UI; keep text in state
+      } finally {
+        setSaving(false)
+      }
+    })()
   }
 
   return (
@@ -39,7 +53,7 @@ export default function CustomerNotesDialog({ open, customerId, customerName, on
       <DialogContent className="sm:max-w-[720px]">
         <DialogHeader>
           <DialogTitle>Notes for {customerName ?? "Customer"}</DialogTitle>
-          <DialogDescription>Saved in your browser (local only).</DialogDescription>
+          <DialogDescription>Saved to your account.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <Textarea rows={10} value={text} onChange={(e) => { setText(e.target.value); setSaved(false) }} placeholder="Type notes here..." />
