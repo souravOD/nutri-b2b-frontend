@@ -17,6 +17,7 @@ import DietaryRestrictionSelector, {
 } from "@/components/dietary-restriction-selector"
 import ProductDetailsDrawer from "@/components/product-details-drawer"
 import ProductNotesDialog from "@/components/product-notes-dialog"
+import { getProductNotes, setProductNotes } from "@/lib/api-products"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import type { UICustomer } from "@/types/customer"
@@ -191,6 +192,7 @@ export default function CustomerDetailView({
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [activeNotesId, setActiveNotesId] = React.useState<string | null>(null)
   const [notesMap, setNotesMap] = React.useState<Record<string, string>>({})
+  const [excluded, setExcluded] = React.useState<Set<string>>(new Set())
 
   const runMatch = React.useCallback(async () => {
     if (!customer?.id) return
@@ -336,6 +338,7 @@ export default function CustomerDetailView({
   }, [limit, allProducts])
 
   const filteredProducts = products.filter((p) => {
+    if (excluded.has(p.id)) return false
     switch (filter) {
       case ">=80%":
         return p.matchScore >= 80
@@ -752,6 +755,14 @@ export default function CustomerDetailView({
                         onClick={() => {
                           setDetailsProduct(product)
                           setDetailsOpen(true)
+                          // fetch full product to include notes and other fields for the drawer
+                          ;(async () => {
+                            try {
+                              const res = await apiFetch(`/products/${product.id}`)
+                              const full = await res.json().catch(() => ({}))
+                              setDetailsProduct((prev) => ({ ...(prev || product), ...(full || {}) }))
+                            } catch {}
+                          })()
                         }}
                         className="flex items-center gap-1"
                       >
@@ -765,6 +776,12 @@ export default function CustomerDetailView({
                         onClick={() => {
                           setActiveNotesId(product.id)
                           setNotesOpen(true)
+                          ;(async () => {
+                            try {
+                              const note = await getProductNotes(product.id)
+                              setNotesMap((prev) => ({ ...prev, [product.id]: note ?? "" }))
+                            } catch {}
+                          })()
                         }}
                         className="flex items-center gap-1"
                       >
@@ -772,7 +789,12 @@ export default function CustomerDetailView({
                         Notes
                       </Button>
 
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 ml-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 ml-auto"
+                        onClick={() => setExcluded(prev => new Set(prev).add(product.id))}
+                      >
                         <X className="h-4 w-4" />
                         Exclude
                       </Button>
@@ -798,14 +820,15 @@ export default function CustomerDetailView({
         initial={activeNotesId ? notesMap[activeNotesId] ?? "" : ""}
         onSave={(text) => {
           if (activeNotesId) {
-            setNotesMap((prev: Record<string, string>) => ({
-              ...prev,
-              [activeNotesId]: text,
-            }))
-            toast({
-              title: "Notes saved",
-              description: "Product notes have been saved.",
-            })
+            ;(async () => {
+              try {
+                await setProductNotes(activeNotesId, text)
+                setNotesMap((prev: Record<string, string>) => ({ ...prev, [activeNotesId]: text }))
+                toast({ title: "Notes saved" })
+              } catch (e: any) {
+                toast({ variant: "destructive", title: "Save failed", description: String(e?.message ?? e) })
+              }
+            })()
           }
         }}
       />

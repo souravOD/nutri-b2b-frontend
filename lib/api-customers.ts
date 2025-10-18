@@ -73,12 +73,13 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  patch: { name?: string; email?: string; phone?: string; tags?: string[] | string; location?: CustomerLocation }
+  patch: { name?: string; email?: string; phone?: string; notes?: string; tags?: string[] | string; location?: CustomerLocation }
 ): Promise<UICustomer> {
   const body: any = {
     ...(patch.name ? { fullName: patch.name.trim() } : {}),
     ...(patch.email ? { email: patch.email.trim() } : {}),
     ...(patch.phone ? { phone: patch.phone.trim() } : {}),
+    ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
   };
   const customTags = normalizeTags(patch.tags);
   if (customTags) body.customTags = customTags;
@@ -180,4 +181,23 @@ export async function createCustomerWithHealth(input: {
     throw new Error(String(msg));
   }
   return (data as any)?.data ?? data;
+}
+
+// Customer-product notes
+export async function getCustomerProductNote(customerId: string, productId: string): Promise<{ note: string | null }> {
+  const res = await apiFetch(`/customers/${encodeURIComponent(customerId)}/products/${encodeURIComponent(productId)}/notes`);
+  const data = await res.json().catch(() => ({} as any));
+  return { note: (data?.note ?? null) as any };
+}
+
+export async function setCustomerProductNote(customerId: string, productId: string, note: string | null) {
+  const res = await apiFetch(`/customers/${encodeURIComponent(customerId)}/products/${encodeURIComponent(productId)}/notes`, {
+    method: "PATCH",
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d?.detail || d?.message || `Save failed (${res.status})`);
+  }
+  return await res.json();
 }

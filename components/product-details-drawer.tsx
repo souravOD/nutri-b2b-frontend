@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import Image from "next/image"
+import * as React from "react"
 
 const fmtCurrency = (v?: string | number, currency = "USD") => {
   if (v === undefined || v === null || v === "") return "";
@@ -203,8 +204,8 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
             </div>
           ) : null}
 
-          {product.nutrition && (
-            <>
+        {product.nutrition && (
+          <>
             
               <Separator />
               <div>
@@ -222,8 +223,19 @@ export default function ProductDetailsDrawer({ open, onOpenChange, product }: Pr
                   <div><span className="text-muted-foreground">Phosphorus:</span><div className="font-medium">{fmt(n.phosphorus_mg, " mg")}</div></div>
                 </div>
               </div>
-            </>
+          </>
+        )}
+
+        {/* Notes (read‑only, display only) */}
+        <Separator />
+        <div>
+          <h3 className="font-semibold mb-3">Notes</h3>
+          {product.notes ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">{product.notes}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">—</p>
           )}
+        </div>
 
           {product.ingredients && (
             <>
