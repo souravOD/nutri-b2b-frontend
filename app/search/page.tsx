@@ -188,6 +188,40 @@ function toSearchCustomer(src: any): Customer {
 const pluckItems = (raw: any): any[] =>
   Array.isArray(raw) ? raw : (raw?.data ?? raw?.items ?? []);
 
+// Map backend ingestion job -> Search page Job shape
+function toSearchJob(src: any): Job {
+  const rawStatus = String(src?.status ?? "queued").toLowerCase();
+  const statusMap: Record<string, Job["status"]> = {
+    queued: "Pending",
+    pending: "Pending",
+    running: "Running",
+    processing: "Running",
+    completed: "Completed",
+    failed: "Failed",
+    canceled: "Failed",
+  };
+  const mode: string = String(src?.mode ?? "products");
+  const type: Job["type"] = (mode === "export")
+    ? "Export"
+    : (mode === "match" || mode === "matching")
+      ? "Match"
+      : "Import"; // products/customers/api_sync map to Import for now
+
+  const created = src?.createdAt ?? src?.created_at ?? new Date().toISOString();
+  const friendly =
+    (src?.params?.name ?? src?.name)
+      || (type === "Match" ? `Customer Matching` : type === "Export" ? `Export` : `Import ${mode}`);
+
+  return {
+    id: String(src?.id ?? ""),
+    name: friendly,
+    type,
+    status: statusMap[rawStatus] ?? "Pending",
+    createdAt: String(created),
+    progress: typeof src?.progressPct === "number" ? src.progressPct : (typeof src?.progress === "number" ? src.progress : undefined),
+  };
+}
+
 // Small debounce hook for search-as-you-type
 function useDebounced<T>(value: T, delay = 350) {
   const [v, setV] = useState(value);
@@ -321,18 +355,20 @@ export default function SearchPage() {
   setIsLoading(true);
   const load = async () => {
     try {
-      const [pr, cr] = await Promise.all([
+      const [pr, cr, jr] = await Promise.all([
         apiFetch("/products?limit=200"),
         apiFetch("/customers?limit=200"),
+        apiFetch("/jobs?limit=100"),
       ]);
-      const [pjson, cjson] = await Promise.all([
+      const [pjson, cjson, jjson] = await Promise.all([
         pr.json().catch(() => null),
         cr.json().catch(() => null),
+        jr.json().catch(() => null),
       ]);
 
       setProducts(pluckItems(pjson).map(toSearchProduct));
       setCustomers(pluckItems(cjson).map(toSearchCustomer));
-      setJobs(Array.isArray(dummyJobs) ? dummyJobs : []); // keep Jobs tab as-is
+      setJobs(pluckItems(jjson).map(toSearchJob));
     } finally {
       setIsLoading(false);
     }
@@ -370,34 +406,41 @@ export default function SearchPage() {
     const run = async () => {
       // If query is empty → reload baseline (no q)
       if (!debouncedQ) {
-        const [pr, cr] = await Promise.all([
+        const [pr, cr, jr] = await Promise.all([
           apiFetch("/products?limit=200"),
           apiFetch("/customers?limit=200"),
+          apiFetch("/jobs?limit=100"),
         ]);
-        const [pjson, cjson] = await Promise.all([
+        const [pjson, cjson, jjson] = await Promise.all([
           pr.json().catch(() => null),
           cr.json().catch(() => null),
+          jr.json().catch(() => null),
         ]);
         if (aborted) return;
         setProducts(pluckItems(pjson).map(toSearchProduct));
         setCustomers(pluckItems(cjson).map(toSearchCustomer));
+        setJobs(pluckItems(jjson).map(toSearchJob));
         return;
       }
 
       // Active query → ask backend with ?q=
       setIsLoading(true);
       try {
-        const [pr, cr] = await Promise.all([
+        const [pr, cr, jr] = await Promise.all([
           apiFetch(`/products?q=${encodeURIComponent(debouncedQ)}&limit=200`),
           apiFetch(`/customers?q=${encodeURIComponent(debouncedQ)}&limit=200`),
+          // Ask server to prefilter jobs as well
+          apiFetch(`/jobs?q=${encodeURIComponent(debouncedQ)}&limit=100`),
         ]);
-        const [pjson, cjson] = await Promise.all([
+        const [pjson, cjson, jjson] = await Promise.all([
           pr.json().catch(() => null),
           cr.json().catch(() => null),
+          jr.json().catch(() => null),
         ]);
         if (aborted) return;
         setProducts(pluckItems(pjson).map(toSearchProduct));
         setCustomers(pluckItems(cjson).map(toSearchCustomer));
+        setJobs(pluckItems(jjson).map(toSearchJob));
       } finally {
         if (!aborted) setIsLoading(false);
       }
@@ -571,67 +614,97 @@ export default function SearchPage() {
                   {productFilters.status !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Status: {productFilters.status}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setProductFilters((prev) => ({ ...prev, status: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove status filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                   {productFilters.category !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Category: {productFilters.category}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setProductFilters((prev) => ({ ...prev, category: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove category filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                   {productFilters.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="flex items-center gap-1">
                       Tag: {tag}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeProductTag(tag)} />
+                      <button
+                        onClick={() => removeProductTag(tag)}
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label={`Remove tag ${tag}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   ))}
                   {customerFilters.status !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Customer Status: {customerFilters.status}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setCustomerFilters((prev) => ({ ...prev, status: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove customer status filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                   {customerFilters.type !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Customer Type: {customerFilters.type}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setCustomerFilters((prev) => ({ ...prev, type: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove customer type filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                   {customerFilters.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="flex items-center gap-1">
                       Customer Tag: {tag}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeCustomerTag(tag)} />
+                      <button
+                        onClick={() => removeCustomerTag(tag)}
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label={`Remove customer tag ${tag}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   ))}
                   {jobFilters.status !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Job Status: {jobFilters.status}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setJobFilters((prev) => ({ ...prev, status: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove job status filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                   {jobFilters.type !== "all" && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Job Type: {jobFilters.type}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
+                      <button
                         onClick={() => setJobFilters((prev) => ({ ...prev, type: "all" }))}
-                      />
+                        className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        aria-label="Remove job type filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   )}
                 </div>

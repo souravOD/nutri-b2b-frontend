@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { account } from "@/lib/appwrite"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils"
 export default function LoginForm() {
   const router = useRouter()
   const sp = useSearchParams()
+  const { signIn } = useAuth()
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -18,26 +20,15 @@ export default function LoginForm() {
 
   const verified = sp.get("verified") === "1" // gentle hint only
 
-  async function createSessionUniversal(email: string, password: string) {
-    const acc: any = account as any
-    if (typeof acc.createEmailPasswordSession === "function") {
-      return acc.createEmailPasswordSession(email, password)    // newer SDK
-    }
-    if (typeof acc.createEmailSession === "function") {
-      return acc.createEmailSession(email, password)            // classic SDK
-    }
-    if (typeof acc.createSession === "function") {
-      return acc.createSession(email, password)                 // older alias
-    }
-    throw new Error("This Appwrite SDK build lacks email/password sessions.")
-  }
+  // We will use the central AuthProvider's signIn, which
+  // creates the session, syncs Supabase, and refreshes context
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
     try {
-      await createSessionUniversal(email.trim(), password)
+      await signIn(email.trim(), password)
       router.replace("/dashboard")
     } catch (err: any) {
       const code = err?.code ?? err?.response?.code
