@@ -89,7 +89,7 @@ export function toUICustomer(src: any): UICustomer {
     },
     updatedAt: src.updated_at ?? src.updatedAt,
 
-    healthProfile: src.healthProfile? {
+    healthProfile: src.healthProfile ? {
       customerId: src.healthProfile.customerId ?? src.healthProfile.customer_id,
       heightCm: src.healthProfile.heightCm ?? src.healthProfile.height_cm,
       weightKg: src.healthProfile.weightKg ?? src.healthProfile.weight_kg,
@@ -104,7 +104,6 @@ export function toUICustomer(src: any): UICustomer {
       bmr: src.healthProfile.bmr,
       tdeeCached: src.healthProfile.tdeeCached ?? src.healthProfile.tdee_cached,
       derivedLimits: src.healthProfile.derivedLimits ?? src.healthProfile.derived_limits,
-    }
-  : null,
+    } : null,
   };
 }
