@@ -401,15 +401,8 @@ export default function ProductsPage() {
     load()
   }, [load])
 
-  // Update URL when query or view changes
-  React.useEffect(() => {
-    const params = new URLSearchParams()
-    if (query) params.set("q", query)
-    if (view !== "table") params.set("view", view)
-
-    const newUrl = params.toString() ? `/products?${params.toString()}` : "/products"
-    router.replace(newUrl)
-  }, [query, view, router])
+  // URL sync is handled via useUrlState().set(...) in handlers.
+  // Avoid replacing the current route on every render, which can cancel in-flight API requests.
 
   const applyFilters = (products: Product[]) => {
     return products.filter((product) => {

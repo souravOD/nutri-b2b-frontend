@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { account, databases } from "@/lib/appwrite"
-import { getJWT } from "@/lib/jwt"
-import { Query } from "appwrite"
+import * as React from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { account, databases } from "@/lib/appwrite";
+import { Query } from "appwrite";
+import { syncSupabaseFromAppwrite } from "@/lib/sync";
 
 const PUBLIC_PATHS = new Set<string>([
   "/login",
@@ -12,101 +12,103 @@ const PUBLIC_PATHS = new Set<string>([
   "/verify",
   "/forgot-password",
   "/reset-password",
-])
+]);
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const isPublic = pathname ? PUBLIC_PATHS.has(pathname) : false
+  const router = useRouter();
+  const pathname = usePathname();
+  const isPublic = pathname ? PUBLIC_PATHS.has(pathname) : false;
 
-  const [ready, setReady] = React.useState(false)
-  const ranRef = React.useRef(false) // avoid strict-mode double run in dev
+  const [ready, setReady] = React.useState(false);
+  const ranRef = React.useRef(false);
+
+  const redirectAuthError = React.useCallback(
+    (code: string) => {
+      router.replace(`/login?auth_error=${encodeURIComponent(code)}`);
+    },
+    [router]
+  );
 
   React.useEffect(() => {
-    if (ranRef.current) return
-    ranRef.current = true
+    if (ranRef.current) return;
+    ranRef.current = true;
 
     const run = async () => {
       try {
-        if (isPublic) { setReady(true); return }
+        if (isPublic) {
+          setReady(true);
+          return;
+        }
 
-        // --- static env reads so Next inlines them in client bundle ---
-        const DB_ID = `${process.env.NEXT_PUBLIC_APPWRITE_DB_ID ?? ""}`.trim()
-        const USERPROFILES_COL = `${process.env.NEXT_PUBLIC_APPWRITE_USERPROFILES_COL ?? ""}`.trim()
-        const BACKEND_BASE = `${process.env.NEXT_PUBLIC_BACKEND_URL ?? ""}`.trim().replace(/\/+$/, "")
-        if (!DB_ID || !USERPROFILES_COL) { setReady(true); return }
+        const DB_ID = `${process.env.NEXT_PUBLIC_APPWRITE_DB_ID ?? ""}`.trim();
+        const USERPROFILES_COL = `${process.env.NEXT_PUBLIC_APPWRITE_USERPROFILES_COL ?? ""}`.trim();
+        if (!DB_ID || !USERPROFILES_COL) {
+          setReady(true);
+          return;
+        }
 
-        // 1) authenticated & verified?
-        const me = await account.get().catch(() => null)
-        if (!me) { router.replace("/login"); return }
-        if (!me.emailVerification && pathname !== "/verify") { router.replace("/verify"); return }
+        const me = await account.get().catch(() => null);
+        if (!me) {
+          router.replace("/login");
+          return;
+        }
 
-        // 2) has a profile?
-        let hasProfile = await userProfileExists(DB_ID, USERPROFILES_COL, me.$id)
+        if (!me.emailVerification && pathname !== "/verify") {
+          router.replace("/verify");
+          return;
+        }
 
-        // 3) if not, ask server to attach user to existing vendor/team (idempotent, no team creation)
+        let hasProfile = await userProfileExists(DB_ID, USERPROFILES_COL, me.$id);
+
+        // Attach to existing vendor/team (idempotent) when profile is absent.
         if (!hasProfile) {
-          const attachKey = `attach-${me.$id}`
+          const attachKey = `attach-${me.$id}`;
           if (sessionStorage.getItem(attachKey) !== "1") {
-            sessionStorage.setItem(attachKey, "1")
+            sessionStorage.setItem(attachKey, "1");
             await fetch("/api/auth/complete-registration", {
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({ userId: me.$id, email: me.email, fullName: me.name }),
-            }).catch(() => {})
+            }).catch(() => {});
           }
-          hasProfile = await userProfileExists(DB_ID, USERPROFILES_COL, me.$id)
-          if (!hasProfile) { router.replace("/login?needs_admin_attach=1"); return }
-        }
 
-        // 4) 🔁 ONE-TIME SUPABASE SYNC
-        //    After profile exists, call backend /onboard/self with a real Appwrite JWT
-        //    so Supabase gets (users, user_links, users.vendor_id) upserted.
-        const syncKey = `sb-sync-${me.$id}`
-        if (sessionStorage.getItem(syncKey) !== "1" && BACKEND_BASE) {
-          try {
-            // IMPORTANT: account.createJWT() is monkey‑patched to avoid network hits
-            // and will return an empty token. Always use getJWT() which performs the
-            // real network call (with caching + cooldown) to retrieve a valid JWT.
-            const jwt = await getJWT()
-            if (!jwt) throw new Error("No Appwrite JWT available")
-            const res = await fetch(`${BACKEND_BASE}/onboard/self`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${jwt}`,
-                "X-Appwrite-JWT": jwt,
-                "content-type": "application/json",
-              },
-              body: JSON.stringify({
-                userId: me.$id,       // <-- REQUIRED for fallback
-                email: me.email,      // <-- verifies identity in fallback
-                fullName: me.name,    // optional nice-to-have
-              }),
-            })
-            if (res.ok) {
-              sessionStorage.setItem(syncKey, "1")
-            } else {
-              sessionStorage.removeItem(syncKey)
-            }
-            // ignore response; endpoint is idempotent and might already have synced
-          } catch {
-            // don’t block UI if sync fails; dashboard will surface 403 if truly missing
-            sessionStorage.removeItem(syncKey)
+          hasProfile = await userProfileExists(DB_ID, USERPROFILES_COL, me.$id);
+          if (!hasProfile) {
+            router.replace("/login?needs_admin_attach=1");
+            return;
           }
         }
 
-        setReady(true)
+        // Sync Supabase once per browser session after profile is guaranteed.
+        const syncKey = `sb-sync-${me.$id}`;
+        if (sessionStorage.getItem(syncKey) !== "1") {
+          let synced = await syncSupabaseFromAppwrite();
+          if (!synced.ok && synced.code === "invalid_token") {
+            // One hard retry handles stale/expired cached JWT races after restart.
+            synced = await syncSupabaseFromAppwrite(true);
+          }
+
+          if (synced.ok) {
+            sessionStorage.setItem(syncKey, "1");
+          } else {
+            sessionStorage.removeItem(syncKey);
+            redirectAuthError(synced.code);
+            return;
+          }
+        }
+
+        setReady(true);
       } catch {
-        setReady(true) // fail-safe: don’t blank the UI
+        setReady(true);
       }
-    }
+    };
 
-    run()
-  }, [isPublic, pathname, router])
+    run();
+  }, [isPublic, pathname, router, redirectAuthError]);
 
-  if (isPublic) return <>{children}</>
-  if (!ready) return <div className="p-6 text-sm text-muted-foreground">Checking access…</div>
-  return <>{children}</>
+  if (isPublic) return <>{children}</>;
+  if (!ready) return <div className="p-6 text-sm text-muted-foreground">Checking access...</div>;
+  return <>{children}</>;
 }
 
 async function userProfileExists(DB_ID: string, USERPROFILES_COL: string, userId: string) {
@@ -114,9 +116,9 @@ async function userProfileExists(DB_ID: string, USERPROFILES_COL: string, userId
     const res = await databases.listDocuments(DB_ID, USERPROFILES_COL, [
       Query.equal("user_id", userId),
       Query.limit(1),
-    ])
-    return res.total > 0
+    ]);
+    return res.total > 0;
   } catch {
-    return false
+    return false;
   }
 }

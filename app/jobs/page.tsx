@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/backend"
 
+const JOBS_ENABLED = process.env.NEXT_PUBLIC_B2B_ENABLE_JOBS === "1"
+
 type Job = {
   id: string
   type: string
@@ -101,14 +103,22 @@ export default function JobsPage() {
 
   return (
     <AppShell title="Ingestion Jobs">
+      {!JOBS_ENABLED && (
+        <div className="mb-3 rounded-md border bg-muted/40 text-sm px-3 py-2">
+          Jobs and ingestion are temporarily disconnected. This surface is kept for upcoming changes.
+        </div>
+      )}
       <div className="mb-3 flex gap-2">
         <Button
+          disabled={!JOBS_ENABLED}
+          title={!JOBS_ENABLED ? "Temporarily disconnected" : undefined}
           onClick={async () => {
-            const res = await fetch("/jobs", {
+            const res = await apiFetch("/jobs?mode=products", {
               method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ type: "import", source: "CSV" }),
             })
-            await res.json()
+            await res.json().catch(() => ({}))
             load()
           }}
         >

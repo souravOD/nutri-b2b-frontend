@@ -25,6 +25,8 @@ import { updateCustomerHealth } from "@/lib/api-customers"
 import { getMatches } from "@/lib/api-matching"
 import { apiFetch } from "@/lib/backend"
 
+const MATCHING_ENABLED = process.env.NEXT_PUBLIC_B2B_ENABLE_MATCHING === "1"
+
 type Product = {
   id: string
   name: string
@@ -195,6 +197,13 @@ export default function CustomerDetailView({
   const [excluded, setExcluded] = React.useState<Set<string>>(new Set())
 
   const runMatch = React.useCallback(async () => {
+    if (!MATCHING_ENABLED) {
+      toast({
+        title: "Matching disconnected",
+        description: "Matching will be enabled in a later Neo4j integration phase.",
+      })
+      return
+    }
     if (!customer?.id) return
     setMatching(true)
     try {
@@ -258,6 +267,13 @@ export default function CustomerDetailView({
   }, [customer?.id, toast, limit])
 
   const handlePreview = React.useCallback(async () => {
+  if (!MATCHING_ENABLED) {
+    toast({
+      title: "Matching disconnected",
+      description: "Matching preview will be enabled in a later Neo4j integration phase.",
+    })
+    return
+  }
   if (!customer?.id) return
   setMatching(true)
   try {
@@ -330,7 +346,7 @@ export default function CustomerDetailView({
 }, [customer?.id, dietary, limit, toast])
 
   React.useEffect(() => {
-    if (showMatches && customer?.id) runMatch()
+    if (MATCHING_ENABLED && showMatches && customer?.id) runMatch()
   }, [showMatches, customer?.id, runMatch])
 
   React.useEffect(() => {
@@ -696,14 +712,14 @@ export default function CustomerDetailView({
                   variant="outline"
                   onClick={handlePreview}
                   className="whitespace-nowrap"
-                  disabled={matching}
+                  disabled={!MATCHING_ENABLED || matching}
                 >
                   {matching ? "Testing..." : "Test run (don’t save)"}
                 </Button>
 
                 <Button
                   onClick={runMatch}
-                  disabled={matching}
+                  disabled={!MATCHING_ENABLED || matching}
                   className="bg-black text-white hover:bg-gray-800 whitespace-nowrap"
                 >
                   {matching ? "Running..." : "Run New Match"}

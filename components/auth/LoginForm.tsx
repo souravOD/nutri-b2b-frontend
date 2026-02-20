@@ -19,6 +19,43 @@ export default function LoginForm() {
   const [error, setError] = React.useState<string | null>(null)
 
   const verified = sp.get("verified") === "1" // gentle hint only
+  const authError = sp.get("auth_error")
+  const needsAdminAttach = sp.get("needs_admin_attach") === "1"
+  const vendorMatchFailed = sp.get("vendor_match_failed") === "1"
+
+  const authErrorMessage = React.useMemo(() => {
+    if (needsAdminAttach) {
+      return "Your account is in Appwrite but not attached to a vendor profile yet. Ask your admin to attach your account."
+    }
+    if (vendorMatchFailed) {
+      return "We could not match your account to a vendor/team. Contact your admin."
+    }
+    if (authError === "vendor_not_provisioned") {
+      return "Your account is not provisioned in Supabase for any vendor. Ask your admin to pre-provision your vendor."
+    }
+    if (authError === "vendor_team_mismatch") {
+      return "Your vendor mapping is inconsistent between Appwrite team/profile/domain. Ask your admin to fix vendor mapping."
+    }
+    if (authError === "user_not_linked") {
+      return "Your account exists but is not linked in Supabase. Ask your admin to complete onboarding."
+    }
+    if (authError === "identity_conflict") {
+      return "This email is linked to a different Appwrite identity. Ask your admin to resolve identity conflict."
+    }
+    if (authError === "invalid_token") {
+      return "Your session is invalid or expired. Please sign in again."
+    }
+    if (authError === "backend_unreachable") {
+      return "Could not verify provisioning from backend. Please try again shortly."
+    }
+    if (authError === "onboarding_failed") {
+      return "Provisioning check failed. Please contact support."
+    }
+    if (authError) {
+      return `Access blocked: ${authError}.`
+    }
+    return null
+  }, [authError, needsAdminAttach, vendorMatchFailed])
 
   // We will use the central AuthProvider's signIn, which
   // creates the session, syncs Supabase, and refreshes context
@@ -53,6 +90,12 @@ export default function LoginForm() {
       {verified && !error ? (
         <InlineNote className="text-emerald-700 border-emerald-200 bg-emerald-50">
           Email verified. Please sign in to continue.
+        </InlineNote>
+      ) : null}
+
+      {authErrorMessage && !error ? (
+        <InlineNote role="alert" className="text-amber-800 border-amber-300 bg-amber-50">
+          {authErrorMessage}
         </InlineNote>
       ) : null}
 
