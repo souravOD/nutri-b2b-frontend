@@ -94,14 +94,14 @@ add_string_attr() {
   fi
 }
 
-add_unique_index_on_slug() {
-  local col="$1" idx="uniq_slug"
-  local payload='{"key":"'"$idx"'","type":"unique","attributes":["slug"],"orders":["ASC"]}'
+add_unique_index() {
+  local col="$1" idx="$2" attr="$3"
+  local payload='{"key":"'"$idx"'","type":"unique","attributes":["'"$attr"'"],"orders":["ASC"]}'
   local out body code
   out=$(http_post "/databases/$DB_ID/collections/$col/indexes" "$payload")
   body=$(printf "%s" "$out" | sed '$d'); code=$(printf "%s" "$out" | tail -n1)
   if ok "$code"; then
-    echo "  ✓ request to create unique index on slug accepted (HTTP $code)"
+    echo "  ✓ request to create unique index '$idx' on '$attr' accepted (HTTP $code)"
     wait_index "$col" "$idx"
   else
     echo "  ✗ unique index creation failed (HTTP $code)"; printf "%s\n" "$body"; exit 1
@@ -118,7 +118,9 @@ echo "==> User Profiles: add required string attribute"
 add_string_attr "$USERPROFILES_COL" "role" 32 true
 
 echo "==> Vendors: ensure unique index on slug"
-add_unique_index_on_slug "$VENDORS_COL"
+add_unique_index "$VENDORS_COL" "uniq_slug" "slug"
+echo "==> Vendors: ensure unique index on team_id"
+add_unique_index "$VENDORS_COL" "uniq_team_id" "team_id"
 
 echo "==> Done."
 echo "If onboarding still says 'not authorized to create', in Console enable:"

@@ -88,7 +88,7 @@ req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/string" '{
 }' >/dev/null || true
 
 req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/enumeration" '{
-  "key":"status","elements":["active","suspended"],"required":true,"default":"active"
+  "key":"status","elements":["active","inactive","suspended"],"required":true,"default":"active"
 }' >/dev/null || true
 
 req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/datetime" '{
@@ -107,6 +107,14 @@ req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/string" '{
   "key":"timezone","size":64,"required":false
 }' >/dev/null || true
 
+req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/string" '{
+  "key":"team_id","size":64,"required":true
+}' >/dev/null || true
+
+req POST "/databases/$DB_ID/collections/$VENDORS_COL/attributes/string" '{
+  "key":"domains","size":128,"required":false,"array":true
+}' >/dev/null || true
+
 pause 3
 
 echo "==> Vendors: indexes"
@@ -115,11 +123,19 @@ req POST "/databases/$DB_ID/collections/$VENDORS_COL/indexes" '{
 }' >/dev/null || true
 
 req POST "/databases/$DB_ID/collections/$VENDORS_COL/indexes" '{
+  "key":"uniq_team_id","type":"unique","attributes":["team_id"],"orders":["ASC"]
+}' >/dev/null || true
+
+req POST "/databases/$DB_ID/collections/$VENDORS_COL/indexes" '{
   "key":"idx_owner","type":"key","attributes":["owner_user_id"],"orders":["ASC"]
 }' >/dev/null || true
 
 req POST "/databases/$DB_ID/collections/$VENDORS_COL/indexes" '{
   "key":"idx_status","type":"key","attributes":["status"],"orders":["ASC"]
+}' >/dev/null || true
+
+req POST "/databases/$DB_ID/collections/$VENDORS_COL/indexes" '{
+  "key":"idx_domains","type":"key","attributes":["domains"],"orders":["ASC"]
 }' >/dev/null || true
 
 # -------- User Profiles attributes --------

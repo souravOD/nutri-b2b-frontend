@@ -257,7 +257,14 @@ export default function CustomersPage() {
             <DialogHeader>
               <DialogTitle>Add New Customer</DialogTitle>
             </DialogHeader>
-            <CustomerForm onSubmit={handleCreateCustomer} onCancel={() => setCreateDialogOpen(false)} />
+            <CustomerForm
+              onClose={() => setCreateDialogOpen(false)}
+              onCreated={(created) => {
+                setCustomers((prev) => [created as any, ...prev]);
+                setCreateDialogOpen(false);
+                toast({ title: "Customer created" });
+              }}
+            />
           </DialogContent>
         </Dialog>
 

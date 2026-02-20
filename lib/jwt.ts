@@ -115,9 +115,22 @@ export async function getJWT(): Promise<string | null> {
 }
 
 export async function refreshJWT(): Promise<string | null> {
-  if (inCooldown()) return null;
-  token = null; expMs = null;
-  return getJWT();
+  // Explicit refresh is used after backend 401. It must bypass cooldown
+  // so a newly valid Appwrite session can recover immediately.
+  token = null;
+  expMs = null;
+  inFlight = null;
+  publishCooldown(0);
+  try {
+    return await fetchNew();
+  } catch (err) {
+    if (is429(err)) {
+      publishCooldown(now() + COOLDOWN_MS);
+      return null;
+    }
+    publishCooldown(now() + 30_000);
+    return null;
+  }
 }
 
 export function clearJWT() {

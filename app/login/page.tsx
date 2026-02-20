@@ -1,16 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import AuthLayout from "@/components/auth/AuthLayout"
 import LoginForm from "@/components/auth/LoginForm"
 import { account } from "@/lib/appwrite"
 
 export default function LoginPage() {
   const router = useRouter()
+  const sp = useSearchParams()
+  const blockAutoRedirect =
+    !!sp.get("auth_error") ||
+    sp.get("needs_admin_attach") === "1" ||
+    sp.get("vendor_match_failed") === "1"
 
   // If already logged in, go straight to dashboard (no toasts here)
   React.useEffect(() => {
+    if (blockAutoRedirect) return
     let done = false
     ;(async () => {
       try {
@@ -21,7 +27,7 @@ export default function LoginPage() {
       }
     })()
     return () => { done = true }
-  }, [router])
+  }, [router, blockAutoRedirect])
 
   return (
     <AuthLayout

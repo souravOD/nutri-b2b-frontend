@@ -7,7 +7,6 @@ import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { apiFetch } from "@/lib/backend"
-import { getAppwriteJWT } from "@/lib/appwrite"
 
 // NEW: mode-aware field defs & types
 import {
@@ -20,27 +19,17 @@ import {
 
 type Mode = "products" | "customers" | "apis" | "others"
 
-const RAW_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
-const BASE = RAW_BASE.replace(/\/+$/, "")
+const JOBS_ENABLED = process.env.NEXT_PUBLIC_B2B_ENABLE_JOBS === "1"
 
 // unchanged
-async function uploadCsvDirect(jobId: string, file: File, jwt: string | null) {
+async function uploadCsvDirect(jobId: string, file: File) {
   if (!file) throw new Error("No file selected")
   const fd = new FormData()
   fd.append("file", file)
 
-  const headers: Record<string, string> = {}
-  if (jwt) {
-    headers.Authorization = `Bearer ${jwt}`
-    headers["X-Appwrite-JWT"] = jwt
-  }
-
-  const res = await fetch(`${BASE}/jobs/${jobId}/upload`, {
+  const res = await apiFetch(`/jobs/${jobId}/upload`, {
     method: "POST",
-    headers,
     body: fd,
-    credentials: "include",
-    mode: "cors",
   })
   return res
 }
@@ -134,6 +123,10 @@ export default function ImportWizard({ onComplete = () => {} }: ImportWizardProp
   }, [fieldDefs, mapping, mode])
 
   const startImport = async () => {
+    if (!JOBS_ENABLED) {
+      setStatusMsg("Jobs and ingestion are temporarily disconnected in this phase.")
+      return
+    }
     if (!file) return
     if (mode !== "products" && mode !== "customers") {
       setStatusMsg("Only Products or Customers imports are supported right now.")
@@ -157,8 +150,7 @@ export default function ImportWizard({ onComplete = () => {} }: ImportWizardProp
       setStatusMsg("Job created. Uploading CSV...")
 
       // 2) upload CSV
-      const jwt = await getAppwriteJWT().catch(() => null)
-      const upRes = await uploadCsvDirect(jobId, file, jwt)
+      const upRes = await uploadCsvDirect(jobId, file)
       if (!upRes.ok) {
         const txt = await upRes.text().catch(() => "")
         throw new Error(txt || `Upload failed (${upRes.status})`)
@@ -208,10 +200,12 @@ export default function ImportWizard({ onComplete = () => {} }: ImportWizardProp
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep(1) }}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Import</Button>
+        <Button variant="secondary" disabled={!JOBS_ENABLED} title={!JOBS_ENABLED ? "Temporarily disconnected" : undefined}>
+          Import
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[1100px] w-[96vw] p-0 overflow-hidden">
-        <div className="flex h-[80vh] flex-col">
+      <DialogContent className="xl:max-w-[1200px] w-[98vw] p-0 overflow-auto max-h-[92vh]">
+        <div className="flex max-h-[82vh] min-h-[65vh] flex-col">
           {/* HEADER */}
           <div className="sticky top-0 z-10 border-b bg-background px-6 py-4">
             <DialogHeader className="p-0">
@@ -221,11 +215,16 @@ export default function ImportWizard({ onComplete = () => {} }: ImportWizardProp
           </div>
 
           {/* BODY */}
-          <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
 
             {/* ---- Step 1 ---- */}
             {step === 1 && (
               <div className="space-y-3">
+                {!JOBS_ENABLED && (
+                  <div className="rounded-md border bg-muted/40 text-sm px-3 py-2">
+                    Jobs and ingestion are temporarily disconnected. UI is kept for upcoming changes.
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
                   <Label className="min-w-24">Import type</Label>
                   <select
@@ -344,7 +343,7 @@ export default function ImportWizard({ onComplete = () => {} }: ImportWizardProp
                   <div className="text-sm text-muted-foreground">No rows to preview.</div>
                 ) : (
                   <div className="mx-auto w-[86%] max-w-[900px] rounded-md border bg-background/50 shadow-sm">
-                    <div className="h-[48vh] w-full overflow-auto">
+                    <div className="max-h-[50vh] w-full overflow-auto">
                       <table className="min-w-[1400px] table-fixed border-collapse text-sm">
                         <thead className="bg-muted sticky top-0 z-10">
                           <tr>{headers.map(h => <th key={h} className="px-2 py-2 text-left font-semibold border-b whitespace-nowrap">{h}</th>)}</tr>

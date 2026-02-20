@@ -29,8 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Grid3X3, List as ListIcon } from "lucide-react";
 
-import type { UICustomer } from "@/types/customer";
-import { listCustomers, createCustomer } from "@/lib/api-customers";
+import { toUICustomer, type UICustomer } from "@/types/customer";
+import { listCustomers } from "@/lib/api-customers";
 
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerFilters from "@/components/customers/CustomerFilters";
@@ -276,22 +276,6 @@ export default function CustomersIndexPage() {
   const handleOpenDetails = (id: string | number) => set({ id: String(id) });
   const handleCloseDetails = () => set({ id: null });
 
-  const handleCreate = async (values: any) => {
-    try {
-      const created = await createCustomer(values);
-      setCustomers((prev) => [created, ...prev]);
-      setCreateOpen(false);
-      toast({ title: "Customer created", description: created.name || created.email });
-      set({ id: created.id }); // open drawer to new profile
-    } catch (e: any) {
-      toast({
-        title: "Create failed",
-        description: e?.message || "Could not create customer.",
-        variant: "destructive",
-      });
-    }
-  };
-
   // rendering
   return (
     <AppShell title="Customers">
@@ -447,9 +431,14 @@ export default function CustomersIndexPage() {
             <DialogDescription>Enter basic info and (optionally) diet & allergens.</DialogDescription>
           </DialogHeader>
           <CustomerForm
-            initial={{ status: "active", tags: [], restrictions: { required: [], preferred: [], allergens: [], conditions: [] } }}
-            onSubmit={handleCreate}
-            onCancel={() => setCreateOpen(false)}
+            onClose={() => setCreateOpen(false)}
+            onCreated={(result) => {
+              const created = toUICustomer(result);
+              setCustomers((prev) => [created, ...prev]);
+              setCreateOpen(false);
+              toast({ title: "Customer created", description: created.name || created.email });
+              set({ id: created.id });
+            }}
           />
         </DialogContent>
       </Dialog>

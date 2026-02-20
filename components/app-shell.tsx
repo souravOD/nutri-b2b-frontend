@@ -29,6 +29,7 @@ import {
   Bell,
   Boxes,
   Building,
+  Building2,
   ChevronRight,
   GraduationCap,
   Home,
@@ -54,6 +55,7 @@ const mainNavItems = [
   { title: "Search", href: "/search", icon: Search },
   { title: "Alerts", href: "/alerts", icon: Bell },
   { title: "Compliance", href: "/compliance", icon: Shield },
+  { title: "Vendors", href: "/vendors", icon: Building2 },
 ]
 
 const moreNavItems = [
