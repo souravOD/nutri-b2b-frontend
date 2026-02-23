@@ -223,6 +223,7 @@ function RunDetailDialog({
 
   React.useEffect(() => {
     let abort = false
+    setDetail(null)
     async function load() {
       if (!runId) return
       setLoading(true)
