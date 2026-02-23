@@ -14,6 +14,8 @@ export type Customer = {
   email: string
   phone?: string
   status: "active" | "archived"
+  avatar?: string
+  tags: string[]
   restrictions: {
     required: string[]
     preferred: string[]
@@ -65,6 +67,7 @@ export function seed() {
       email: "john@example.com",
       phone: "+1-555-1234",
       status: "active",
+      tags: ["VIP", "Organic"],
       restrictions: {
         required: ["No Peanuts"],
         preferred: ["Vegan", "Organic"],

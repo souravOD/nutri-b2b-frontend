@@ -1,15 +1,10 @@
 import { apiFetch } from "@/lib/backend";
 import { UICustomer, toUICustomer } from "@/types/customer";
+import { normalizeListResponse } from "@/lib/api-helpers";
 
 export type CustomerLocation = {
   city?: string; state?: string; postal?: string; country?: string;
 };
-
-function pluckItems(raw: any): any[] {
-  if (Array.isArray(raw)) return raw;
-  // v3 often returns { data: [...] }
-  return raw?.data ?? raw?.items ?? [];
-}
 
 function normalizeTags(tags?: string[] | string) {
   if (Array.isArray(tags)) return tags;
@@ -20,7 +15,7 @@ function normalizeTags(tags?: string[] | string) {
 export async function listCustomers(): Promise<UICustomer[]> {
   const res = await apiFetch("/customers");
   const raw = await res.json();
-  return pluckItems(raw).map(toUICustomer);
+  return normalizeListResponse(raw).map(toUICustomer);
 }
 
 export async function getCustomer(id: string) {
@@ -31,7 +26,7 @@ export async function getCustomer(id: string) {
   // Accept {data:[...]}, {items:[...]}, single object, or array
   const raw =
     Array.isArray(json) ? json[0] :
-    (json?.data?.[0] ?? json?.items?.[0] ?? json);
+      (json?.data?.[0] ?? json?.items?.[0] ?? json);
 
   return toUICustomer(raw || {});
 }
@@ -39,7 +34,7 @@ export async function getCustomer(id: string) {
 // Adjust this payload mapping to your backend contract if needed
 export type CreateCustomerPayload = {
   name: string; email: string; phone?: string;
-  status?: "active"|"archived";
+  status?: "active" | "archived";
   tags?: string[];
   restrictions?: {
     required?: string[]; preferred?: string[];
@@ -51,7 +46,7 @@ export async function createCustomer(payload: {
   name: string; email: string; phone?: string;
   status?: "active" | "archived";
   tags?: string[];
-}) : Promise<UICustomer> {
+}): Promise<UICustomer> {
   const body = {
     fullName: payload.name?.trim(),
     email: payload.email?.trim(),

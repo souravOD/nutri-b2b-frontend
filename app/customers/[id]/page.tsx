@@ -18,6 +18,7 @@ import CustomerCard from "@/components/customers/CustomerCard"
 import CustomerFilters from "@/components/customers/CustomerFilters"
 import CustomerForm from "@/components/customers/CustomerForm"
 import CustomerDetailsDialog from "@/components/customers/CustomerDetailsDialog";
+import CustomerDetailsDrawer from "@/components/customers/CustomerDetailsDrawer";
 import CustomerListEmpty from "@/components/customers/CustomerListEmpty"
 import type { Customer } from "@/app/api/_store"
 
@@ -42,19 +43,19 @@ export default function CustomersPage() {
   // Fetch customers once (use your existing API route/proxy if needed)
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch("/api/customers")
-        const data = await res.json()
-        const list = Array.isArray(data) ? data : data?.items || []
-        if (!cancelled) setCustomers(list)
-      } catch (e) {
-        console.error(e)
-        toast({ title: "Failed to load customers", variant: "destructive" })
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
+      ; (async () => {
+        try {
+          const res = await fetch("/api/customers")
+          const data = await res.json()
+          const list = Array.isArray(data) ? data : data?.items || []
+          if (!cancelled) setCustomers(list)
+        } catch (e) {
+          console.error(e)
+          toast({ title: "Failed to load customers", variant: "destructive" })
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
+      })()
     return () => { cancelled = true }
   }, [toast])
 
@@ -192,9 +193,9 @@ export default function CustomersPage() {
               <CustomerCard
                 key={c.id}
                 customer={c}
-                onView={() => openDetails(String(c.id))}         // stays on /customers
+                onOpen={() => openDetails(String(c.id))}         // stays on /customers
                 onRunMatch={() => openDetails(String(c.id))}      // stays on /customers
-                onNotes={() => openDetails(String(c.id))}         // stays on /customers
+                onOpenNotes={() => openDetails(String(c.id))}         // stays on /customers
               />
             ))}
           </div>

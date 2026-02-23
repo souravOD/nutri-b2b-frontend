@@ -61,7 +61,9 @@ export async function syncSupabaseFromAppwrite(force = false): Promise<Provision
       }
 
       const parsed = await parseErrorResponse(res);
-      console.warn(`[sync] onboard/self blocked (${parsed.code}): ${parsed.message}`);
+      if (!parsed.ok) {
+        console.warn(`[sync] onboard/self blocked (${parsed.code}): ${parsed.message}`);
+      }
       return parsed;
     } catch (e) {
       console.warn("syncSupabaseFromAppwrite error", e);

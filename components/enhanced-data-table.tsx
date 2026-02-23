@@ -25,7 +25,7 @@ export default function EnhancedDataTable<TData, TValue>({
   data,
   columns,
   selectable = false,
-  onSelectionChange = () => {},
+  onSelectionChange = () => { },
   className,
 }: EnhancedTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
@@ -88,14 +88,14 @@ function withSelection<TData, TValue>(columns: ColumnDef<TData, TValue>[]): Colu
   return [
     {
       id: "select",
-      header: ({ table }) => (
+      header: ({ table }: { table: any }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
           aria-label="Select all"
         />
       ),
-      cell: ({ row }) => (
+      cell: ({ row }: { row: any }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(v) => row.toggleSelected(!!v)}
