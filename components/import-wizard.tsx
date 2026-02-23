@@ -134,6 +134,10 @@ export default function ImportWizard({ onComplete = () => { } }: ImportWizardPro
       }
       const initData = await initRes.json()
       const { upload, ingestion_run_id } = initData
+      // Defensive: validate expected response shape
+      if (!upload?.url || !ingestion_run_id) {
+        throw new Error("Unexpected response from server — missing upload URL or run ID")
+      }
       // upload: { url, token, bucket, path }
 
       setProgress(15)

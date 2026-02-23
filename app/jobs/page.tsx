@@ -60,7 +60,7 @@ function toRun(j: any): Run {
     currentLayer: j.currentLayer ?? j.current_layer ?? null,
     totalErrors: j.totalErrors ?? j.total_errors ?? 0,
     totalRecordsWritten: j.totalRecordsWritten ?? j.total_records_written ?? 0,
-    createdAt: j.createdAt ?? j.created_at,
+    createdAt: j.createdAt ?? j.created_at ?? new Date().toISOString(),
     startedAt: j.startedAt ?? j.started_at ?? null,
     completedAt: j.completedAt ?? j.completed_at ?? null,
     errorMessage: j.errorMessage ?? j.error_message ?? null,
