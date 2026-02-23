@@ -6,7 +6,7 @@ import { CheckCircle2, AlertTriangle, XCircle, Circle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type StatusBadgeProps = {
-  status?: "active" | "inactive" | "queued" | "processing" | "completed" | "failed"
+  status?: "active" | "inactive" | "queued" | "processing" | "completed" | "failed" | "pending" | "running"
   className?: string
 }
 

@@ -2,8 +2,7 @@
 
 import { getJWT, refreshJWT } from "@/lib/jwt";
 
-// Use the same host you open in the browser (localhost vs 127.0.0.1)
-const RAW_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
 
 // Normalize the backend origin (adds protocol if missing, strips trailing /)
 function normalizeBase(raw?: string) {
@@ -17,10 +16,7 @@ const BASE = normalizeBase(process.env.NEXT_PUBLIC_BACKEND_URL || "http://localh
 
 function normalizePath(path: string) {
   if (!path) return "/";
-  let p = path.startsWith("/") ? path : `/${path}`;
-  p = p.replace(/^\/api(?:\/v\d+)?(\/|$)/, "/"); // drop leading /api(/vX) if passed
-  p = p.replace(/^\/v\d+(\/|$)/, "/");          // drop lone /vX if passed
-  return p;
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 async function doFetch(path: string, init?: RequestInit, forceFresh = false) {

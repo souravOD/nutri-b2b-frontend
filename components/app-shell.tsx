@@ -45,6 +45,7 @@ import TopNav from "./top-nav"
 type AppShellProps = {
   children?: React.ReactNode
   title?: string
+  subtitle?: string
 }
 
 const mainNavItems = [
@@ -65,7 +66,7 @@ const moreNavItems = [
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
 ]
 
-export default function AppShell({ children, title = "Odyssey Nutrition" }: { children: React.ReactNode; title?: string }) {
+export default function AppShell({ children, title = "Odyssey Nutrition", subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
   return (
     <SidebarProvider defaultOpen>
       <AppSidebar />

@@ -34,7 +34,7 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
   return (
     <div className="flex items-center gap-4">
       {/* Status Filter */}
-      <Tabs value={status} onValueChange={handleStatusChange}>
+      <Tabs value={status} onValueChange={handleStatusChange as (value: string) => void}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>

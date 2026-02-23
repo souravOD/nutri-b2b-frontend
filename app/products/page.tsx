@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
-  DropdownMenuContent, 
+  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
@@ -23,6 +23,7 @@ import ActiveFiltersChips from "@/components/active-filters-chips"
 import type { ColumnDef } from "@tanstack/react-table"
 import Image from "next/image"
 import { apiFetch } from "@/lib/backend"
+import { normalizeListResponse } from "@/lib/api-helpers"
 import ProductForm from "@/components/product-form"
 import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
@@ -140,20 +141,20 @@ function productToFormValues(p: any) {
 
     // tags array (your form expects array)
     tags: Array.isArray(p.dietaryTags) ? p.dietaryTags
-         : Array.isArray(p.tags) ? p.tags
-         : [],
+      : Array.isArray(p.tags) ? p.tags
+        : [],
 
     // nutrition → n_*
-    n_calories:         toStr(n.calories ?? n.calories_g ?? ""),
-    n_protein_g:        toStr(n.protein_g ?? n.protein ?? ""),
-    n_fat_g:            toStr(n.fat_g ?? n.fat ?? ""),
-    n_carbs_g:          toStr(n.carbs_g ?? n.carbs ?? ""),
-    n_sugar_g:          toStr(n.sugar_g ?? n.sugar ?? ""),
-    n_added_sugar_g:    toStr(n.added_sugar_g ?? ""),
-    n_saturated_fat_g:  toStr(n.saturated_fat_g ?? ""),
-    n_sodium_mg:        toStr(n.sodium_mg ?? n.sodium ?? ""),
-    n_potassium_mg:     toStr(n.potassium_mg ?? ""),
-    n_phosphorus_mg:    toStr(n.phosphorus_mg ?? ""),
+    n_calories: toStr(n.calories ?? n.calories_g ?? ""),
+    n_protein_g: toStr(n.protein_g ?? n.protein ?? ""),
+    n_fat_g: toStr(n.fat_g ?? n.fat ?? ""),
+    n_carbs_g: toStr(n.carbs_g ?? n.carbs ?? ""),
+    n_sugar_g: toStr(n.sugar_g ?? n.sugar ?? ""),
+    n_added_sugar_g: toStr(n.added_sugar_g ?? ""),
+    n_saturated_fat_g: toStr(n.saturated_fat_g ?? ""),
+    n_sodium_mg: toStr(n.sodium_mg ?? n.sodium ?? ""),
+    n_potassium_mg: toStr(n.potassium_mg ?? ""),
+    n_phosphorus_mg: toStr(n.phosphorus_mg ?? ""),
   }
 }
 
@@ -208,13 +209,13 @@ function toProduct(raw: any): Product {
   const n = raw?.nutrition ?? {};
   const nutrition = (n && typeof n === "object")
     ? {
-        calories: toNum(n.calories ?? n.cal),
-        protein:  toNum(n.protein_g ?? n.protein),
-        carbs:    toNum(n.carbs_g   ?? n.carbs),
-        fat:      toNum(n.fat_g     ?? n.fat),
-        sugar:    toNum(n.sugar_g   ?? n.sugar),
-        sodium:   toNum(n.sodium_mg ?? n.sodium),
-      }
+      calories: toNum(n.calories ?? n.cal),
+      protein: toNum(n.protein_g ?? n.protein),
+      carbs: toNum(n.carbs_g ?? n.carbs),
+      fat: toNum(n.fat_g ?? n.fat),
+      sugar: toNum(n.sugar_g ?? n.sugar),
+      sodium: toNum(n.sodium_mg ?? n.sodium),
+    }
     : undefined;
 
   return {
@@ -236,7 +237,7 @@ function toProduct(raw: any): Product {
     tags,
     updatedAt: String(raw?.updatedAt ?? raw?.updated_at ?? new Date().toISOString()),
     country: raw?.country ?? raw?.countryCode ?? undefined,
-    
+
 
   };
 }
@@ -258,7 +259,7 @@ function useUrlState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const get = React.useCallback((): Required<Pick<ParamState, "q" | "view">> => {
+  const get = React.useCallback((): { q: string; view: "table" | "cards" } => {
     const q = searchParams.get("q") ?? "";
     const view = (searchParams.get("view") as "table" | "cards") || "table";
     return { q, view };
@@ -386,7 +387,7 @@ export default function ProductsPage() {
       }
 
       // Accept: [ ... ]  OR  {items:[...]}  OR  {data:[...]}  OR  {results:[...]}
-      const items = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : (json?.items ?? []))
+      const items = normalizeListResponse(json)
       setData(items.map(toProduct))
       setError(null)
     } catch (error) {
@@ -488,12 +489,12 @@ export default function ProductsPage() {
           key === "status" || key === "country"
             ? "all"
             : Array.isArray(f[key])
-            ? []
-            : key.includes("missing")
-            ? false
-            : key === "hasImage"
-            ? null
-            : "",
+              ? []
+              : key.includes("missing")
+                ? false
+                : key === "hasImage"
+                  ? null
+                  : "",
       });
     }
   };
@@ -732,12 +733,12 @@ export default function ProductsPage() {
           <div className="relative" role="search">
             <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-                placeholder="Search products..."
-                value={url.q}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-64 pl-10"
-                aria-label="Search products"
-             />
+              placeholder="Search products..."
+              value={url.q}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-64 pl-10"
+              aria-label="Search products"
+            />
           </div>
 
           <ProductFilters filters={filters} onChange={handleFilterChange} onClear={handleFilterClear} data={data} />
@@ -798,9 +799,9 @@ export default function ProductsPage() {
             <h3 className="text-lg font-semibold mb-2">No products found</h3>
             <p className="text-muted-foreground mb-4">
               {query ||
-              Object.values(filters).some(
-                (f) => f !== "all" && f !== false && f !== null && (Array.isArray(f) ? f.length > 0 : f !== ""),
-              )
+                Object.values(filters).some(
+                  (f) => f !== "all" && f !== false && f !== null && (Array.isArray(f) ? f.length > 0 : f !== ""),
+                )
                 ? "Try adjusting your search or filters"
                 : "Get started by importing products or adding them manually"}
             </p>

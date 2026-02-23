@@ -69,8 +69,8 @@ function toCustomerDetails(src: any): CustomerDetails {
   const tags = Array.isArray(src?.customTags)
     ? src.customTags
     : Array.isArray(src?.tags)
-    ? src.tags
-    : []
+      ? src.tags
+      : []
 
   const location =
     src?.location ?? {
@@ -105,33 +105,33 @@ function useCustomerDetails(id: string | null) {
   const [error, setError] = React.useState<string | null>(null)
 
 
-  
+
 
   React.useEffect(() => {
     if (!id) { setData(null); setError(null); return }
     let cancelled = false
     setLoading(true); setError(null)
 
-    ;(async () => {
-      try {
-        // Prefer REST /customers/:id; fall back to /customers?id=...
-        const res = await apiFetch(`/customers/${id}`)
-        // if your backend doesn’t support /:id, swap to:
-        // const res = await apiFetch(`/customers?id=${encodeURIComponent(id)}`)
+      ; (async () => {
+        try {
+          // Prefer REST /customers/:id; fall back to /customers?id=...
+          const res = await apiFetch(`/customers/${id}`)
+          // if your backend doesn’t support /:id, swap to:
+          // const res = await apiFetch(`/customers?id=${encodeURIComponent(id)}`)
 
-        const json = await res.json().catch(() => null)
-        // Handle {data:[...]} | {items:[...]} | {...} | [...]
-        const raw = Array.isArray(json)
-          ? json[0]
-          : (json?.data?.[0] ?? json?.items?.[0] ?? json)
+          const json = await res.json().catch(() => null)
+          // Handle {data:[...]} | {items:[...]} | {...} | [...]
+          const raw = Array.isArray(json)
+            ? json[0]
+            : (json?.data?.[0] ?? json?.items?.[0] ?? json)
 
-        if (!cancelled) setData(toCustomerDetails(raw || {}))
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load customer")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
+          if (!cancelled) setData(toCustomerDetails(raw || {}))
+        } catch (e: any) {
+          if (!cancelled) setError(e?.message || "Failed to load customer")
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
+      })()
 
     return () => { cancelled = true }
   }, [id])
@@ -153,7 +153,7 @@ function useUrlState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const get = React.useCallback((): Required<ParamState> => {
+  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; id: string } => {
     const q = searchParams.get("q") ?? "";
     const status = (searchParams.get("status") as "all" | "active" | "archived") || "all";
     const tagsCsv = searchParams.get("tags") || "";
