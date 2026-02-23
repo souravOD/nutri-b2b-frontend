@@ -88,9 +88,16 @@ export async function POST(req: Request) {
       )
     }
 
-    const vendor   = matches.documents[0] as any
+    const vendor = matches.documents[0] as any
+    const vendorDocId = String(vendor.$id || "").trim()
     const vendorSlug = String(vendor.slug || vendor.$id || "").toLowerCase()
-    const teamId   = vendor.team_id as string
+    const teamId = vendor.team_id as string
+    if (!vendorDocId) {
+      return NextResponse.json(
+        { ok: false, reason: "vendor_missing_id", message: "Vendor missing document id." },
+        { status: 500 },
+      )
+    }
     if (!teamId) {
       return NextResponse.json(
         { ok: false, reason: "vendor_missing_team_id", message: "Vendor missing team_id." },
@@ -105,7 +112,7 @@ export async function POST(req: Request) {
     const docId = userId
     const nowIso = new Date().toISOString()
     const writeData = {
-      vendor_id: vendorSlug,
+      vendor_id: vendorDocId,
       vendor_slug: vendorSlug,
       team_id: teamId,
       full_name: fullName || email.split("@")[0],
@@ -148,7 +155,7 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({ ok: true, vendorId: vendorSlug, teamId })
+    return NextResponse.json({ ok: true, vendorId: vendorDocId, vendorSlug, teamId })
   } catch (e: any) {
     return NextResponse.json({ ok: false, message: e?.message ?? "server error" }, { status: 500 })
   }
