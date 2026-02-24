@@ -6,7 +6,61 @@ import { apiFetch } from "@/lib/backend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "IN", name: "India" },
+  { code: "JP", name: "Japan" },
+  { code: "CN", name: "China" },
+  { code: "AU", name: "Australia" },
+  { code: "AE", name: "UAE" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "SG", name: "Singapore" },
+  { code: "BR", name: "Brazil" },
+  { code: "MX", name: "Mexico" },
+] as const;
+
+const TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Sao_Paulo",
+  "America/Mexico_City",
+  "Pacific/Honolulu",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Asia/Kolkata",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+  "Asia/Dubai",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+] as const;
+
+// E.164: + followed by 6-15 digits
+const E164_RE = /^\+\d{6,15}$/;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function slugify(value: string): string {
   return String(value || "")
@@ -24,16 +78,16 @@ function deriveDomain(email: string): string {
   return normalized.slice(at + 1);
 }
 
-function mapErrorCode(code: string, fallback: string): string {
-  if (code === "invalid_input") return "Please check company details and try again.";
-  if (code === "invalid_token") return "Your session expired. Please log in again.";
-  if (code === "forbidden") return "Only superadmin can register vendors.";
-  if (code === "appwrite_team_create_failed") return "Could not create Appwrite team.";
-  if (code === "appwrite_membership_create_failed") return "Could not add creator as team admin.";
-  if (code === "appwrite_vendor_create_failed") return "Could not create Appwrite vendor document.";
-  if (code === "supabase_insert_failed_rolled_back") return "Supabase insert failed. Appwrite changes were rolled back.";
-  return fallback || "Vendor registration failed.";
+/** Normalize phone: strip spaces/dashes, auto-prepend + if missing */
+function normalizePhone(raw: string): string {
+  let cleaned = raw.replace(/[\s\-().]/g, "");
+  if (cleaned && !cleaned.startsWith("+")) {
+    cleaned = "+" + cleaned;
+  }
+  return cleaned;
 }
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function VendorRegistrationForm() {
   const router = useRouter();
@@ -46,32 +100,63 @@ export default function VendorRegistrationForm() {
   const [timezone, setTimezone] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
   const derivedSlug = React.useMemo(() => slugify(companyName), [companyName]);
   const derivedDomain = React.useMemo(() => deriveDomain(billingEmail), [billingEmail]);
 
+  /** Client-side validation — returns true if all fields are valid */
+  function validate(): boolean {
+    const errors: Record<string, string> = {};
+
+    const name = companyName.trim();
+    if (name.length < 2 || name.length > 128) {
+      errors.companyName = "Company name must be 2–128 characters.";
+    }
+
+    const email = billingEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.billingEmail = "Enter a valid email address.";
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (normalizedPhone && !E164_RE.test(normalizedPhone)) {
+      errors.phone = "Phone must be in E.164 format, e.g. +15551234567 (6–15 digits after +).";
+    }
+
+    // country and timezone are now dropdowns, so they're always valid if selected
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!validate()) return;
+
     setSubmitting(true);
 
     try {
+      const normalizedPhone = normalizePhone(phone);
+
       const res = await apiFetch("/admin/vendors/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName: companyName.trim(),
           billingEmail: billingEmail.trim().toLowerCase(),
-          phone: phone.trim() || null,
-          country: country.trim().toUpperCase() || null,
-          timezone: timezone.trim() || null,
+          phone: normalizedPhone || null,
+          country: country || null,
+          timezone: timezone || null,
         }),
       });
 
       const body = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        const code = String(body?.code || "");
-        const message = mapErrorCode(code, String(body?.message || ""));
+        // Show the specific backend message instead of generic mapping
+        const message = body?.message || body?.detail || "Vendor registration failed.";
         setError(message);
         toast({
           title: "Vendor registration failed",
@@ -107,60 +192,112 @@ export default function VendorRegistrationForm() {
         </div>
       ) : null}
 
+      {/* Company Name */}
       <div className="space-y-2">
-        <Label htmlFor="companyName">Name of company</Label>
+        <Label htmlFor="companyName">
+          Name of company <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="companyName"
           value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
+          onChange={(e) => {
+            setCompanyName(e.target.value);
+            setFieldErrors((prev) => ({ ...prev, companyName: "" }));
+          }}
           placeholder="Odyssey Tech Systems"
           required
+          minLength={2}
+          maxLength={128}
+          aria-invalid={!!fieldErrors.companyName}
         />
+        {fieldErrors.companyName && (
+          <p className="text-xs text-red-600">{fieldErrors.companyName}</p>
+        )}
       </div>
 
+      {/* Billing Email */}
       <div className="space-y-2">
-        <Label htmlFor="billingEmail">Billing email</Label>
+        <Label htmlFor="billingEmail">
+          Billing email <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="billingEmail"
           type="email"
           value={billingEmail}
-          onChange={(e) => setBillingEmail(e.target.value)}
+          onChange={(e) => {
+            setBillingEmail(e.target.value);
+            setFieldErrors((prev) => ({ ...prev, billingEmail: "" }));
+          }}
           placeholder="billing@company.com"
           required
+          aria-invalid={!!fieldErrors.billingEmail}
         />
+        <p className="text-xs text-muted-foreground">
+          Used to derive the vendor domain for auto-matching users during onboarding
+        </p>
+        {fieldErrors.billingEmail && (
+          <p className="text-xs text-red-600">{fieldErrors.billingEmail}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Phone */}
         <div className="space-y-2">
           <Label htmlFor="phone">Phone</Label>
           <Input
             id="phone"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, phone: "" }));
+            }}
             placeholder="+15551234567"
+            aria-invalid={!!fieldErrors.phone}
           />
+          <p className="text-xs text-muted-foreground">
+            E.164 format (+ prefix auto-added)
+          </p>
+          {fieldErrors.phone && (
+            <p className="text-xs text-red-600">{fieldErrors.phone}</p>
+          )}
         </div>
+
+        {/* Country — Select dropdown */}
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
-          <Input
-            id="country"
-            value={country}
-            onChange={(e) => setCountry(e.target.value.toUpperCase())}
-            placeholder="US"
-            maxLength={2}
-          />
+          <Select value={country} onValueChange={setCountry}>
+            <SelectTrigger id="country">
+              <SelectValue placeholder="Select country" />
+            </SelectTrigger>
+            <SelectContent>
+              {COUNTRIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.name} ({c.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Timezone — Select dropdown */}
         <div className="space-y-2">
           <Label htmlFor="timezone">Timezone</Label>
-          <Input
-            id="timezone"
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            placeholder="America/New_York"
-          />
+          <Select value={timezone} onValueChange={setTimezone}>
+            <SelectTrigger id="timezone">
+              <SelectValue placeholder="Select timezone" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEZONES.map((tz) => (
+                <SelectItem key={tz} value={tz}>
+                  {tz.replace(/_/g, " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
+      {/* Derived preview */}
       <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
         <div>
           <span className="font-medium">Derived slug:</span>{" "}
@@ -172,6 +309,7 @@ export default function VendorRegistrationForm() {
         </div>
       </div>
 
+      {/* Actions */}
       <div className="flex gap-2">
         <Button type="submit" disabled={submitting}>
           {submitting ? "Registering..." : "Register vendor"}

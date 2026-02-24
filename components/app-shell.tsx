@@ -3,9 +3,10 @@
 import type * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import AuthGuard from "@/components/auth-guard"
 import TenantProvider from "@/components/auth/TenantProvider"
+import { useAuth, type UserRole } from "@/hooks/useAuth"
 
 import {
   Sidebar,
@@ -48,23 +49,62 @@ type AppShellProps = {
   subtitle?: string
 }
 
-const mainNavItems = [
+// ── Nav item type with optional role / permission gating ───────────
+type NavItem = {
+  title: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  /** If set, item is only visible to these roles (superadmin always sees everything) */
+  roles?: UserRole[]
+  /** If set, user must hold this permission (or wildcard) */
+  permission?: string
+}
+
+const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
   { title: "Products", href: "/products", icon: Package },
   { title: "Customers", href: "/customers", icon: Users },
   { title: "Jobs", href: "/jobs", icon: Boxes },
   { title: "Search", href: "/search", icon: Search },
   { title: "Alerts", href: "/alerts", icon: Bell },
-  { title: "Compliance", href: "/compliance", icon: Shield },
-  { title: "Vendors", href: "/vendors", icon: Building2 },
+  { title: "Compliance", href: "/compliance", icon: Shield, roles: ["superadmin", "vendor_admin"] },
+  { title: "Vendors", href: "/vendors", icon: Building2, roles: ["superadmin"] },
+  { title: "User Management", href: "/user-management", icon: User, permission: "manage:users" },
 ]
 
-const moreNavItems = [
+const moreNavItems: NavItem[] = [
   { title: "Profile", href: "/profile", icon: User },
-  { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
   { title: "Tenant Selector", href: "/tenant", icon: Building },
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
 ]
+
+// ── Helper: filter nav items based on user's role + permissions ────
+function useFilteredNavItems(items: NavItem[]) {
+  const { authContext } = useAuth()
+
+  return useMemo(() => {
+    const { role, permissions } = authContext
+
+    return items.filter((item) => {
+      // While role is unknown, only show items without any gating
+      if (!role) {
+        return !item.roles && !item.permission
+      }
+
+      // superadmin or wildcard permission sees everything
+      if (role === "superadmin" || permissions.includes("*")) return true
+
+      // Check role constraint
+      if (item.roles && !item.roles.includes(role)) return false
+
+      // Check permission constraint
+      if (item.permission && !permissions.includes(item.permission)) return false
+
+      return true
+    })
+  }, [items, authContext])
+}
 
 export default function AppShell({ children, title = "Odyssey Nutrition", subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
   return (
@@ -88,6 +128,8 @@ export default function AppShell({ children, title = "Odyssey Nutrition", subtit
 function AppSidebar() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const filteredMain = useFilteredNavItems(mainNavItems)
+  const filteredMore = useFilteredNavItems(moreNavItems)
 
   return (
     <Sidebar collapsible="icon">
@@ -105,7 +147,7 @@ function AppSidebar() {
           <SidebarGroupLabel>{"Navigation"}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {filteredMain.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")}>
                     <Link href={item.href}>
@@ -130,7 +172,7 @@ function AppSidebar() {
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {moreNavItems.map((item) => (
+                  {filteredMore.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton asChild isActive={pathname === item.href}>
                         <Link href={item.href}>
