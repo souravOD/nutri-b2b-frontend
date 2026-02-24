@@ -85,10 +85,14 @@ function useFilteredNavItems(items: NavItem[]) {
 
   return useMemo(() => {
     const { role, permissions } = authContext
-    if (!role) return items // not loaded yet — show all (guards protect actual pages)
 
     return items.filter((item) => {
-      // superadmin sees everything
+      // While role is unknown, only show items without any gating
+      if (!role) {
+        return !item.roles && !item.permission
+      }
+
+      // superadmin or wildcard permission sees everything
       if (role === "superadmin" || permissions.includes("*")) return true
 
       // Check role constraint

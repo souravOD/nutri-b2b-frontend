@@ -28,7 +28,8 @@ type PermissionGateProps = {
  *   </PermissionGate>
  */
 export function PermissionGate({ permission, roles, fallback = null, children }: PermissionGateProps) {
-    const { allowed: permAllowed } = usePermission(permission ?? "");
+    // Hook is always called (rules of hooks), but with a no-op value when unneeded
+    const { allowed: permAllowed } = usePermission(permission ?? "__none__");
     const { authContext } = useAuth();
 
     // If a permission was specified, check it
