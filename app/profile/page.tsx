@@ -2,69 +2,26 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { account, databases } from "@/lib/appwrite"
-import { Query } from "appwrite"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Card } from "@/components/ui/card"
-
-const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DB_ID!
-const USERPROFILES_COL = process.env.NEXT_PUBLIC_APPWRITE_USERPROFILES_COL!
-const VENDORS_COL = process.env.NEXT_PUBLIC_APPWRITE_VENDORS_COL!
-
-type ProfileDoc = {
-  $id: string
-  user_id: string
-  vendor_id: string
-  vendor_slug?: string
-  team_id?: string
-  full_name: string
-  role: string
-  // Optional (only if you later add these attributes to the collection)
-  phone?: string
-  country?: string
-  timezone?: string
-}
-
-type VendorDoc = {
-  $id: string
-  name: string
-  slug: string
-  billing_email?: string
-}
-
-async function resolveVendorFromProfile(profile: ProfileDoc): Promise<VendorDoc | null> {
-  const vendorId = String(profile?.vendor_id ?? "").trim()
-  const vendorSlug = String(profile?.vendor_slug ?? "").trim().toLowerCase()
-
-  if (vendorId) {
-    try {
-      const byId = await databases.getDocument(DB_ID, VENDORS_COL, vendorId)
-      return byId as unknown as VendorDoc
-    } catch {
-      // Fall through to slug lookup for legacy rows where vendor_id stored slug.
-    }
-  }
-
-  const slugCandidate = vendorSlug || vendorId.toLowerCase()
-  if (!slugCandidate) return null
-
-  try {
-    const bySlug = await databases.listDocuments(DB_ID, VENDORS_COL, [
-      Query.equal("slug", slugCandidate),
-      Query.limit(1),
-    ])
-    if (bySlug.total > 0) return bySlug.documents[0] as unknown as VendorDoc
-  } catch {
-    // Ignore and return null below.
-  }
-
-  return null
-}
+import { apiFetch } from "@/lib/backend"
 
 const DEFAULT_TZ = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Kolkata"]
+
+interface ProfileData {
+  id: string
+  appwriteUserId: string
+  email: string
+  displayName: string
+  phone: string | null
+  country: string | null
+  timezone: string | null
+  vendorId: string | null
+  role: string
+}
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -73,21 +30,12 @@ export default function ProfilePage() {
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
 
-  // account
-  const [userId, setUserId] = React.useState<string>("")
-  const [email, setEmail] = React.useState<string>("")
-  const [fullName, setFullName] = React.useState<string>("")
-
-  // extendables (stored in DB if attributes exist; otherwise in prefs as fallback)
-  const [phone, setPhone] = React.useState<string>("")
-  const [country, setCountry] = React.useState<string>("")
-  const [timezone, setTimezone] = React.useState<string>("")
-
-  // vendor (read-only)
-  const [vendor, setVendor] = React.useState<VendorDoc | null>(null)
-
-  // user_profile doc
-  const [profile, setProfile] = React.useState<ProfileDoc | null>(null)
+  const [email, setEmail] = React.useState("")
+  const [displayName, setDisplayName] = React.useState("")
+  const [phone, setPhone] = React.useState("")
+  const [country, setCountry] = React.useState("")
+  const [timezone, setTimezone] = React.useState("")
+  const [role, setRole] = React.useState("")
 
   const timezones = React.useMemo(() => {
     try {
@@ -101,47 +49,30 @@ export default function ProfilePage() {
 
   React.useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const me = await account.get()
-        if (!me) throw new Error("Not authenticated")
-        if (cancelled) return
+      ; (async () => {
+        try {
+          const res = await apiFetch("/api/profile")
+          if (res.status === 401) {
+            if (!cancelled) setLoading(false)
+            router.replace("/login")
+            return
+          }
+          if (!res.ok) throw new Error("Failed to load profile")
+          const data: ProfileData = await res.json()
+          if (cancelled) return
 
-        setUserId(me.$id)
-        setEmail(me.email)
-        setFullName(me.name ?? "")
-
-        // Load user_profile
-        const profs = await databases.listDocuments(DB_ID, USERPROFILES_COL, [
-          Query.equal("user_id", me.$id),
-          Query.limit(1),
-        ])
-
-        if (cancelled) return
-
-        if (profs.total > 0) {
-          const p = profs.documents[0] as unknown as ProfileDoc
-          setProfile(p)
-          setFullName(p.full_name ?? me.name ?? "")
-          setPhone((p as any).phone ?? "")
-          setCountry((p as any).country ?? "")
-          setTimezone((p as any).timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"))
-
-          // Load vendor read-only info.
-          const vend = await resolveVendorFromProfile(p)
-          if (!cancelled && vend) setVendor(vend)
-        } else {
-          // No profile yet; keep minimal info
-          setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")
+          setEmail(data.email || "")
+          setDisplayName(data.displayName || "")
+          setPhone(data.phone || "")
+          setCountry(data.country || "")
+          setTimezone(data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")
+          setRole(data.role || "")
+        } catch (err: any) {
+          toast({ title: "Couldn't load profile", description: err?.message, variant: "destructive" })
+        } finally {
+          if (!cancelled) setLoading(false)
         }
-      } catch (err) {
-        // No session → go to login
-        router.replace("/login")
-        return
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
+      })()
     return () => {
       cancelled = true
     }
@@ -149,47 +80,29 @@ export default function ProfilePage() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!fullName.trim()) {
-      toast({ title: "Full name is required", variant: "destructive" })
+    if (!displayName.trim()) {
+      toast({ title: "Display name is required", variant: "destructive" })
       return
     }
     setSaving(true)
     try {
-      // Update Appwrite account display name
-      await account.updateName(fullName)
-
-      // Upsert to user_profiles (full_name always; others only if the collection has those attributes)
-      if (profile?.$id) {
-        // Attempt to update everything; if schema lacks fields, Appwrite will error — we catch and retry minimal
-        try {
-          await databases.updateDocument(DB_ID, USERPROFILES_COL, profile.$id, {
-            full_name: fullName,
-            ...(phone ? { phone } : {}),
-            ...(country ? { country } : {}),
-            ...(timezone ? { timezone } : {}),
-          })
-        } catch {
-          // Retry with minimal payload (safe for current schema)
-          await databases.updateDocument(DB_ID, USERPROFILES_COL, profile.$id, {
-            full_name: fullName,
-          })
-          // Persist optional fields in user prefs as a temporary fallback
-          try {
-            const currentPrefs = (await account.getPrefs()) as Record<string, any>
-            await account.updatePrefs({
-              ...currentPrefs,
-              profile_ext: { phone, country, timezone },
-            })
-          } catch {
-            // ignore
-          }
-        }
+      const res = await apiFetch("/api/profile", {
+        method: "PUT",
+        body: JSON.stringify({
+          displayName: displayName.trim(),
+          phone: phone.trim() || null,
+          country: country.trim() || null,
+          timezone: timezone.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.detail || "Failed to save profile")
       }
-
       toast({ title: "Profile updated" })
     } catch (err: any) {
       toast({
-        title: "Couldn’t save profile",
+        title: "Couldn't save profile",
         description: err?.message ?? "Unknown error",
         variant: "destructive",
       })
@@ -221,27 +134,21 @@ export default function ProfilePage() {
             <Input id="email" value={email} disabled />
           </div>
 
-          {vendor && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Company</Label>
-                <Input value={vendor.name} disabled />
-              </div>
-              <div className="grid gap-2">
-                <Label>Workspace slug</Label>
-                <Input value={vendor.slug} disabled />
-              </div>
+          {role && (
+            <div className="grid gap-2">
+              <Label>Role</Label>
+              <Input value={role.replace(/_/g, " ")} disabled className="capitalize" />
             </div>
           )}
         </Card>
 
         <Card className="p-5 grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="fullName">Full name</Label>
+            <Label htmlFor="displayName">Display name</Label>
             <Input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Jane Doe"
               required
             />

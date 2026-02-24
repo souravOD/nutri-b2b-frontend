@@ -35,7 +35,13 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Users, UserPlus, Shield, Mail, Crown, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Users, UserPlus, Shield, Mail, Crown, ChevronDown, ChevronUp, Pencil, Building2 } from "lucide-react";
+
+type VendorOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
 
 type UserLink = {
     userId: string;
@@ -45,6 +51,8 @@ type UserLink = {
     displayName?: string;
     linkedAt?: string;
 };
+
+
 
 const ROLE_LABELS: Record<string, string> = {
     vendor_admin: "Admin",
@@ -75,8 +83,13 @@ export default function UserManagementPage() {
     const [invEmail, setInvEmail] = React.useState("");
     const [invRole, setInvRole] = React.useState("vendor_viewer");
     const [invMessage, setInvMessage] = React.useState("");
+    const [invVendorId, setInvVendorId] = React.useState("");
     const [invSubmitting, setInvSubmitting] = React.useState(false);
     const [invError, setInvError] = React.useState<string | null>(null);
+
+    // Vendor list for superadmin invites
+    const [vendors, setVendors] = React.useState<VendorOption[]>([]);
+    const [vendorsLoading, setVendorsLoading] = React.useState(false);
 
     // Edit role dialog state
     const [editOpen, setEditOpen] = React.useState(false);
@@ -105,6 +118,30 @@ export default function UserManagementPage() {
     React.useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    // Fetch vendor list for superadmin invite selector
+    React.useEffect(() => {
+        if (!isSuperadmin) return;
+        let cancelled = false;
+        (async () => {
+            setVendorsLoading(true);
+            try {
+                const res = await apiFetch("/api/vendors");
+                if (res.ok) {
+                    const body = await res.json();
+                    const list = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
+                    if (!cancelled) setVendors(list.map((v: any) => ({ id: v.id || v.$id, name: v.name, slug: v.slug })));
+                }
+            } catch {
+                // Non-fatal
+            } finally {
+                if (!cancelled) setVendorsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isSuperadmin]);
+
+
 
     async function handlePromote(userId: string) {
         if (!confirm("Promote this user to Superadmin? They will have full platform access.")) return;
@@ -173,6 +210,7 @@ export default function UserManagementPage() {
         setInvEmail("");
         setInvRole("vendor_viewer");
         setInvMessage("");
+        setInvVendorId("");
         setInvError(null);
         setInviteOpen(true);
     }
@@ -200,6 +238,8 @@ export default function UserManagementPage() {
                     email: trimmedEmail,
                     role: invRole,
                     message: invMessage.trim() || undefined,
+                    ...(isSuperadmin && invVendorId ? { vendor_id: invVendorId } : {}),
+
                 }),
             });
             const body = await res.json().catch(() => ({} as any));
@@ -517,6 +557,30 @@ export default function UserManagementPage() {
                             </Select>
                         </div>
 
+                        {/* Vendor (superadmin only) */}
+                        {isSuperadmin && (
+                            <div className="space-y-2">
+                                <Label htmlFor="inv-vendor">Vendor</Label>
+                                <Select value={invVendorId} onValueChange={setInvVendorId} disabled={invSubmitting || vendorsLoading}>
+                                    <SelectTrigger id="inv-vendor">
+                                        <div className="flex items-center gap-2">
+                                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                                            <SelectValue placeholder={vendorsLoading ? "Loading vendors…" : "Select a vendor (optional)"} />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {vendors.map((v) => (
+                                            <SelectItem key={v.id} value={v.id}>
+                                                {v.name} <span className="text-muted-foreground">({v.slug})</span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Leave empty to invite to your current vendor.
+                                </p>
+                            </div>
+                        )}
                         {/* Message (optional) */}
                         <div className="space-y-2">
                             <Label htmlFor="inv-message">
