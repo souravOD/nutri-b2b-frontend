@@ -143,6 +143,7 @@ export default function VendorRegistrationForm() {
 
       const res = await apiFetch("/admin/vendors/register", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName: companyName.trim(),
           billingEmail: billingEmail.trim().toLowerCase(),

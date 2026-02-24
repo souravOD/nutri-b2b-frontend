@@ -18,6 +18,8 @@ type ProfileDoc = {
   $id: string
   user_id: string
   vendor_id: string
+  vendor_slug?: string
+  team_id?: string
   full_name: string
   role: string
   // Optional (only if you later add these attributes to the collection)
@@ -31,6 +33,35 @@ type VendorDoc = {
   name: string
   slug: string
   billing_email?: string
+}
+
+async function resolveVendorFromProfile(profile: ProfileDoc): Promise<VendorDoc | null> {
+  const vendorId = String(profile?.vendor_id ?? "").trim()
+  const vendorSlug = String(profile?.vendor_slug ?? "").trim().toLowerCase()
+
+  if (vendorId) {
+    try {
+      const byId = await databases.getDocument(DB_ID, VENDORS_COL, vendorId)
+      return byId as unknown as VendorDoc
+    } catch {
+      // Fall through to slug lookup for legacy rows where vendor_id stored slug.
+    }
+  }
+
+  const slugCandidate = vendorSlug || vendorId.toLowerCase()
+  if (!slugCandidate) return null
+
+  try {
+    const bySlug = await databases.listDocuments(DB_ID, VENDORS_COL, [
+      Query.equal("slug", slugCandidate),
+      Query.limit(1),
+    ])
+    if (bySlug.total > 0) return bySlug.documents[0] as unknown as VendorDoc
+  } catch {
+    // Ignore and return null below.
+  }
+
+  return null
 }
 
 const DEFAULT_TZ = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Kolkata"]
@@ -96,11 +127,9 @@ export default function ProfilePage() {
           setCountry((p as any).country ?? "")
           setTimezone((p as any).timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"))
 
-          // Load vendor read-only info
-          if (p.vendor_id) {
-            const vend = await databases.getDocument(DB_ID, VENDORS_COL, p.vendor_id)
-            if (!cancelled) setVendor(vend as unknown as VendorDoc)
-          }
+          // Load vendor read-only info.
+          const vend = await resolveVendorFromProfile(p)
+          if (!cancelled && vend) setVendor(vend)
         } else {
           // No profile yet; keep minimal info
           setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")
