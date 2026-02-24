@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import AppShell from "@/components/app-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ const SETTINGS_KEYS = {
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("")
   const [orgDomain, setOrgDomain] = useState("")
-  const [orgTimezone, setOrgTimezone] = useState("est")
+  const [orgTimezone, setOrgTimezone] = useState("America/New_York")
   const [autoMatching, setAutoMatching] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [dataRetention, setDataRetention] = useState(false)
@@ -35,6 +35,13 @@ export default function SettingsPage() {
   const [savingPrefs, setSavingPrefs] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const successTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+    }
+  }, [])
 
   const loadSettings = useCallback(async () => {
     try {
@@ -86,7 +93,8 @@ export default function SettingsPage() {
         saveSetting(SETTINGS_KEYS.orgTimezone, orgTimezone),
       ])
       setSuccess("Organization settings saved")
-      setTimeout(() => setSuccess(null), 3000)
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+      successTimeoutRef.current = window.setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
       setError(err?.message || "Failed to save settings")
     } finally {
@@ -105,7 +113,8 @@ export default function SettingsPage() {
         saveSetting(SETTINGS_KEYS.dataRetention, String(dataRetention)),
       ])
       setSuccess("Preferences saved")
-      setTimeout(() => setSuccess(null), 3000)
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+      successTimeoutRef.current = window.setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
       setError(err?.message || "Failed to save preferences")
     } finally {
@@ -161,10 +170,12 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="orgTimezone">Default Timezone</Label>
                   <select id="orgTimezone" className="w-full p-2 border rounded-md" value={orgTimezone} onChange={(e) => setOrgTimezone(e.target.value)}>
-                    <option value="est">Eastern Time (EST)</option>
-                    <option value="cst">Central Time (CST)</option>
-                    <option value="mst">Mountain Time (MST)</option>
-                    <option value="pst">Pacific Time (PST)</option>
+                    <option value="America/New_York">Eastern Time (ET)</option>
+                    <option value="America/Chicago">Central Time (CT)</option>
+                    <option value="America/Denver">Mountain Time (MT)</option>
+                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                    <option value="Asia/Kolkata">India Standard Time (IST)</option>
+                    <option value="UTC">UTC</option>
                   </select>
                 </div>
                 <Button onClick={handleSaveOrg} disabled={saving}>

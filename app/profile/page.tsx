@@ -53,6 +53,7 @@ export default function ProfilePage() {
         try {
           const res = await apiFetch("/api/profile")
           if (res.status === 401) {
+            if (!cancelled) setLoading(false)
             router.replace("/login")
             return
           }
