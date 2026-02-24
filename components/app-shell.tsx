@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useMemo } from "react"
 import AuthGuard from "@/components/auth-guard"
-import TenantProvider from "@/components/auth/TenantProvider"
+
 import { useAuth, type UserRole } from "@/hooks/useAuth"
 
 import {
@@ -29,7 +29,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Bell,
   Boxes,
-  Building,
+
   Building2,
   ChevronRight,
   GraduationCap,
@@ -75,7 +75,7 @@ const mainNavItems: NavItem[] = [
 const moreNavItems: NavItem[] = [
   { title: "Profile", href: "/profile", icon: User },
   { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
-  { title: "Tenant Selector", href: "/tenant", icon: Building },
+
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
 ]
 
@@ -115,10 +115,7 @@ export default function AppShell({ children, title = "Odyssey Nutrition", subtit
         <TopNav title={title} />
         {/* 🔁 AuthGuard FIRST, so nothing below renders until auth is settled */}
         <AuthGuard>
-          {/* TenantProvider now runs only after auth; prevents unauthenticated DB lookups */}
-          <TenantProvider>
-            <div className="px-4 md:px-6 py-4">{children}</div>
-          </TenantProvider>
+          <div className="px-4 md:px-6 py-4">{children}</div>
         </AuthGuard>
       </SidebarInset>
     </SidebarProvider>
