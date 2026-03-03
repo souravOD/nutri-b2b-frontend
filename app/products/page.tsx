@@ -305,7 +305,8 @@ export default function ProductsPage() {
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
   const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
-  const [qualityMap, setQualityMap] = React.useState<Record<string, { overallScore: number; grade: string }>>({})
+  type Grade = "A" | "B" | "C" | "D" | "F";
+  const [qualityMap, setQualityMap] = React.useState<Record<string, { overallScore: number; grade: Grade }>>({})
 
   async function openEdit(p: Product) {
     try {

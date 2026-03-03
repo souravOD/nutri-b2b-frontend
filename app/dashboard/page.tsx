@@ -38,7 +38,7 @@ export default function DashboardPage() {
     profilesWithMatchesPct: 0,
     pendingJobs: 0,
     qualityGrade: "—",
-    qualityScore: 0,
+    qualityScore: undefined,
     unreadAlerts: 0,
   });
 
@@ -178,7 +178,7 @@ export default function DashboardPage() {
         <StatCard
           label="Catalog Quality"
           value={metrics.qualityGrade ?? "—"}
-          sub={metrics.qualityScore ? `Score: ${metrics.qualityScore}` : undefined}
+          sub={metrics.qualityScore != null ? `Score: ${metrics.qualityScore}` : undefined}
           badge={metrics.qualityGrade}
         />
         <StatCard
@@ -222,7 +222,9 @@ export default function DashboardPage() {
   );
 }
 
-function gradeFromScore(score: number): string {
+type Grade = "A" | "B" | "C" | "D" | "F";
+
+function gradeFromScore(score: number): Grade {
   if (score >= 80) return "A";
   if (score >= 60) return "B";
   if (score >= 40) return "C";
@@ -230,7 +232,7 @@ function gradeFromScore(score: number): string {
   return "F";
 }
 
-const GRADE_COLORS: Record<string, string> = {
+const GRADE_COLORS: Record<Grade, string> = {
   A: "text-green-600",
   B: "text-blue-600",
   C: "text-yellow-600",
@@ -256,7 +258,7 @@ function StatCard({
   const content = (
     <Card className={cn("p-4 hover:shadow-sm transition-shadow cursor-pointer", isAlert && "border-red-300")}>
       <div className="text-sm text-muted-foreground">{label}</div>
-      <div className={cn("text-3xl font-semibold mt-1", badge && GRADE_COLORS[badge])}>
+      <div className={cn("text-3xl font-semibold mt-1", badge && GRADE_COLORS[badge as Grade])}>
         {value}
       </div>
       {sub ? <div className="mt-2 text-xs text-primary">{sub}</div> : null}
