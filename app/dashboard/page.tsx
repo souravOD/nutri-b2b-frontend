@@ -13,6 +13,9 @@ type Metrics = {
   activeCustomers?: number;
   profilesWithMatchesPct?: number;
   pendingJobs?: number;
+  qualityGrade?: string;
+  qualityScore?: number;
+  unreadAlerts?: number;
 };
 
 type ListResponse<T> = { data?: T[] } | T[];
@@ -34,6 +37,9 @@ export default function DashboardPage() {
     activeCustomers: 0,
     profilesWithMatchesPct: 0,
     pendingJobs: 0,
+    qualityGrade: "—",
+    qualityScore: 0,
+    unreadAlerts: 0,
   });
 
   React.useEffect(() => {
@@ -53,15 +59,41 @@ export default function DashboardPage() {
           const m = await r.json();
           if (ac.signal.aborted) return;
           safeSet(() =>
-            setMetrics({
+            setMetrics((prev) => ({
+              ...prev,
               totalProducts: m.totalProducts ?? m.products ?? m.counts?.products ?? 0,
               activeCustomers:
                 m.activeCustomers ?? m.customersActive ?? m.counts?.customersActive ?? m.customers ?? 0,
               profilesWithMatchesPct:
                 m.profilesWithMatchesPct ?? m.matchRate ?? m.profiles_with_matches_pct ?? 0,
               pendingJobs: m.pendingJobs ?? m.jobs?.pending ?? m.counts?.jobsPending ?? 0,
-            })
+            }))
           );
+
+          // Parallel: fetch quality summary and alerts summary (non-fatal)
+          const [qRes, aRes] = await Promise.all([
+            apiFetch("/api/quality/vendor-summary", { signal: ac.signal }).catch(() => null),
+            apiFetch("/api/alerts/summary", { signal: ac.signal }).catch(() => null),
+          ]);
+          if (ac.signal.aborted) return;
+
+          const qualityData = qRes?.ok ? await qRes.json() : null;
+          const alertsData = aRes?.ok ? await aRes.json() : null;
+
+          if (qualityData || alertsData) {
+            safeSet(() =>
+              setMetrics((prev) => ({
+                ...prev,
+                ...(qualityData ? {
+                  qualityScore: qualityData.averages?.overall ?? qualityData.averageScore ?? 0,
+                  qualityGrade: gradeFromScore(qualityData.averages?.overall ?? qualityData.averageScore ?? 0),
+                } : {}),
+                ...(alertsData ? {
+                  unreadAlerts: alertsData.unread ?? 0,
+                } : {}),
+              }))
+            );
+          }
           return;
         }
 
@@ -129,7 +161,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell title="Odyssey B2B">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Total Products" value={metrics.totalProducts ?? 0} sub="View All" href="/products" />
         <StatCard label="Active Customers" value={metrics.activeCustomers ?? 0} sub="Manage" href="/customers" />
         <StatCard
@@ -143,6 +175,19 @@ export default function DashboardPage() {
           href="/search?tab=profiles"
         />
         <StatCard label="Pending Jobs" value={metrics.pendingJobs ?? 0} sub="View Jobs" href="/jobs" />
+        <StatCard
+          label="Catalog Quality"
+          value={metrics.qualityGrade ?? "—"}
+          sub={metrics.qualityScore ? `Score: ${metrics.qualityScore}` : undefined}
+          badge={metrics.qualityGrade}
+        />
+        <StatCard
+          label="Unread Alerts"
+          value={metrics.unreadAlerts ?? 0}
+          sub="View Alerts"
+          href="/alerts"
+          alert={!!metrics.unreadAlerts && metrics.unreadAlerts > 0}
+        />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -177,21 +222,43 @@ export default function DashboardPage() {
   );
 }
 
+function gradeFromScore(score: number): string {
+  if (score >= 80) return "A";
+  if (score >= 60) return "B";
+  if (score >= 40) return "C";
+  if (score >= 20) return "D";
+  return "F";
+}
+
+const GRADE_COLORS: Record<string, string> = {
+  A: "text-green-600",
+  B: "text-blue-600",
+  C: "text-yellow-600",
+  D: "text-orange-600",
+  F: "text-red-600",
+};
+
 function StatCard({
   label,
   value,
   sub,
   href,
+  badge,
+  alert: isAlert,
 }: {
   label: string;
   value: number | string;
   sub?: string;
   href?: string;
+  badge?: string;
+  alert?: boolean;
 }) {
   const content = (
-    <Card className={cn("p-4 hover:shadow-sm transition-shadow cursor-pointer")}>
+    <Card className={cn("p-4 hover:shadow-sm transition-shadow cursor-pointer", isAlert && "border-red-300")}>
       <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="text-3xl font-semibold mt-1">{value}</div>
+      <div className={cn("text-3xl font-semibold mt-1", badge && GRADE_COLORS[badge])}>
+        {value}
+      </div>
       {sub ? <div className="mt-2 text-xs text-primary">{sub}</div> : null}
     </Card>
   );
