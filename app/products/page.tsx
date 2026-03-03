@@ -305,6 +305,8 @@ export default function ProductsPage() {
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
   const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
+  type Grade = "A" | "B" | "C" | "D" | "F";
+  const [qualityMap, setQualityMap] = React.useState<Record<string, { overallScore: number; grade: Grade }>>({})
 
   async function openEdit(p: Product) {
     try {
@@ -369,6 +371,7 @@ export default function ProductsPage() {
     allergens: false,
     diets: false,
     certifications: false,
+    quality: true,
   })
 
   const load = React.useCallback(async () => {
@@ -390,6 +393,17 @@ export default function ProductsPage() {
       const items = normalizeListResponse(json)
       setData(items.map(toProduct))
       setError(null)
+
+      // Fetch quality scores (non-fatal)
+      try {
+        const qRes = await apiFetch("/api/quality/vendor-summary")
+        if (qRes.ok) {
+          const qData = await qRes.json()
+          if (qData?.byProduct && typeof qData.byProduct === "object") {
+            setQualityMap(qData.byProduct)
+          }
+        }
+      } catch { /* quality fetch is optional */ }
     } catch (error) {
       console.error("Failed to load products:", error)
       setError("Could not load products. Please try again.")
@@ -654,6 +668,26 @@ export default function ProductsPage() {
       },
     },
     {
+      id: "quality",
+      header: "Quality",
+      cell: ({ row }) => {
+        const q = qualityMap[row.original.id]
+        if (!q) return <span className="text-xs text-muted-foreground">—</span>
+        const gradeColors: Record<string, string> = {
+          A: "bg-green-100 text-green-700",
+          B: "bg-blue-100 text-blue-700",
+          C: "bg-yellow-100 text-yellow-700",
+          D: "bg-orange-100 text-orange-700",
+          F: "bg-red-100 text-red-700",
+        }
+        return (
+          <Badge className={gradeColors[q.grade] ?? "bg-slate-100 text-slate-700"}>
+            {q.grade} ({q.overallScore})
+          </Badge>
+        )
+      },
+    },
+    {
       accessorKey: "updatedAt",
       header: "Last Updated",
       cell: ({ row }) => <span className="text-sm">{new Date(row.original.updatedAt).toLocaleString()}</span>,
@@ -686,6 +720,7 @@ export default function ProductsPage() {
     if (col.id === "allergens") return columnVisibility.allergens
     if (col.id === "diets") return columnVisibility.diets
     if (col.id === "certifications") return columnVisibility.certifications
+    if (col.id === "quality") return columnVisibility.quality
     return true
   })
 
