@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X, Info, FolderTree, DollarSign, Beaker, Apple, Tag } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/backend"
 
@@ -52,19 +52,17 @@ const schema = z.object({
   // misc
   brand: z.string().optional(),
   barcode: z.string().optional(),
-  gtin_type: z.enum(["UPC", "EAN", "ISBN"]).optional(),
+  gtin_type: z.union([z.enum(["UPC", "EAN", "ISBN"]), z.literal("")]).optional(),
   price: NumLike.optional(),
   currency: StrOrBlank.optional(),
-  category: z.string().optional(), // free input; we treat as categoryId if UUID
+  category: z.string().optional(),
+  sub_category_id: z.string().optional(),
+  cuisine_id: z.string().optional(),
+  market_id: z.string().optional(),
   description: z.string().optional(),
   serving_size: z.string().optional(),
   package_weight: z.string().optional(),
   source_url: z.union([z.string().url(), z.literal("")]).optional(),
-
-  // relationship IDs (UUID or "")
-  sub_category_id: z.union([z.string().uuid(), z.literal("")]).optional(),
-  cuisine_id: z.union([z.string().uuid(), z.literal("")]).optional(),
-  market_id: z.union([z.string().uuid(), z.literal("")]).optional(),
 
   // structured nutrition
   n_calories: NumLike.optional(),
@@ -128,6 +126,9 @@ export default function ProductForm({
       price: "",
       currency: "USD",
       category: "",
+      sub_category_id: "",
+      cuisine_id: "",
+      market_id: "",
       description: "",
       serving_size: "",
       package_weight: "",
@@ -138,10 +139,6 @@ export default function ProductForm({
       certifications_csv: "",
       regulatory_codes_csv: "",
       ingredients_csv: "",
-
-      sub_category_id: "",
-      cuisine_id: "",
-      market_id: "",
 
       n_calories: "",
       n_protein_g: "",
@@ -290,318 +287,321 @@ export default function ProductForm({
           <Button>{mode === "create" ? "Add Product" : "Edit Product"}</Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-[1024px] max-h-[90vh] overflow-y-auto rounded-xl border-[#e2e8f0]">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Add Product" : "Edit Product"}</DialogTitle>
+          <DialogTitle className="text-[#0f172a]">{mode === "create" ? "Add New Product" : "Edit Product"}</DialogTitle>
+          <p className="text-sm text-[#64748b]">
+            {mode === "create" ? "Add a new product to your catalog." : "Update product details."}
+          </p>
         </DialogHeader>
 
-        {/* Friendly server error box */}
         {serverError && (
           <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
             {serverError}
           </div>
         )}
 
-        <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
-          {/* Required fields */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Controller
-                name="name"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Input id="name" aria-invalid={!!fieldState.error} {...field} />
-                    {fieldState.error && (
-                      <span className="text-xs text-rose-600">{fieldState.error.message}</span>
+        <form
+          className="grid gap-6"
+          onSubmit={handleSubmit(onSubmit, (err) => {
+            const msg = Object.values(err || {}).map((e: any) => e?.message).filter(Boolean).join("; ") || "Please fix the errors below.";
+            toast({ title: "Validation failed", description: msg, variant: "destructive" });
+          })}
+        >
+          {/* Section: Basic Information */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <Info className="h-4 w-4 text-[#00438f]" />
+              Basic Information
+            </h3>
+            <div className="grid gap-4">
+              <div className="grid gap-2 md:grid-cols-[2fr_1fr]">
+                <div>
+                  <Label htmlFor="name" className="text-[#0f172a]">Product Name</Label>
+                  <Controller
+                    name="name"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <>
+                        <Input id="name" placeholder="e.g. Organic Almond Milk 1L" aria-invalid={!!fieldState.error} className="border-[#e2e8f0]" {...field} />
+                        {fieldState.error && <span className="text-xs text-rose-600">{fieldState.error.message}</span>}
+                      </>
                     )}
-                  </>
-                )}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="sku">SKU / External ID</Label>
-              <Controller
-                name="sku"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Input id="sku" aria-invalid={!!fieldState.error} {...field} />
-                    {fieldState.error && (
-                      <span className="text-xs text-rose-600">{fieldState.error.message}</span>
+                  />
+                </div>
+                <div>
+                  <Label className="text-[#0f172a]">Status</Label>
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <>
+                        <Select value={field.value} onValueChange={(v) => field.onChange(v as FormValues["status"])}>
+                          <SelectTrigger className="w-full border-[#e2e8f0]" aria-invalid={!!fieldState.error}>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {fieldState.error && <span className="text-xs text-rose-600">{fieldState.error.message as string}</span>}
+                      </>
                     )}
-                  </>
-                )}
-              />
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <Label className="text-[#0f172a]">SKU / External ID</Label>
+                  <Controller
+                    name="sku"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <>
+                        <Input placeholder="SKU-XXXXX" aria-invalid={!!fieldState.error} className="border-[#e2e8f0]" {...field} />
+                        {fieldState.error && <span className="text-xs text-rose-600">{fieldState.error.message}</span>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[#0f172a]">Brand</Label>
+                  <Controller name="brand" control={control} render={({ field }) => <Input placeholder="Member's Mark" className="border-[#e2e8f0]" {...field} />} />
+                </div>
+                <div>
+                  <Label className="text-[#0f172a]">Barcode / EAN</Label>
+                  <Controller name="barcode" control={control} render={({ field }) => <Input placeholder="012345678901" className="border-[#e2e8f0]" {...field} />} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Description</Label>
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => <Textarea rows={3} placeholder="Provide a detailed product description..." className="border-[#e2e8f0]" {...field} />}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Controller
-                name="status"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Select
-                      value={field.value}
-                      onValueChange={(v) => field.onChange(v as FormValues["status"])}
-                    >
-                      <SelectTrigger className="w-full" aria-invalid={!!fieldState.error}>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
+          {/* Section: Categorization */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <FolderTree className="h-4 w-4 text-[#00438f]" />
+              Categorization
+            </h3>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div>
+                <Label className="text-[#0f172a]">Category ID (UUID)</Label>
+                <Controller name="category" control={control} render={({ field }) => <Input placeholder="Optional" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Subcategory ID (UUID)</Label>
+                <Controller name="sub_category_id" control={control} render={({ field }) => <Input placeholder="Optional" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Cuisine ID (UUID)</Label>
+                <Controller name="cuisine_id" control={control} render={({ field }) => <Input placeholder="Optional" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Market ID (UUID)</Label>
+                <Controller name="market_id" control={control} render={({ field }) => <Input placeholder="Optional" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Pricing & Logistics */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <DollarSign className="h-4 w-4 text-[#00438f]" />
+              Pricing & Logistics
+            </h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label className="text-[#0f172a]">Price</Label>
+                <Controller
+                  name="price"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input type="text" inputMode="decimal" placeholder="0.00" className="pl-7 border-[#e2e8f0]" {...field} />
+                    </div>
+                  )}
+                />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Currency</Label>
+                <Controller
+                  name="currency"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value && field.value.trim() ? field.value : "USD"} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full border-[#e2e8f0]"><SelectValue placeholder="USD" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="GBP">GBP</SelectItem>
+                        <SelectItem value="CAD">CAD</SelectItem>
+                        <SelectItem value="AUD">AUD</SelectItem>
                       </SelectContent>
                     </Select>
-                    {fieldState.error && (
-                      <span className="text-xs text-rose-600">
-                        {fieldState.error.message as string}
-                      </span>
-                    )}
-                  </>
-                )}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Category ID (UUID)</Label>
-              <Controller
-                name="category"
-                control={control}
-                render={({ field }) => <Input placeholder="optional" {...field} />}
-              />
-            </div>
-          </div>
-
-          {/* Relationship IDs */}
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="grid gap-2">
-              <Label>Subcategory ID (UUID)</Label>
-              <Controller
-                name="sub_category_id"
-                control={control}
-                render={({ field }) => <Input placeholder="optional" {...field} />}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Cuisine ID (UUID)</Label>
-              <Controller
-                name="cuisine_id"
-                control={control}
-                render={({ field }) => <Input placeholder="optional" {...field} />}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Market ID (UUID)</Label>
-              <Controller
-                name="market_id"
-                control={control}
-                render={({ field }) => <Input placeholder="optional" {...field} />}
-              />
+                  )}
+                />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">GTIN Type</Label>
+                <Select
+                  value={form.getValues("gtin_type") ?? ""}
+                  onValueChange={(v) => form.setValue("gtin_type", v as any, { shouldValidate: true, shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-full border-[#e2e8f0]"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UPC">UPC</SelectItem>
+                    <SelectItem value="EAN">EAN</SelectItem>
+                    <SelectItem value="ISBN">ISBN</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Serving Size</Label>
+                <Controller name="serving_size" control={control} render={({ field }) => <Input placeholder="e.g. 1 cup (240ml)" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Package Weight</Label>
+                <Controller name="package_weight" control={control} render={({ field }) => <Input placeholder="e.g. 500g" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Source URL</Label>
+                <Controller
+                  name="source_url"
+                  control={control}
+                  render={({ field }) => <Input placeholder="https://example.com/product" className="border-[#e2e8f0]" {...field} />}
+                />
+                {errors.source_url && <span className="text-xs text-rose-600">{errors.source_url.message as string}</span>}
+              </div>
             </div>
           </div>
 
-          {/* Basics */}
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
-            <Controller
-              name="description"
-              control={control}
-              render={({ field }) => <Textarea rows={3} {...field} />}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Brand</Label>
-              <Controller
-                name="brand"
-                control={control}
-                render={({ field }) => <Input {...field} />}
-              />
-            </div>
-            <div>
-              <Label>Barcode</Label>
-              <Controller
-                name="barcode"
-                control={control}
-                render={({ field }) => <Input {...field} />}
-              />
-            </div>
-            <div>
-              <Label>GTIN Type</Label>
-              <Select
-                value={form.getValues("gtin_type")}
-                onValueChange={(v) =>
-                  form.setValue("gtin_type", v as any, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UPC">UPC</SelectItem>
-                  <SelectItem value="EAN">EAN</SelectItem>
-                  <SelectItem value="ISBN">ISBN</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Price</Label>
-              <Controller
-                name="price"
-                control={control}
-                render={({ field }) => (
-                  <Input type="text" inputMode="decimal" placeholder="e.g. 1.49" {...field} />
-                )}
-              />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <Controller
-                name="currency"
-                control={control}
-                render={({ field }) => (
-                  <Input maxLength={3} placeholder="USD" {...field} />
-                )}
-              />
-            </div>
-            <div>
-              <Label>Serving Size</Label>
-              <Controller
-                name="serving_size"
-                control={control}
-                render={({ field }) => <Input {...field} />}
-              />
-            </div>
-            <div>
-              <Label>Package Weight</Label>
-              <Controller
-                name="package_weight"
-                control={control}
-                render={({ field }) => <Input {...field} />}
-              />
+          {/* Section: Ingredients & Compliance */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <Beaker className="h-4 w-4 text-[#00438f]" />
+              Ingredients & Compliance
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="text-[#0f172a]">Allergens (CSV)</Label>
+                <Controller name="allergens_csv" control={control} render={({ field }) => <Input placeholder="Milk, Soy, Nuts" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Certifications (CSV)</Label>
+                <Controller name="certifications_csv" control={control} render={({ field }) => <Input placeholder="Organic, Non-GMO, Halal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Ingredients (CSV)</Label>
+                <Controller
+                  name="ingredients_csv"
+                  control={control}
+                  render={({ field }) => <Textarea rows={3} placeholder="Water, Almonds, Sea Salt..." className="border-[#e2e8f0]" {...field} />}
+                />
+              </div>
+              <div>
+                <Label className="text-[#0f172a]">Regulatory Codes (CSV)</Label>
+                <Controller
+                  name="regulatory_codes_csv"
+                  control={control}
+                  render={({ field }) => <Textarea rows={3} placeholder="FDA-102, USDA-88..." className="border-[#e2e8f0]" {...field} />}
+                />
+              </div>
             </div>
           </div>
 
-          {/* CSV → arrays */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Allergens (CSV)</Label>
-              <Controller
-                name="allergens_csv"
-                control={control}
-                render={({ field }) => (
-                  <Input placeholder="milk, egg, wheat" {...field} />
-                )}
-              />
-            </div>
-            <div>
-              <Label>Ingredients (CSV)</Label>
-              <Controller
-                name="ingredients_csv"
-                control={control}
-                render={({ field }) => (
-                  <Input placeholder="Water, Whey Protein Isolate, Cocoa" {...field} />
-                )}
-              />
-            </div>
-            <div>
-              <Label>Certifications (CSV)</Label>
-              <Controller
-                name="certifications_csv"
-                control={control}
-                render={({ field }) => (
-                  <Input placeholder="non-gmo, kosher" {...field} />
-                )}
-              />
-            </div>
-            <div>
-              <Label>Regulatory Codes (CSV)</Label>
-              <Controller
-                name="regulatory_codes_csv"
-                control={control}
-                render={({ field }) => (
-                  <Input placeholder="21CFR101.9" {...field} />
-                )}
-              />
-            </div>
-          </div>
-
-          {/* Structured Nutrition */}
-          <div className="grid gap-2">
-            <Label>Nutrition (per serving)</Label>
-            <div className="grid md:grid-cols-3 gap-3">
-              <Controller name="n_calories"        control={control} render={({ field }) => <Input placeholder="calories" {...field} />} />
-              <Controller name="n_protein_g"        control={control} render={({ field }) => <Input placeholder="protein_g" {...field} />} />
-              <Controller name="n_fat_g"            control={control} render={({ field }) => <Input placeholder="fat_g" {...field} />} />
-              <Controller name="n_carbs_g"          control={control} render={({ field }) => <Input placeholder="carbs_g" {...field} />} />
-              <Controller name="n_sugar_g"          control={control} render={({ field }) => <Input placeholder="sugar_g" {...field} />} />
-              <Controller name="n_added_sugar_g"    control={control} render={({ field }) => <Input placeholder="added_sugar_g" {...field} />} />
-              <Controller name="n_saturated_fat_g"  control={control} render={({ field }) => <Input placeholder="saturated_fat_g" {...field} />} />
-              <Controller name="n_sodium_mg"        control={control} render={({ field }) => <Input placeholder="sodium_mg" {...field} />} />
-              <Controller name="n_potassium_mg"     control={control} render={({ field }) => <Input placeholder="potassium_mg" {...field} />} />
-              <Controller name="n_phosphorus_mg"    control={control} render={({ field }) => <Input placeholder="phosphorus_mg" {...field} />} />
+          {/* Section: Nutrition */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <Apple className="h-4 w-4 text-[#00438f]" />
+              Nutrition (per serving)
+            </h3>
+            <div className="grid gap-4 md:grid-cols-5">
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Calories</Label>
+                <Controller name="n_calories" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Protein (g)</Label>
+                <Controller name="n_protein_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Total Fat (g)</Label>
+                <Controller name="n_fat_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Saturated Fat (g)</Label>
+                <Controller name="n_saturated_fat_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Carbs (g)</Label>
+                <Controller name="n_carbs_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Sugar (g)</Label>
+                <Controller name="n_sugar_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Added Sugar (g)</Label>
+                <Controller name="n_added_sugar_g" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Sodium (mg)</Label>
+                <Controller name="n_sodium_mg" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Potassium (mg)</Label>
+                <Controller name="n_potassium_mg" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[#0f172a]">Phosphorus (mg)</Label>
+                <Controller name="n_phosphorus_mg" control={control} render={({ field }) => <Input type="text" inputMode="decimal" className="border-[#e2e8f0]" {...field} />} />
+              </div>
             </div>
           </div>
 
-          {/* Source and Tags */}
-          <div className="grid gap-2">
-            <Label>Source URL</Label>
-            <Controller
-              name="source_url"
-              control={control}
-              render={({ field }) => (
-                <Input placeholder="https://example.com/product" {...field} />
-              )}
-            />
-            {errors.source_url && (
-              <span className="text-xs text-rose-600">
-                {errors.source_url.message as string}
-              </span>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Dietary Tags</Label>
-            <div className="flex gap-2">
-              <TagInput form={form} />
-            </div>
-            <div className="flex flex-wrap gap-2 pt-2">
+          {/* Section: Dietary Tags */}
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
+              <Tag className="h-4 w-4 text-[#00438f]" />
+              Dietary Tags
+            </h3>
+            <div className="flex flex-wrap gap-2">
               {(form.watch("tags") || []).map((t, i) => (
                 <Badge key={`${t}-${i}`} variant="secondary" className="gap-2">
                   {t}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = [...(form.getValues("tags") || [])]
-                      next.splice(i, 1)
-                      form.setValue("tags", next, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  >
+                  <button type="button" onClick={() => { const next = [...(form.getValues("tags") || [])]; next.splice(i, 1); form.setValue("tags", next, { shouldDirty: true, shouldValidate: true }); }}>
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
               ))}
             </div>
+            <div className="flex gap-2">
+              <TagInput form={form} />
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#e2e8f0]">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="border-[#e2e8f0] text-[#0f172a] hover:bg-[#f8fafc]"
+            >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button
+              type="submit"
+              className="bg-[#00438f] hover:bg-[#003366] text-white"
+            >
               {mode === "create" ? "Create" : "Save"}
             </Button>
           </div>
@@ -620,9 +620,10 @@ function TagInput({
   return (
     <>
       <Input
-        placeholder="e.g. low_fodmap"
+        placeholder="Add custom tag..."
         value={tag}
         onChange={(e) => setTag(e.target.value)}
+        className="border-[#e2e8f0]"
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault()
@@ -649,6 +650,7 @@ function TagInput({
             setTag("")
           }
         }}
+        className="bg-[#00438f] hover:bg-[#003366] text-white"
       >
         Add
       </Button>

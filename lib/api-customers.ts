@@ -109,7 +109,8 @@ export async function updateCustomerHealth(
   id: string,
   body: {
     heightCm?: number; weightKg?: number; age?: number; gender?: string;
-    activityLevel?: string; conditions?: string[]; dietGoals?: string[];
+    activityLevel?: string; healthGoal?: string;
+    conditions?: string[]; dietGoals?: string[];
     macroTargets?: { protein_g?: number; carbs_g?: number; fat_g?: number; calories?: number };
     avoidAllergens?: string[];
     // do NOT send derived fields
@@ -140,6 +141,7 @@ export async function createCustomerWithHealth(input: {
     activityLevel?: "sedentary" | "light" | "moderate" | "very" | "extra";
     heightCm?: number;
     weightKg?: number;
+    healthGoal?: string;
     conditions?: string[];
     dietGoals?: string[];
     avoidAllergens?: string[];
@@ -175,7 +177,12 @@ export async function createCustomerWithHealth(input: {
     const msg = (data && (data.detail || data.message || data.error)) || `Create failed (${res.status})`;
     throw new Error(String(msg));
   }
-  return (data as any)?.data ?? data;
+  const raw = (data as any)?.data ?? data;
+  // Backend returns { customer, health }; merge for toUICustomer
+  if (raw?.customer && typeof raw.customer === "object") {
+    return { ...raw.customer, healthProfile: raw.health ?? raw.customer.healthProfile };
+  }
+  return raw;
 }
 
 // Customer-product notes

@@ -5,11 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { createCustomerWithHealth } from "@/lib/api-customers"
+import { listDiets, listAllergens, listConditions, listHealthGoals } from "@/lib/api-taxonomy"
 import { useToast } from "@/hooks/use-toast"
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react"
+
+type DietOption = { code: string; label: string }
+type ConditionOption = { conditionCode: string; label: string }
+type AllergenOption = { code: string; label: string }
 
 type Props = {
   onClose?: () => void
@@ -27,10 +31,10 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   const [tagInput, setTagInput] = React.useState("")
 
   // Dietary restrictions (your modal already has these)
-  const [preferred, setPreferred] = React.useState<string[]>([])        // -> dietGoals
-  const [avoid, setAvoid] = React.useState<string[]>([])                // -> avoidAllergens
-  const [restrictionInput, setRestrictionInput] = React.useState("")
-  const [restrictionType, setRestrictionType] = React.useState<"Preferred"|"Avoid">("Preferred")
+  const [preferred, setPreferred] = React.useState<string[]>([])        // -> dietGoals (codes)
+  const [avoid, setAvoid] = React.useState<string[]>([])               // -> avoidAllergens (codes)
+  const [preferredSelect, setPreferredSelect] = React.useState("")     // selected diet code
+  const [avoidSelect, setAvoidSelect] = React.useState("")              // selected allergen code
 
   // Health (optional)
   const [showHealth, setShowHealth] = React.useState(false)
@@ -39,8 +43,9 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   const [activity, setActivity] = React.useState<"sedentary"|"light"|"moderate"|"very"|"extra"|"">("")
   const [height, setHeight] = React.useState<number | "">("")
   const [weight, setWeight] = React.useState<number | "">("")
-  const [conditions, setConditions] = React.useState<string[]>([])
-  const [conditionInput, setConditionInput] = React.useState("")
+  const [conditions, setConditions] = React.useState<string[]>([])  // condition codes
+  const [conditionSelect, setConditionSelect] = React.useState("")
+  const [conditionCustomInput, setConditionCustomInput] = React.useState("")  // for adding new condition not in list
   // const [bmi, setBmi] = React.useState<number | "">("")
   // const [bmr, setBmr] = React.useState<number | "">("")
   // const [tdee, setTdee] = React.useState<number | "">("")
@@ -50,6 +55,29 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   const [calories, setCalories] = React.useState<number | "">("")
   const [saving, setSaving] = React.useState(false);
 
+  const [dietOptions, setDietOptions] = React.useState<DietOption[]>([])
+  const [allergenOptions, setAllergenOptions] = React.useState<AllergenOption[]>([])
+  const [conditionOptions, setConditionOptions] = React.useState<ConditionOption[]>([])
+  const [healthGoalOptions, setHealthGoalOptions] = React.useState<{ code: string; label: string }[]>([])
+  const [healthGoal, setHealthGoal] = React.useState("")
+
+  React.useEffect(() => {
+    Promise.all([
+      listDiets(5000, true),
+      listAllergens(5000, true),
+      listConditions(5000, true),
+      listHealthGoals(),
+    ]).then(([diets, allergens, conditions, goals]) => {
+      setDietOptions((diets as any[]) ?? [])
+      setAllergenOptions((allergens as any[]) ?? [])
+      setConditionOptions((conditions as any[]) ?? [])
+      setHealthGoalOptions((goals as any[]) ?? [])
+    }).catch((e) => {
+      toast({ variant: "destructive", title: "Could not load dietary options", description: String(e?.message ?? e) });
+      console.warn("[CustomerForm] Taxonomy fetch failed:", e);
+    })
+  }, [toast])
+
   const addTag = () => {
     const v = tagInput.trim()
     if (!v) return
@@ -57,22 +85,28 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
     setTagInput("")
   }
 
-  const addRestriction = () => {
-    const v = restrictionInput.trim()
+  const addPreferred = () => {
+    const v = preferredSelect.trim()
     if (!v) return
-    if (restrictionType === "Preferred") {
-      setPreferred((p) => Array.from(new Set([...p, v])))
-    } else {
-      setAvoid((p) => Array.from(new Set([...p, v])))
-    }
-    setRestrictionInput("")
+    setPreferred((p) => Array.from(new Set([...p, v])))
+    setPreferredSelect("")
+  }
+
+  const addAvoid = () => {
+    const v = avoidSelect.trim()
+    if (!v) return
+    setAvoid((p) => Array.from(new Set([...p, v])))
+    setAvoidSelect("")
   }
 
   const addCondition = () => {
-    const v = conditionInput.trim()
+    const fromSelect = conditionSelect.trim()
+    const fromCustom = conditionCustomInput.trim()
+    const v = fromSelect || fromCustom
     if (!v) return
     setConditions((p) => Array.from(new Set([...p, v])))
-    setConditionInput("")
+    setConditionSelect("")
+    setConditionCustomInput("")
   }
 
   const num = (v: number | "" ) => (v === "" ? undefined : Number(v))
@@ -108,7 +142,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
     const healthProvided =
       age !== "" || gender || activity || height !== "" || weight !== "" ||
       preferred.length || avoid.length || conditions.length ||
-      protein !== "" || carbs !== "" || fat !== "" || calories !== "";
+      healthGoal || protein !== "" || carbs !== "" || fat !== "" || calories !== "";
 
     // build payload ONCE with backend field names
     const payload: any = {
@@ -122,6 +156,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
         activityLevel: (activity || undefined),  // ⬅️ activityLevel key
         heightCm:   (height === "" ? undefined : Number(height)),
         weightKg:   (weight === "" ? undefined : Number(weight)),
+        healthGoal: healthGoal.trim() || undefined,
         conditions,
         dietGoals:      preferred,
         avoidAllergens: avoid,
@@ -147,39 +182,156 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
   };
 
   return (
-    <Card className="p-4 space-y-4">
-      {/* Basic */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label>Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter customer name" />
-        </div>
-        <div>
-          <Label>Email</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email address" />
-        </div>
-        <div>
-          <Label>Phone</Label>
-          <Input type="tel" inputMode="tel" pattern="^[+]?([0-9][\\s-]?){7,15}$" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter phone number" />
-        </div>
-      </div>
+    <Card className="p-6 space-y-6 border-[#e2e8f0] bg-white">
+      {/* Two-column layout: General Information | Health Profile per Figma */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left: General Information */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">General Information</h3>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label className="text-[#0f172a]">Full Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter customer name" className="border-[#e2e8f0] mt-1" />
+            </div>
+            <div>
+              <Label className="text-[#0f172a]">Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email address" className="border-[#e2e8f0] mt-1" />
+            </div>
+            <div>
+              <Label className="text-[#0f172a]">Phone</Label>
+              <Input type="tel" inputMode="tel" pattern="^[+]?([0-9][\\s-]?){7,15}$" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter phone number" className="border-[#e2e8f0] mt-1" />
+            </div>
+          </div>
 
-      {/* Tags */}
+          {/* Tags */}
+          <div>
+            <Label className="text-[#0f172a]">Tags</Label>
+            <div className="flex gap-2 mt-1">
+              <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add a tag" className="border-[#e2e8f0]" />
+              <Button type="button" onClick={addTag} className="bg-[#00438f] hover:bg-[#003366] text-white"><Plus className="h-4 w-4" /></Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {tags.map((t) => (
+                <Badge key={t} variant="secondary" className="gap-1 bg-[#f1f5f9] text-[#00438f]">
+                  {t}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((x) => x !== t))}
+                    className="inline-flex items-center justify-center rounded-sm hover:bg-[#e2e8f0]/50"
+                    aria-label={`Remove ${t}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Health Profile */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">Health Profile</h3>
+          {/* Dietary Goals (health_goal) + Dietary Preferences (Preferred / Avoid) */}
+          <div>
+        <Label className="text-[#0f172a]">Dietary Goals</Label>
+        <select
+          className="border border-[#e2e8f0] rounded px-2 h-9 w-full mt-1"
+          value={healthGoal}
+          onChange={(e) => setHealthGoal(e.target.value)}
+        >
+          <option value="">Choose a dietary goal…</option>
+          {healthGoalOptions.map((g) => (
+            <option key={g.code} value={g.label}>{g.label}</option>
+          ))}
+        </select>
+      </div>
       <div>
-        <Label>Tags</Label>
-        <div className="flex gap-2 mt-1">
-          <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add a tag" />
-          <Button type="button" onClick={addTag}><Plus className="h-4 w-4" /></Button>
+        <Label className="text-[#0f172a]">Dietary Preferences</Label>
+        <div className="flex flex-col gap-3 mt-1">
+          <div className="flex gap-2 items-center">
+            <span className="text-sm text-[#64748b] w-20 shrink-0">Preferred</span>
+            <select
+              className="border rounded px-2 h-9 flex-1 min-w-0"
+              value={preferredSelect}
+              onChange={(e) => setPreferredSelect(e.target.value)}
+            >
+              <option value="">Choose a preference…</option>
+              {dietOptions.map((d) => (
+                <option key={d.code} value={d.code}>{d.label}</option>
+              ))}
+            </select>
+            <Button type="button" onClick={addPreferred} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex gap-2 items-center">
+            <span className="text-sm text-[#64748b] w-20 shrink-0">Avoid</span>
+            <select
+              className="border rounded px-2 h-9 flex-1 min-w-0"
+              value={avoidSelect}
+              onChange={(e) => setAvoidSelect(e.target.value)}
+            >
+              <option value="">Choose allergen to avoid…</option>
+              {allergenOptions.map((a) => (
+                <option key={a.code} value={a.code}>{a.label}</option>
+              ))}
+            </select>
+            <Button type="button" onClick={addAvoid} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-sm text-[#64748b] w-20 shrink-0">Conditions</span>
+            <select
+              className="border rounded px-2 h-9 flex-1 min-w-[140px]"
+              value={conditionSelect}
+              onChange={(e) => setConditionSelect(e.target.value)}
+            >
+              <option value="">Choose condition…</option>
+              {conditionOptions.map((c) => (
+                <option key={c.conditionCode} value={c.conditionCode}>{c.label}</option>
+              ))}
+            </select>
+            <Input
+              className="flex-1 min-w-[120px]"
+              placeholder="Or type custom"
+              value={conditionCustomInput}
+              onChange={(e) => setConditionCustomInput(e.target.value)}
+            />
+            <Button type="button" onClick={addCondition} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
-          {tags.map((t) => (
-            <Badge key={t} variant="secondary" className="gap-1">
-              {t}
+          {preferred.map((code) => (
+            <Badge key={`p-${code}`} variant="secondary" className="gap-1">
+              {dietOptions.find((d) => d.code === code)?.label ?? code}
               <button
                 type="button"
-                onClick={() => setTags(tags.filter((x) => x !== t))}
+                onClick={() => setPreferred(preferred.filter((x) => x !== code))}
                 className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
-                aria-label={`Remove ${t}`}
+                aria-label={`Remove ${code}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {avoid.map((code) => (
+            <Badge key={`a-${code}`} variant="destructive" className="gap-1">
+              {allergenOptions.find((a) => a.code === code)?.label ?? code}
+              <button
+                type="button"
+                onClick={() => setAvoid(avoid.filter((x) => x !== code))}
+                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                aria-label={`Remove ${code}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {conditions.map((code) => (
+            <Badge key={`c-${code}`} variant="secondary" className="gap-1">
+              {conditionOptions.find((c) => c.conditionCode === code)?.label ?? code}
+              <button
+                type="button"
+                onClick={() => setConditions(conditions.filter((x) => x !== code))}
+                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                aria-label={`Remove ${code}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -188,76 +340,27 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
         </div>
       </div>
 
-      {/* Dietary Restrictions (Preferred / Avoid) */}
-      <div>
-        <Label>Dietary Restrictions</Label>
-        <div className="flex gap-2 items-center mt-1">
-          <select
-            className="border rounded px-2 h-9"
-            value={restrictionType}
-            onChange={(e) => setRestrictionType(e.target.value as any)}
-          >
-            <option>Preferred</option>
-            <option>Avoid</option>
-          </select>
-          <Input
-            value={restrictionInput}
-            onChange={(e) => setRestrictionInput(e.target.value)}
-            placeholder="Add restriction"
-          />
-          <Button type="button" onClick={addRestriction}><Plus className="h-4 w-4" /></Button>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {preferred.map((v) => (
-            <Badge key={`p-${v}`} variant="secondary" className="gap-1">
-              {v}
-              <button
-                type="button"
-                onClick={() => setPreferred(preferred.filter((x) => x !== v))}
-                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
-                aria-label={`Remove ${v}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          {avoid.map((v) => (
-            <Badge key={`a-${v}`} variant="destructive" className="gap-1">
-              {v}
-              <button
-                type="button"
-                onClick={() => setAvoid(avoid.filter((x) => x !== v))}
-                className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
-                aria-label={`Remove ${v}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* Health Profile (optional) */}
-      <div className="mt-2">
+      {/* Health Profile (optional) - Age, Gender, Activity, etc. */}
+      <div className="mt-4">
         <button
           type="button"
-          className="flex items-center gap-2 text-sm"
+          className="flex items-center gap-2 text-sm font-medium text-[#0f172a] hover:text-[#00438f]"
           onClick={() => setShowHealth((s) => !s)}
         >
           {showHealth ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          Health Profile (optional)
+          Additional Health Details (optional)
         </button>
 
         {showHealth && (
           <div className="mt-3 space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <Label>Age</Label>
-                <Input type="number" value={age} onChange={(e) => setAge(e.target.value === "" ? "" : Number(e.target.value))} />
+                <Label className="text-[#0f172a]">Age</Label>
+                <Input type="number" value={age} onChange={(e) => setAge(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
               </div>
               <div>
-                <Label>Gender</Label>
-                <select className="border rounded h-9 w-full px-2" value={gender} onChange={(e) => setGender(e.target.value as any)}>
+                <Label className="text-[#0f172a]">Gender</Label>
+                <select className="border border-[#e2e8f0] rounded h-9 w-full px-2" value={gender} onChange={(e) => setGender(e.target.value as any)}>
                   <option value="">—</option>
                   <option value="female">female</option>
                   <option value="male">male</option>
@@ -266,8 +369,8 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
                 </select>
               </div>
               <div>
-                <Label>Activity Level</Label>
-                <select className="border rounded h-9 w-full px-2" value={activity} onChange={(e) => setActivity(e.target.value as any)}>
+                <Label className="text-[#0f172a]">Activity Level</Label>
+                <select className="border border-[#e2e8f0] rounded h-9 w-full px-2" value={activity} onChange={(e) => setActivity(e.target.value as any)}>
                   <option value="">—</option>
                   <option value="sedentary">sedentary</option>
                   <option value="light">light</option>
@@ -277,12 +380,12 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
                 </select>
               </div>
               <div>
-                <Label>Height (cm)</Label>
-                <Input type="number" value={height} onChange={(e) => setHeight(e.target.value === "" ? "" : Number(e.target.value))} />
+                <Label className="text-[#0f172a]">Height (cm)</Label>
+                <Input type="number" value={height} onChange={(e) => setHeight(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
               </div>
               <div>
-                <Label>Weight (kg)</Label>
-                <Input type="number" value={weight} onChange={(e) => setWeight(e.target.value === "" ? "" : Number(e.target.value))} />
+                <Label className="text-[#0f172a]">Weight (kg)</Label>
+                <Input type="number" value={weight} onChange={(e) => setWeight(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
               </div>
               {/* <div>
                 <Label>BMI</Label>
@@ -299,61 +402,40 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
             </div>
 
             <div>
-              <Label>Conditions</Label>
-              <div className="flex gap-2 mt-1">
-                <Input placeholder="Add condition" value={conditionInput} onChange={(e) => setConditionInput(e.target.value)} />
-                <Button type="button" onClick={addCondition}><Plus className="h-4 w-4" /></Button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {conditions.map((c) => (
-                  <Badge key={c} variant="secondary" className="gap-1">
-                    {c}
-                    <button
-                      type="button"
-                      onClick={() => setConditions(conditions.filter((x) => x !== c))}
-                      className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
-                      aria-label={`Remove ${c}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Macro Targets</Label>
+              <Label className="mb-2 block text-[#0f172a]">Macro Targets</Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <Label>Protein (g)</Label>
-                  <Input type="number" value={protein} onChange={(e) => setProtein(e.target.value === "" ? "" : Number(e.target.value))} />
+                  <Label className="text-[#0f172a]">Protein (g)</Label>
+                  <Input type="number" value={protein} onChange={(e) => setProtein(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
                 </div>
                 <div>
-                  <Label>Carbs (g)</Label>
-                  <Input type="number" value={carbs} onChange={(e) => setCarbs(e.target.value === "" ? "" : Number(e.target.value))} />
+                  <Label className="text-[#0f172a]">Carbs (g)</Label>
+                  <Input type="number" value={carbs} onChange={(e) => setCarbs(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
                 </div>
                 <div>
-                  <Label>Fat (g)</Label>
-                  <Input type="number" value={fat} onChange={(e) => setFat(e.target.value === "" ? "" : Number(e.target.value))} />
+                  <Label className="text-[#0f172a]">Fat (g)</Label>
+                  <Input type="number" value={fat} onChange={(e) => setFat(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
                 </div>
                 <div>
-                  <Label>Calories</Label>
-                  <Input type="number" value={calories} onChange={(e) => setCalories(e.target.value === "" ? "" : Number(e.target.value))} />
+                  <Label className="text-[#0f172a]">Calories</Label>
+                  <Input type="number" value={calories} onChange={(e) => setCalories(e.target.value === "" ? "" : Number(e.target.value))} className="border-[#e2e8f0]" />
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
+        </div>
+      </div>
 
-      {/* Footer */}
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+      {/* Footer - Cancel + Add Customer */}
+      <div className="flex justify-end gap-2 pt-4 border-t border-[#e2e8f0]">
+        <Button variant="outline" onClick={onClose} className="border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9]">Cancel</Button>
         <Button
           type="button"
           onClick={handleSubmit}
           disabled={saving}
-          className="bg-black text-white hover:bg-gray-800"
+          className="bg-[#00438f] hover:bg-[#003366] text-white"
         >
           {saving ? "Adding…" : "Add Customer"}
         </Button>

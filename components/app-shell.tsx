@@ -7,6 +7,7 @@ import { useState, useMemo } from "react"
 import AuthGuard from "@/components/auth-guard"
 
 import { useAuth, type UserRole } from "@/hooks/useAuth"
+import { useBrandingConfig } from "@/hooks/useBrandingConfig"
 
 import {
   Sidebar,
@@ -29,7 +30,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Bell,
   Boxes,
-
+  BarChart3,
   Building2,
   ChevronRight,
   GraduationCap,
@@ -38,6 +39,7 @@ import {
   Search,
   Settings,
   Shield,
+  Store,
   User,
   Users,
 } from "lucide-react"
@@ -62,21 +64,21 @@ type NavItem = {
 
 const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Products", href: "/products", icon: Package },
-  { title: "Customers", href: "/customers", icon: Users },
-  { title: "Jobs", href: "/jobs", icon: Boxes },
   { title: "Search", href: "/search", icon: Search },
+  { title: "Customers", href: "/customers", icon: Users },
+  { title: "Products", href: "/products", icon: Package },
+  { title: "Jobs", href: "/jobs", icon: Boxes },
+  { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Alerts", href: "/alerts", icon: Bell },
   { title: "Compliance", href: "/compliance", icon: Shield, roles: ["superadmin", "vendor_admin"] },
-  { title: "Vendors", href: "/vendors", icon: Building2, roles: ["superadmin"] },
+  { title: "Tenant Selector", href: "/vendors", icon: Building2, roles: ["superadmin"] },
+  { title: "Vendors", href: "/vendors/manage", icon: Store, roles: ["superadmin"] },
   { title: "User Management", href: "/user-management", icon: User, permission: "manage:users" },
 ]
 
 const moreNavItems: NavItem[] = [
-  { title: "Profile", href: "/profile", icon: User },
-  { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
-
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
+  { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
 ]
 
 // ── Helper: filter nav items based on user's role + permissions ────
@@ -106,13 +108,16 @@ function useFilteredNavItems(items: NavItem[]) {
   }, [items, authContext])
 }
 
-export default function AppShell({ children, title = "Odyssey Nutrition", subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
+export default function AppShell({ children, title, subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
+  const { vendorName } = useBrandingConfig()
+  const navTitle = title ?? `${vendorName} Vendor Portal`
+
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen className="sidebar-vendor">
       <AppSidebar />
       <SidebarInset>
         {/* Top bar is always visible; guard protects the main content */}
-        <TopNav title={title} />
+        <TopNav title={navTitle} />
         {/* 🔁 AuthGuard FIRST, so nothing below renders until auth is settled */}
         <AuthGuard>
           <div className="px-4 md:px-6 py-4">{children}</div>
@@ -124,6 +129,7 @@ export default function AppShell({ children, title = "Odyssey Nutrition", subtit
 
 function AppSidebar() {
   const pathname = usePathname()
+  const { vendorName } = useBrandingConfig()
   const [moreOpen, setMoreOpen] = useState(false)
   const filteredMain = useFilteredNavItems(mainNavItems)
   const filteredMore = useFilteredNavItems(moreNavItems)
@@ -132,10 +138,10 @@ function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-2">
         <div className="flex items-center gap-2 px-2 py-1">
-          <div className="h-8 w-8 rounded-md bg-emerald-600 text-white inline-flex items-center justify-center font-semibold">
-            {"O"}
+          <div className="h-8 w-8 rounded-md bg-[#0C4A7F] text-white inline-flex items-center justify-center font-semibold text-sm">
+            {vendorName.charAt(0).toUpperCase()}
           </div>
-          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">{"Odyssey B2B"}</span>
+          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">{`${vendorName} Vendor Portal`}</span>
         </div>
       </SidebarHeader>
       <SidebarSeparator />

@@ -89,22 +89,22 @@ export default function CustomerDetailsDialog({ open, id, onOpenChange }: Props)
         <DialogContent
           className="
                 fixed left-1/2 top-1/2 z-50
-                w-[min(98vw,1440px)] sm:max-w-none   /* <-- remove the 425px cap */
+                w-[min(98vw,1440px)] sm:max-w-none
                 max-h-[92vh]
                 -translate-x-1/2 -translate-y-1/2
-                overflow-hidden rounded-2xl border bg-background shadow-2xl
+                overflow-hidden rounded-2xl border border-[#e2e8f0] bg-background shadow-2xl
                 p-0
             "
           style={{ maxWidth: "none" }}
         >
-          {/* Header */}
+          {/* Header - Figma aligned */}
           <div className="
             sticky top-0 z-10 flex items-start justify-between gap-3
-            border-b bg-background/80 px-5 py-4
-            backdrop-blur supports-[backdrop-filter]:bg-background/60
+            border-b border-[#e2e8f0] bg-background/95 px-5 py-4
+            backdrop-blur supports-[backdrop-filter]:bg-background/90
           ">
             <div className="min-w-0">
-              <DialogTitle className="truncate text-xl font-semibold">
+              <DialogTitle className="truncate text-xl font-semibold text-[#0f172a]">
                 {customer ? customer.name : loading ? "Loading..." : "Customer Details"}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
@@ -112,7 +112,7 @@ export default function CustomerDetailsDialog({ open, id, onOpenChange }: Props)
               </DialogDescription>
             </div>
             <DialogClose
-              className="rounded-md p-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-md p-2 hover:bg-[#f0f4f8] text-muted-foreground hover:text-[#0C4A7F] focus:outline-none focus:ring-2 focus:ring-[#2073BD]/30"
               aria-label="Close"
             >
               <X className="h-5 w-5" />

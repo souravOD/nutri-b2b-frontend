@@ -6,6 +6,7 @@ export type UIHealthProfile = {
   age?: number
   gender?: string
   activityLevel?: string
+  healthGoal?: string
   conditions?: string[]
   dietGoals?: string[]
   avoidAllergens?: string[]
@@ -93,9 +94,10 @@ export function toUICustomer(src: any): UICustomer {
       customerId: src.healthProfile.customerId ?? src.healthProfile.customer_id,
       heightCm: src.healthProfile.heightCm ?? src.healthProfile.height_cm,
       weightKg: src.healthProfile.weightKg ?? src.healthProfile.weight_kg,
-      age: src.healthProfile.age,
-      gender: src.healthProfile.gender,
+      age: src.healthProfile.age ?? src.age,
+      gender: src.healthProfile.gender ?? src.gender,
       activityLevel,
+      healthGoal: src.healthProfile.healthGoal ?? src.healthProfile.health_goal ?? undefined,
       conditions: src.healthProfile.conditions ?? [],
       dietGoals: src.healthProfile.dietGoals ?? src.healthProfile.diet_goals ?? [],
       avoidAllergens: src.healthProfile.avoidAllergens ?? src.healthProfile.avoid_allergens ?? [],
@@ -104,6 +106,8 @@ export function toUICustomer(src: any): UICustomer {
       bmr: src.healthProfile.bmr,
       tdeeCached: src.healthProfile.tdeeCached ?? src.healthProfile.tdee_cached,
       derivedLimits: src.healthProfile.derivedLimits ?? src.healthProfile.derived_limits,
-    } : null,
+    } : (src.age != null || src.gender != null)
+      ? { age: src.age, gender: src.gender } as UIHealthProfile
+      : null,
   };
 }

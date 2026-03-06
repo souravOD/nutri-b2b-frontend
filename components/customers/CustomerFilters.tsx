@@ -32,31 +32,37 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
   const hasActiveFilters = status !== "all" || tags.length > 0
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3 flex-nowrap">
       {/* Status Filter */}
-      <Tabs value={status} onValueChange={handleStatusChange as (value: string) => void}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="archived">Archived</TabsTrigger>
+      <Tabs value={status} onValueChange={handleStatusChange as (value: string) => void} className="shrink-0">
+        <TabsList className="inline-grid grid-cols-3 w-auto shrink-0 bg-[#f1f5f9]">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+            All
+          </TabsTrigger>
+          <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+            Active
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+            Archived
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {/* Tags Filter */}
+      {/* Tags Filter (Quick Filters) */}
       {allTags.length > 0 && (
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 bg-transparent">
+            <Button variant="outline" className="gap-2 bg-[#f1f5f9] border-[#e2e8f0] hover:bg-[#e2e8f0] shrink-0">
               <Filter className="h-4 w-4" />
               Tags
               {tags.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 bg-[#00438f] text-white">
                   {tags.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64" align="start">
+          <PopoverContent className="w-64 rounded-xl border-[#e2e8f0] shadow-lg" align="start">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-sm">Filter by Tags</h4>
@@ -90,11 +96,11 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
         </Popover>
       )}
 
-      {/* Active Filters Display */}
+      {/* Active Filters Display (Quick Filters) */}
       {tags.length > 0 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1">
+            <Badge key={tag} variant="secondary" className="gap-1 bg-[#00438f]/10 text-[#00438f] border-[#00438f]/20">
               {tag}
               <Button
                 variant="ghost"
@@ -112,7 +118,7 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
 
       {/* Clear All */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={handleClearAll} className="gap-2">
+        <Button variant="ghost" size="sm" onClick={handleClearAll} className="gap-2 text-[#64748b] hover:text-[#00438f] shrink-0">
           <X className="h-4 w-4" />
           Clear All
         </Button>
