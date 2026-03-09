@@ -69,16 +69,30 @@ export default function LoginForm() {
       await signIn(email.trim(), password)
       router.replace("/dashboard")
     } catch (err: any) {
+      // AppwriteException: code = HTTP status, type = e.g. "user_invalid_credentials"
       const code = err?.code ?? err?.response?.code
+      const type = String(err?.type ?? "").toLowerCase()
+      const errMsg = String(err?.message ?? "")
+
+      if (process.env.NODE_ENV === "development") {
+        console.error("[Login] Auth error:", { code, type, message: errMsg, err })
+      }
+
       let msg = "We couldn't sign you in. Please try again."
-      if (code === 401) {
+      if (code === 401 || type.includes("invalid_credentials") || type.includes("user_invalid")) {
         msg = "We couldn't sign you in with that email and password."
-      } else if (code === 429) {
+      } else if (code === 429 || type.includes("rate_limit")) {
         msg = "Too many attempts. Please wait a moment and try again."
       } else if (code === 0 || code === 502 || code === 503) {
         msg = "Can't reach the server right now. Please try again shortly."
-      } else if (typeof err?.message === "string" && err.message.includes("SDK build")) {
+      } else if (errMsg.includes("opaque") || errMsg.toLowerCase().includes("cors")) {
+        msg = "Could not connect to the auth server. Check that your Appwrite project allows this origin (CORS)."
+      } else if (errMsg.includes("SDK build")) {
         msg = "Email/password sign-in isn't available with this SDK build."
+      } else if (errMsg.includes("Invalid endpoint") || errMsg.includes("Invalid URL")) {
+        msg = "Auth server URL is misconfigured. Check NEXT_PUBLIC_APPWRITE_ENDPOINT."
+      } else if (errMsg && errMsg.length < 120 && !errMsg.includes("fetch")) {
+        msg = errMsg
       }
       setError(msg)
     } finally {

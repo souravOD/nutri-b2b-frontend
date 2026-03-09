@@ -16,7 +16,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Globe, ChevronRight, Building2, Activity, Shield } from "lucide-react";
+import { Globe, ChevronRight, Building2, Activity, Shield, Plus } from "lucide-react";
 
 type Vendor = {
   id: string;
@@ -95,7 +95,10 @@ export default function VendorsPage() {
               <Link href="/vendors/manage">View all vendors</Link>
             </Button>
             <Button asChild className="bg-[#00438f] hover:bg-[#003366] text-white">
-              <Link href="/vendors/new">Register Vendor</Link>
+              <Link href="/vendors/new" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Register Vendor
+              </Link>
             </Button>
           </div>
         </div>

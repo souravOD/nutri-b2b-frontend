@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 // Resolve target Appwrite endpoint and project id from env
-const RAW_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || process.env.APPWRITE_ENDPOINT || "").trim().replace(/\/+$/, "");
+// Proxy must forward to the REAL Appwrite URL. Use APPWRITE_ENDPOINT for upstream.
+// Client can use NEXT_PUBLIC_APPWRITE_ENDPOINT=/api/appwrite for same-origin requests.
+const NEXT_PUBLIC = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "").trim().replace(/\/+$/, "");
+const SERVER_ENDPOINT = (process.env.APPWRITE_ENDPOINT || "").trim().replace(/\/+$/, "");
+const RAW_ENDPOINT =
+  SERVER_ENDPOINT ||
+  (NEXT_PUBLIC && NEXT_PUBLIC.startsWith("http") ? NEXT_PUBLIC : null) ||
+  "https://cloud.appwrite.io/v1";
 const PROJECT = (process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT || process.env.APPWRITE_PROJECT_ID || "").trim();
 
 function targetUrl(req: NextRequest, path: string[]) {
   const suffix = path.join("/");
   const qs = new URL(req.url).search || "";
-  const base = RAW_ENDPOINT || "https://cloud.appwrite.io/v1"; // safe fallback
-  return `${base}/${suffix}${qs}`;
+  return `${RAW_ENDPOINT}/${suffix}${qs}`;
 }
 
 function rewriteSetCookie(setCookieValues: string[] | undefined) {

@@ -60,6 +60,10 @@ type NavItem = {
   roles?: UserRole[]
   /** If set, user must hold this permission (or wildcard) */
   permission?: string
+  /** If true, active only when pathname === href (no startsWith) */
+  exact?: boolean
+  /** If set, active when pathname.startsWith(value + "/") — e.g. /vendors for /vendors/manage, /vendors/new */
+  sectionMatch?: string
 }
 
 const mainNavItems: NavItem[] = [
@@ -71,8 +75,8 @@ const mainNavItems: NavItem[] = [
   { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Alerts", href: "/alerts", icon: Bell },
   { title: "Compliance", href: "/compliance", icon: Shield, roles: ["superadmin", "vendor_admin"] },
-  { title: "Tenant Selector", href: "/vendors", icon: Building2, roles: ["superadmin"] },
-  { title: "Vendors", href: "/vendors/manage", icon: Store, roles: ["superadmin"] },
+  { title: "Tenant Selector", href: "/vendors", icon: Building2, roles: ["superadmin"], exact: true },
+  { title: "Vendors", href: "/vendors/manage", icon: Store, roles: ["superadmin"], sectionMatch: "/vendors" },
   { title: "User Management", href: "/user-management", icon: User, permission: "manage:users" },
 ]
 
@@ -150,16 +154,22 @@ function AppSidebar() {
           <SidebarGroupLabel>{"Navigation"}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMain.map((item) => (
+              {filteredMain.map((item) => {
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : item.sectionMatch
+                    ? pathname !== item.sectionMatch && pathname.startsWith(item.sectionMatch)
+                    : pathname === item.href || pathname.startsWith(item.href + "/")
+                return (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")}>
+                  <SidebarMenuButton asChild isActive={isActive}>
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              )})}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

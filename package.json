@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "fetch:register-vendor-bg": "node scripts/fetch-register-vendor-bg.js",
     "lint": "next lint",
     "start": "next start"
   },
