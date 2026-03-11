@@ -184,10 +184,12 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <AppShell title="Profile">
-        <div className="container mx-auto max-w-3xl p-10 space-y-8 bg-[#f8fafc] min-h-screen">
-          <div className="h-4 w-48 rounded bg-[#e2e8f0] animate-pulse" />
-          <div className="h-32 rounded-xl bg-white border border-[#e2e8f0] animate-pulse" />
-          <div className="h-48 rounded-xl bg-white border border-[#e2e8f0] animate-pulse" />
+        <div className="-mx-4 md:-mx-6 -my-4 bg-[#f8fafc] min-h-[calc(100vh-3.5rem)]">
+          <div className="w-full px-4 py-10 space-y-8">
+            <div className="h-4 w-48 rounded bg-[#e2e8f0] animate-pulse" />
+            <div className="h-32 rounded-xl bg-white border border-[#e2e8f0] animate-pulse" />
+            <div className="h-48 rounded-xl bg-white border border-[#e2e8f0] animate-pulse" />
+          </div>
         </div>
       </AppShell>
     )
@@ -195,7 +197,8 @@ export default function ProfilePage() {
 
   return (
     <AppShell title="Profile">
-      <div className="container mx-auto max-w-3xl p-10 space-y-8 bg-[#f8fafc] min-h-screen">
+      <div className="-mx-4 md:-mx-6 -my-4 bg-[#f8fafc] min-h-[calc(100vh-3.5rem)]">
+        <div className="w-full px-4 py-10 space-y-8">
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-2 text-sm">
           <Link href="/dashboard" className="text-[#64748b] hover:text-[#0f172a]">
@@ -415,6 +418,7 @@ export default function ProfilePage() {
             </div>
           </div>
         </form>
+        </div>
       </div>
     </AppShell>
   )

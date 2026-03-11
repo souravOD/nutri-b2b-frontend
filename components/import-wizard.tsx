@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/backend"
 import { Plus, CloudUpload, RefreshCw, ChevronRight, Info, Map, FileCheck, Loader2, CheckCircle2, AlertCircle, Pencil } from "lucide-react"
@@ -613,21 +612,19 @@ export default function ImportWizard({
             {step === 2 && (
               <div className="flex flex-col gap-6">
                 <div className="bg-[rgba(248,250,252,0.5)] border-b border-[#f1f5f9] -mx-8 -mt-6 px-8 pt-6 pb-4">
-                  <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center text-[11px] font-bold uppercase tracking-[0.55px] text-[#64748b]">
+                  <div className="grid grid-cols-2 gap-4 items-center text-[11px] font-bold uppercase tracking-[0.55px] text-[#64748b]">
                     <span>Source Column (from file)</span>
                     <span>Destination Field</span>
-                    <span className="text-center">Skip if missing</span>
-                    <span className="text-right w-[69px]">Status</span>
                   </div>
                 </div>
                 <div className="flex flex-col max-h-[320px] overflow-y-auto -mx-8 px-8">
                   {mappings.map((m, idx) => (
                     <div
                       key={m.sourceHeader}
-                      className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center py-4 border-t border-[#f1f5f9] first:border-t-0"
+                      className="grid grid-cols-2 gap-4 items-center py-4 border-t border-[#f1f5f9] first:border-t-0"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-[14px] font-medium text-[#0f172a]">{m.sourceHeader}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-[14px] font-medium text-[#0f172a] truncate">{m.sourceHeader}</span>
                       </div>
                       <Select
                         value={m.destination || "__skip__"}
@@ -637,7 +634,7 @@ export default function ImportWizard({
                           )
                         }}
                       >
-                        <SelectTrigger className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-white">
+                        <SelectTrigger className="h-[38px] w-full min-w-0 rounded-[8px] border-[#e2e8f0] bg-white">
                           <SelectValue placeholder="Select field" />
                         </SelectTrigger>
                         <SelectContent>
@@ -648,24 +645,6 @@ export default function ImportWizard({
                           ))}
                         </SelectContent>
                       </Select>
-                      <div className="flex justify-center">
-                        <Checkbox
-                          checked={m.skipIfMissing}
-                          onCheckedChange={(checked) => {
-                            setMappings((prev) =>
-                              prev.map((p, i) => (i === idx ? { ...p, skipIfMissing: !!checked } : p))
-                            )
-                          }}
-                          className="size-4 rounded-[4px] border-[#cbd5e1] data-[state=checked]:bg-[#2563eb] data-[state=checked]:border-[#2563eb]"
-                        />
-                      </div>
-                      <div className="flex justify-end">
-                        {m.destination && m.destination !== "__skip__" ? (
-                          <CheckCircle2 className="size-5 text-emerald-500" />
-                        ) : (
-                          <AlertCircle className="size-5 text-amber-500" />
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
