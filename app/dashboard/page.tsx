@@ -42,7 +42,7 @@ function toArray<T>(maybe: ListResponse<T>): T[] {
 
 const QUICK_ACTIONS = [
   { title: "Import Data (CSV/API)", description: "Bulk sync products", href: "/onboarding", icon: Upload },
-  { title: "Add New Product", description: "Manual entry mode", href: "/products/new", icon: PlusSquare },
+  { title: "Add New Product", description: "Manual entry mode", href: "/products?add=1", icon: PlusSquare },
   { title: "Add Customer Profile", description: "Create new member record", href: "/customers", icon: UserPlus },
   { title: "Run Match Analysis", description: "Execute background processing", href: "/search", icon: Search },
 ];

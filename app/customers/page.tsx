@@ -20,13 +20,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
   Table,
   TableHeader,
   TableRow,
@@ -38,14 +31,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Grid3X3, List as ListIcon } from "lucide-react";
 
-import { toUICustomer, type UICustomer } from "@/types/customer";
+import type { UICustomer } from "@/types/customer";
 import { listCustomers } from "@/lib/api-customers";
 
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerFilters from "@/components/customers/CustomerFilters";
-import CustomerForm from "@/components/customers/CustomerForm";
-import CustomerNotesDialog from "@/components/customers/CustomerNotesDialog"
 import CustomerListEmpty from "@/components/customers/CustomerListEmpty";
+import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
 
 /** URL param helpers */
 type ParamState = {
@@ -101,17 +93,11 @@ export default function CustomersIndexPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [customers, setCustomers] = React.useState<UICustomer[]>([]);
-  const [notesOpen, setNotesOpen] = React.useState(false)
-  const [notesId, setNotesId] = React.useState<string | undefined>()
-  const [notesName, setNotesName] = React.useState<string | undefined>()
-
   // UI state
+  const [addOpen, setAddOpen] = React.useState(false);
   const url = get();
-  const [createOpen, setCreateOpen] = React.useState(false);
 
   function navigateToDetail(id: string) { router.push(`/customers/${id}`) }
-  function openNotes(id: string, name: string) { setNotesId(id); setNotesName(name); setNotesOpen(true) }
-
 
   // load customers once
   React.useEffect(() => {
@@ -205,7 +191,7 @@ export default function CustomersIndexPage() {
             </p>
           </div>
           <Button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => setAddOpen(true)}
             className="bg-[#00438f] hover:bg-[#003366] text-white"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -270,7 +256,7 @@ export default function CustomersIndexPage() {
 
         {/* Empty state */}
         {!loading && !error && filtered.length === 0 && (
-          <CustomerListEmpty onAddCustomer={() => setCreateOpen(true)} />
+          <CustomerListEmpty onAddCustomer={() => setAddOpen(true)} />
         )}
 
         {/* Cards view */}
@@ -282,7 +268,6 @@ export default function CustomersIndexPage() {
                 customer={c}
                 onOpen={(id) => navigateToDetail(String(id))}
                 onRunMatch={(id) => navigateToDetail(String(id))}
-                onOpenNotes={(id) => openNotes(String(id), c.name)}
               />
             ))}
           </div>
@@ -341,32 +326,7 @@ export default function CustomersIndexPage() {
         )}
       </div>
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-xl rounded-xl border-[#e2e8f0]">
-          <DialogHeader>
-            <DialogTitle>Add customer</DialogTitle>
-            <DialogDescription>Enter basic info and (optionally) diet & allergens.</DialogDescription>
-          </DialogHeader>
-          <CustomerForm
-            onClose={() => setCreateOpen(false)}
-            onCreated={(result) => {
-              const created = toUICustomer(result);
-              setCustomers((prev) => [created, ...prev]);
-              setCreateOpen(false);
-              toast({ title: "Customer created", description: created.name || created.email });
-              router.push(`/customers/${created.id}`);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <CustomerNotesDialog
-        open={notesOpen}
-        customerId={notesId}
-        customerName={notesName}
-        onOpenChange={setNotesOpen}
-      />
+      <AddCustomerDialog open={addOpen} onOpenChange={setAddOpen} />
     </AppShell>
   );
 }

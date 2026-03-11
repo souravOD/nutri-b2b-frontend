@@ -2,11 +2,14 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Separator } from "@/components/ui/separator"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Filter, X } from "lucide-react"
+import { ChevronDown, X } from "lucide-react"
 
 type Props = {
   status: "all" | "active" | "archived"
@@ -32,87 +35,71 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
   const hasActiveFilters = status !== "all" || tags.length > 0
 
   return (
-    <div className="flex items-center gap-3 flex-nowrap">
-      {/* Status Filter */}
+    <div className="flex items-center gap-3 flex-nowrap flex-wrap">
+      {/* Status pills: All | Active | Archived per Figma */}
       <Tabs value={status} onValueChange={handleStatusChange as (value: string) => void} className="shrink-0">
         <TabsList className="inline-grid grid-cols-3 w-auto shrink-0 bg-[#f1f5f9]">
-          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
             All
           </TabsTrigger>
-          <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+          <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
             Active
           </TabsTrigger>
-          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm">
+          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
             Archived
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {/* Tags Filter (Quick Filters) */}
+      {/* QUICK FILTERS: tag pills with dropdown per Figma */}
       {allTags.length > 0 && (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 bg-[#f1f5f9] border-[#e2e8f0] hover:bg-[#e2e8f0] shrink-0">
-              <Filter className="h-4 w-4" />
-              Tags
-              {tags.length > 0 && (
-                <Badge variant="secondary" className="ml-1 bg-[#00438f] text-white">
-                  {tags.length}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 rounded-xl border-[#e2e8f0] shadow-lg" align="start">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm">Filter by Tags</h4>
-                {tags.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <span className="text-xs font-semibold text-[#94a3b8] uppercase tracking-wider shrink-0">
+            QUICK FILTERS:
+          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {allTags.slice(0, 8).map((tag) => (
+              <Button
+                key={tag}
+                variant={tags.includes(tag) ? "default" : "outline"}
+                size="sm"
+                className={`rounded-full h-8 px-3 text-sm shrink-0 ${
+                  tags.includes(tag)
+                    ? "bg-[#00438f] hover:bg-[#003366] text-white"
+                    : "bg-[#f1f5f9] border-[#e2e8f0] hover:bg-[#e2e8f0] text-[#0f172a]"
+                }`}
+                onClick={() => handleTagToggle(tag)}
+              >
+                {tag}
+                <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" />
+              </Button>
+            ))}
+            {allTags.length > 8 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={() => onChange({ status, tags: [] })}
-                    className="h-auto p-1 text-xs"
+                    className="rounded-full h-8 px-3 text-sm bg-[#f1f5f9] border-[#e2e8f0] hover:bg-[#e2e8f0]"
                   >
-                    Clear
+                    More
+                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
                   </Button>
-                )}
-              </div>
-              <Separator />
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {allTags.map((tag) => (
-                  <div key={tag} className="flex items-center space-x-2">
-                    <Checkbox id={tag} checked={tags.includes(tag)} onCheckedChange={() => handleTagToggle(tag)} />
-                    <label
-                      htmlFor={tag}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                  {allTags.slice(8).map((tag) => (
+                    <DropdownMenuItem
+                      key={tag}
+                      onClick={() => handleTagToggle(tag)}
+                      className={tags.includes(tag) ? "bg-[#00438f]/10 text-[#00438f]" : ""}
                     >
                       {tag}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {/* Active Filters Display (Quick Filters) */}
-      {tags.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1 bg-[#00438f]/10 text-[#00438f] border-[#00438f]/20">
-              {tag}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 hover:bg-transparent"
-                onClick={() => handleTagToggle(tag)}
-                aria-label={`Remove ${tag} filter`}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          ))}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       )}
 

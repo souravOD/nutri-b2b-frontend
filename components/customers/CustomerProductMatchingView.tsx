@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/backend"
 import { getMatches } from "@/lib/api-matching"
 import type { UICustomer } from "@/types/customer"
-import CustomerProfileDialog from "./CustomerProfileDialog"
 
 const MATCHING_ENABLED = process.env.NEXT_PUBLIC_B2B_ENABLE_MATCHING === "1"
 
@@ -93,7 +92,6 @@ type Props = {
 export default function CustomerProductMatchingView({ customer, onDeleted, onSaved }: Props) {
   const router = useRouter()
   const { toast } = useToast()
-  const [editOpen, setEditOpen] = React.useState(false)
 
   const hp = customer.healthProfile
   const restrictions = customer.restrictions ?? { required: [], preferred: [], allergens: [], conditions: [] }
@@ -246,9 +244,9 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
             <Button
               variant="outline"
               className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
-              onClick={() => setEditOpen(true)}
+              asChild
             >
-              Edit Profile
+              <Link href={`/customers/${customer.id}/edit`}>Edit Profile</Link>
             </Button>
             <Button
               className="bg-[#00438f] hover:bg-[#003366] text-white"
@@ -262,7 +260,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
 
       {/* Profile Summary Card */}
       <div className="px-6 -mt-6">
-        <Card className="border-[#e2e8f0] shadow-sm overflow-hidden">
+        <Card className="border-[#e2e8f0] shadow-sm overflow-hidden rounded-xl">
           <div className="flex items-center gap-6 p-6">
             <div className="relative shrink-0">
               <Avatar className="h-24 w-24 rounded-full border-4 border-white">
@@ -304,7 +302,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
         <div className="flex gap-8">
           {/* Left: Customer Info Panel (~300px) */}
           <div className="w-[300px] shrink-0">
-            <Card className="border-[#e2e8f0] shadow-sm overflow-hidden">
+            <Card className="border-[#e2e8f0] shadow-sm overflow-hidden rounded-xl">
               <div className="bg-[rgba(248,250,252,0.5)] border-b border-[#e2e8f0] px-6 py-4">
                 <div className="flex items-center gap-2">
                   <Activity className="h-[18px] w-[18px] text-[#00438f]" />
@@ -327,12 +325,12 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                     key={label}
                     className="flex items-center justify-between gap-4 px-6 py-3"
                   >
-                    <span className="text-sm text-[#64748b] shrink-0">{label}</span>
-                    <span className="text-sm font-semibold text-[#0f172a] text-right min-w-0 truncate">{String(value)}</span>
+                    <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider shrink-0">{label}</span>
+                    <span className="text-[20px] font-semibold text-[#00438f] text-right min-w-0 truncate">{String(value)}</span>
                   </div>
                 ))}
                 <div className="px-6 py-4">
-                  <p className="text-sm text-[#64748b] mb-2">Avoid Allergens</p>
+                  <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-2">AVOID ALLERGENS</p>
                   <div className="flex flex-wrap gap-2">
                     {allergens.length > 0 ? (
                       allergens.map((a) => (
@@ -424,7 +422,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                 {filteredProducts.map((product) => (
                   <Card
                     key={product.id}
-                    className="overflow-hidden border-[#e2e8f0] shadow-sm"
+                    className="overflow-hidden border-[#e2e8f0] shadow-sm rounded-xl"
                   >
                     <div className="bg-[#f8fafc] h-48 relative overflow-hidden rounded-t-lg">
                       <Image
@@ -494,14 +492,6 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
           </div>
         </div>
       </div>
-
-      <CustomerProfileDialog
-        open={editOpen}
-        id={customer.id}
-        onOpenChange={setEditOpen}
-        onDeleted={onDeleted}
-        onSaved={onSaved}
-      />
     </div>
   )
 }

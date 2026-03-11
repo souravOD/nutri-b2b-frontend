@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import AppShell from "@/components/app-shell"
@@ -7,11 +8,37 @@ import OnboardingGate from "@/components/auth/OnboardingGate"
 import ImportWizard from "@/components/import-wizard"
 import { Button } from "@/components/ui/button"
 import { useBrandingConfig } from "@/hooks/useBrandingConfig"
-import { FileSpreadsheet, Globe, HelpCircle } from "lucide-react"
+import { FileSpreadsheet, Globe, HelpCircle, Copy } from "lucide-react"
+
+const API_BASE = typeof window !== "undefined"
+  ? (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000").replace(/\/$/, "")
+  : "http://localhost:5000"
+
+const exampleBody = `{
+  "records": [{
+    "external_id": "SKU-12345",
+    "name": "Product Name",
+    "price": 29.99,
+    "currency": "USD"
+  }]
+}`
 
 export default function OnboardingPage() {
   const branding = useBrandingConfig()
   const vendorName = branding.vendorName
+  const [copied, setCopied] = useState<"curl" | "json" | null>(null)
+
+  const exampleCurl = `curl -X POST "${API_BASE}/api/v1/ingest/products" \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '${exampleBody.replace(/\n/g, " ").replace(/\s+/g, " ")}'`
+
+  const copyToClipboard = (text: string, which: "curl" | "json") => () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(which)
+      setTimeout(() => setCopied(null), 1200)
+    })
+  }
 
   return (
     <AppShell title="Onboarding">
@@ -37,80 +64,105 @@ export default function OnboardingPage() {
 
           {/* Two-card layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* CSV Import card */}
+            {/* CSV Import card - Figma 695-12666 (image) + 695-12667 (content) */}
             <div className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
-              <div className="h-[192px] bg-[#f1f5f9] flex items-center justify-center">
+              <div className="h-[192px] bg-[#f1f5f9] flex items-center justify-center overflow-hidden">
                 <Image
-                  src="/placeholder.svg"
+                  src="/onboarding-illustration.png"
                   alt="CSV import"
-                  width={120}
-                  height={120}
-                  className="object-contain opacity-60"
+                  width={454}
+                  height={192}
+                  className="object-cover w-full h-full"
                 />
               </div>
-              <div className="p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-[#00438f]" />
-                  <h2 className="text-[18px] font-bold text-[#0f172a]">CSV import</h2>
+              <div className="flex flex-col justify-between p-[32px] min-h-[92px]">
+                <div className="pb-[12px]">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 shrink-0 text-[#00438f]" />
+                    <h2 className="text-[20px] font-bold text-[#0f172a]">CSV import</h2>
+                  </div>
                 </div>
-                <p className="text-[14px] text-[#64748b] leading-6">
+                <p className="text-[16px] text-[#475569] leading-[26px] pb-[32px]">
                   Drag & drop your product catalog. The wizard validates columns, previews changes, and creates an ingestion job you can monitor.
                 </p>
-                <ImportWizard
-                  triggerLabel="Import"
-                  triggerClassName="bg-[#00438f] hover:bg-[#003366] text-white font-bold text-base h-12 px-8 rounded-lg w-full sm:w-auto min-w-[160px]"
-                  showTriggerIcon={false}
-                />
-                <p className="text-[12px] text-[#64748b]">
-                  Re-run imports any time from{" "}
-                  <Link href="/jobs" className="text-[#00438f] font-medium hover:underline">
-                    Jobs
-                  </Link>
-                  .
-                </p>
+                <div className="flex flex-col gap-[24px] items-stretch pt-[87px]">
+                  <ImportWizard
+                    triggerLabel="Import"
+                    triggerClassName="w-full bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[16px] h-12 px-6 rounded-[8px] flex items-center justify-center gap-2"
+                    showTriggerIcon={true}
+                  />
+                  <p className="text-center text-[14px] text-[#94a3b8]">
+                    Re-run imports any time from{" "}
+                    <Link href="/jobs" className="text-[#00438f] hover:underline">
+                      Jobs
+                    </Link>
+                    .
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* API Integration card */}
+            {/* API Integration card - no image per Figma 695-12685 */}
             <div className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
-              <div className="h-[192px] bg-[#f1f5f9] flex items-center justify-center">
-                <Image
-                  src="/placeholder.svg"
-                  alt="API integration"
-                  width={120}
-                  height={120}
-                  className="object-contain opacity-60"
-                />
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-[#00438f]" />
-                  <h2 className="text-[18px] font-bold text-[#0f172a]">API integration</h2>
+              <div className="p-[32px] space-y-0">
+                <div className="pb-[12px]">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-[22px] w-[22px] text-[#00438f]" />
+                    <h2 className="text-[20px] font-bold text-[#0f172a]">API integration</h2>
+                  </div>
                 </div>
-                <p className="text-[14px] text-[#64748b] leading-6">
+                <p className="text-[16px] text-[#475569] leading-[26px] pb-[24px]">
                   Push products directly from your PIM/ERP. Start with a single POST endpoint.
                 </p>
-                <div className="space-y-2">
-                  <p className="text-[12px] font-semibold text-[#0f172a]">Example Request (cURL)</p>
-                  <pre className="text-[11px] font-mono bg-black text-[#e2e8f0] rounded-[8px] p-3 overflow-x-auto border border-[#374151]">
-{`curl -X POST https://api.example.com/v1/products \\
-  -H "Authorization: Bearer YOUR_KEY" \\
-  -d '{"name":"Product A","sku":"SKU001"}'`}
-                  </pre>
+                <div className="space-y-[16px] pb-[32px]">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[12px] font-bold uppercase tracking-[0.6px] text-[#64748b]">
+                        Example Request
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                        onClick={copyToClipboard(exampleCurl, "curl")}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {copied === "curl" ? "Copied!" : "Copy cURL"}
+                      </Button>
+                    </div>
+                    <pre className="overflow-x-auto rounded-[8px] bg-[#020617] p-4 font-mono text-[14px] leading-[20px] text-[#34d399]">
+                      <code>{exampleCurl}</code>
+                    </pre>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[12px] font-bold uppercase tracking-[0.6px] text-[#64748b]">
+                        Minimal JSON
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                        onClick={copyToClipboard(exampleBody, "json")}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {copied === "json" ? "Copied!" : "Copy JSON"}
+                      </Button>
+                    </div>
+                    <pre className="overflow-x-auto rounded-[8px] bg-[#020617] p-4 font-mono text-[14px] leading-[20px] text-[#93c5fd] whitespace-pre-wrap">
+                      <code>{exampleBody}</code>
+                    </pre>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-[12px] font-semibold text-[#0f172a]">Minimal JSON</p>
-                  <pre className="text-[11px] font-mono bg-black text-[#e2e8f0] rounded-[8px] p-3 overflow-x-auto border border-[#374151]">
-{`{"name":"Product A","sku":"SKU001","price":9.99}`}
-                  </pre>
+                <div className="border-t border-[#f1f5f9] pt-[17px]">
+                  <p className="text-[14px] text-[#64748b]">
+                    Need keys/webhooks? Go to{" "}
+                    <Link href="/settings" className="font-medium text-[#00438f] hover:underline">
+                      Settings → API
+                    </Link>
+                    .
+                  </p>
                 </div>
-                <p className="text-[12px] text-[#64748b]">
-                  Need keys/webhooks? Go to{" "}
-                  <Link href="/settings" className="text-[#00438f] font-medium hover:underline">
-                    Settings → API
-                  </Link>
-                  .
-                </p>
               </div>
             </div>
           </div>

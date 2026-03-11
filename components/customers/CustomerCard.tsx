@@ -11,10 +11,9 @@ type Props = {
   customer: UICustomer
   onOpen?: (id: string) => void
   onRunMatch?: (id: string) => void
-  onOpenNotes?: (id: string) => void
 }
 
-export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes }: Props) {
+export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -149,7 +148,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick Actions: View Profile and Match Products only per Figma */}
         <div className="flex gap-2 pt-2 border-t border-[#e2e8f0]" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
@@ -157,7 +156,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes
             onClick={(e) => { e.stopPropagation(); onOpen?.(customer.id) }}
             className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
           >
-            View
+            View Profile
           </Button>
           <Button
             variant="ghost"
@@ -165,15 +164,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes
             onClick={(e) => { e.stopPropagation(); onRunMatch?.(customer.id) }}
             className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
           >
-            Match
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onOpenNotes?.(customer.id) }}
-            className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
-          >
-            Notes
+            Match Products
           </Button>
         </div>
       </CardContent>

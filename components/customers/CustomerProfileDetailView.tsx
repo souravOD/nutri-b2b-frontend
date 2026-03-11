@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronRight, Mail, Phone, Activity, Apple, AlertTriangle, Stethoscope, ArrowLeft } from "lucide-react"
+import { ChevronRight, Mail, Phone, Activity, Apple, AlertTriangle, Stethoscope, ArrowLeft, FileText } from "lucide-react"
 import type { UICustomer } from "@/types/customer"
-import CustomerProfileDialog from "./CustomerProfileDialog"
+import CustomerNotesDialog from "./CustomerNotesDialog"
 
 type Props = {
   customer: UICustomer
@@ -26,7 +26,7 @@ const activityLabels: Record<string, string> = {
 
 export default function CustomerProfileDetailView({ customer, onDeleted, onSaved }: Props) {
   const router = useRouter()
-  const [editOpen, setEditOpen] = React.useState(false)
+  const [notesOpen, setNotesOpen] = React.useState(false)
 
   const hp = customer.healthProfile
   const restrictions = customer.restrictions ?? { required: [], preferred: [], allergens: [], conditions: [] }
@@ -80,9 +80,19 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             <Button
               variant="outline"
               className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
-              onClick={() => setEditOpen(true)}
+              onClick={() => setNotesOpen(true)}
             >
-              Edit Profile
+              <FileText className="h-4 w-4 mr-2" />
+              Notes
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              asChild
+            >
+              <Link href={`/customers/${customer.id}/edit`}>
+                Edit Profile
+              </Link>
             </Button>
             <Button
               className="bg-[#00438f] hover:bg-[#003366] text-white"
@@ -161,10 +171,10 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                 key={label}
                 className="p-4 border-[#e2e8f0] rounded-xl bg-white shadow-sm min-w-[140px] flex-1 max-w-[180px] min-h-0 overflow-hidden"
               >
-                <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider truncate">
+                <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider truncate">
                   {label}
                 </p>
-                <p className="text-lg font-semibold text-[#0f172a] mt-1 truncate">{String(value)}</p>
+                <p className="text-[20px] font-semibold text-[#00438f] mt-1 truncate">{String(value)}</p>
               </Card>
             ))}
           </div>
@@ -181,7 +191,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
               </div>
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
-                  <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-4">
+                  <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-4">
                     Dietary Goals
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -207,7 +217,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-4">
+                  <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-4">
                     Macro Targets
                   </p>
                   <div className="grid grid-cols-2 gap-4">
@@ -246,13 +256,13 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             <Card className="p-6 border-[rgba(0,67,143,0.1)] rounded-xl shadow-sm h-fit">
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="h-5 w-5 text-[#00438f]" />
-                <h2 className="text-lg font-bold text-[#0f172a]">Dietary Preferences</h2>
+                <h2 className="text-lg font-bold text-[#0f172a]">Dietary Restrictions</h2>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-3">
-                    Avoid Allergens
+                  <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider mb-3">
+                    AVOID ALLERGENS
                   </p>
                   {allergens.length > 0 ? (
                     <div className="space-y-2">
@@ -274,7 +284,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Stethoscope className="h-5 w-5 text-[#00438f]" />
-                    <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+                    <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">
                       Medical Conditions
                     </p>
                   </div>
@@ -299,12 +309,11 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
         </div>
       </div>
 
-      <CustomerProfileDialog
-        open={editOpen}
-        id={customer.id}
-        onOpenChange={setEditOpen}
-        onDeleted={onDeleted}
-        onSaved={onSaved}
+      <CustomerNotesDialog
+        open={notesOpen}
+        customerId={customer.id}
+        customerName={customer.name}
+        onOpenChange={setNotesOpen}
       />
     </div>
   )

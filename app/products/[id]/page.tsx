@@ -14,6 +14,7 @@ import QuickFactsCard from "@/components/product-detail/QuickFactsCard"
 import NutritionFactsCard from "@/components/product-detail/NutritionFactsCard"
 import ComplianceCard from "@/components/product-detail/ComplianceCard"
 import VendorNotesCard from "@/components/product-detail/VendorNotesCard"
+import ProductInternalNotesCard from "@/components/product-detail/ProductInternalNotesCard"
 import ProductImageCard from "@/components/product-detail/ProductImageCard"
 import {
   Dialog,
@@ -304,6 +305,7 @@ export default function ProductDetailPage() {
                   <div className="space-y-6">
                     <ProductImageCard product={product} />
                     <NutritionFactsCard product={product} />
+                    <ProductInternalNotesCard product={product} />
                     {customerId && <VendorNotesCard product={product} customerId={customerId} />}
                   </div>
                 </div>

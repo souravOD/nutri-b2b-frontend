@@ -313,6 +313,9 @@ export default function ProductsPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [filters, setFilters] = React.useState(defaultFilters)
   const [createOpen, setCreateOpen] = React.useState(false)
+  React.useEffect(() => {
+    if (searchParams.get("add") === "1") setCreateOpen(true)
+  }, [searchParams])
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
   const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
@@ -774,7 +777,7 @@ export default function ProductsPage() {
                 placeholder="Search products, SKUs, or barcodes..."
                 value={url.q}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9 bg-[#f8fafc] border-[#e2e8f0] rounded-lg focus-visible:ring-2 focus-visible:ring-[#00438f]/30"
+                className="pl-[41px] bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] focus-visible:ring-2 focus-visible:ring-[#00438f]/30 placeholder:text-[#6b7280]"
                 aria-label="Search products"
               />
             </div>
@@ -829,10 +832,14 @@ export default function ProductsPage() {
         </div>
 
         {/* Results count */}
-        <div className="text-sm text-[#64748b]">
+        <div className="text-[14px] text-[#64748b] leading-[20px]">
           {loading
             ? "Loading…"
-            : `Showing ${filtered.length} of ${data.length} product${data.length === 1 ? "" : "s"}`}
+            : (
+                <>
+                  Showing <span className="font-bold text-[#0f172a]">{filtered.length}</span> of <span className="font-bold text-[#0f172a]">{data.length}</span> products
+                </>
+              )}
         </div>
 
         <ActiveFiltersChips filters={filters} onRemove={handleFilterRemove} onClear={handleFilterClear} />

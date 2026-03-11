@@ -23,6 +23,13 @@ export type UIHealthProfile = {
 }
 
 
+export type CustomerLocation = {
+  city?: string;
+  state?: string;
+  postal?: string;
+  country?: string;
+};
+
 export type UICustomer = {
   id: string;
   name: string;
@@ -32,6 +39,7 @@ export type UICustomer = {
   status: "active" | "archived";
   avatar?: string;
   tags: string[];
+  location?: CustomerLocation;
   restrictions: {
     required: string[];
     preferred: string[];
@@ -89,6 +97,15 @@ export function toUICustomer(src: any): UICustomer {
       notes: src.restrictions?.notes ?? src.notes ?? undefined,
     },
     updatedAt: src.updated_at ?? src.updatedAt,
+
+    location: (src.locationCity ?? src.location_city ?? src.location?.city) != null
+      ? {
+          city: src.locationCity ?? src.location_city ?? src.location?.city,
+          state: src.locationRegion ?? src.location_region ?? src.location?.state,
+          postal: src.locationPostalCode ?? src.location_postal_code ?? src.location?.postal,
+          country: src.locationCountry ?? src.location_country ?? src.location?.country,
+        }
+      : undefined,
 
     healthProfile: src.healthProfile ? {
       customerId: src.healthProfile.customerId ?? src.healthProfile.customer_id,

@@ -68,13 +68,14 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  patch: { name?: string; email?: string; phone?: string; notes?: string; tags?: string[] | string; location?: CustomerLocation }
+  patch: { name?: string; email?: string; phone?: string; notes?: string; tags?: string[] | string; location?: CustomerLocation; status?: "active" | "archived" }
 ): Promise<UICustomer> {
   const body: any = {
     ...(patch.name ? { fullName: patch.name.trim() } : {}),
     ...(patch.email ? { email: patch.email.trim() } : {}),
     ...(patch.phone ? { phone: patch.phone.trim() } : {}),
     ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    ...(patch.status ? { status: patch.status } : {}),
   };
   const customTags = normalizeTags(patch.tags);
   if (customTags) body.customTags = customTags;
@@ -135,6 +136,7 @@ export async function createCustomerWithHealth(input: {
   // 🔽 accept both; form sends customTags
   customTags?: string[] | string;
   tags?: string[] | string;
+  location?: CustomerLocation;
   health?: {
     age?: number;
     gender?: "male" | "female" | "other" | "unspecified";
@@ -158,6 +160,15 @@ export async function createCustomerWithHealth(input: {
     // 🔽 prefer customTags; fallback to legacy tags
     customTags: normalizeTags(input.customTags ?? input.tags),
   };
+
+  if (input.location) {
+    payload.location = {
+      city: input.location.city?.trim() || undefined,
+      state: input.location.state?.trim() || undefined,
+      postal: input.location.postal?.trim() || undefined,
+      country: input.location.country?.trim()?.toUpperCase() || undefined,
+    };
+  }
 
   if (input.health) {
     const { bmi, bmr, tdeeCached, derivedLimits, ...safeHealth } = input.health;

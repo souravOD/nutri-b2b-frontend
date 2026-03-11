@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Package, Users, Briefcase, X, Plus, ChevronLeft, ChevronRight } from "lucide-react"
@@ -613,7 +614,7 @@ export default function SearchPage() {
 
   return (
     <AppShell title="Search">
-      <div className="container mx-auto p-10 space-y-6 bg-[#f5f7f8] min-h-screen">
+      <div className="container mx-auto px-8 md:px-[32px] pt-6 pb-10 space-y-4 bg-[#f5f7f8] min-h-screen">
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-2 text-[12px]">
           <Link href="/dashboard" className="font-medium text-[#64748b] hover:text-[#0f172a]">
@@ -626,8 +627,8 @@ export default function SearchPage() {
         {/* Page Title */}
         <h1 className="text-[36px] font-extrabold text-[#0f172a] leading-10">Search</h1>
 
-        {/* Search Input */}
-        <div className="relative">
+        {/* Search Input - Figma: pt-16 pb-24 around input */}
+        <div className="relative pt-4 pb-6">
           <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#6b7280]" />
           <Input
             id="search-input"
@@ -786,7 +787,7 @@ export default function SearchPage() {
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4 mt-0">
             {/* Product Filters - Inline */}
-            <div className="flex flex-wrap gap-3 items-center py-[29px]">
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
               <Select
                 value={productFilters.status}
                 onValueChange={(value) => setProductFilters((prev) => ({ ...prev, status: value }))}
@@ -817,26 +818,36 @@ export default function SearchPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !productFilters.tags.includes(value)) {
-                    setProductFilters((prev) => ({ ...prev, tags: [...prev.tags, value] }))
-                  }
-                }}
-              >
-                <SelectTrigger className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] w-auto min-w-[140px] [&>span]:flex [&>span]:items-center [&>span]:gap-2">
-                  <Plus className="h-3.5 w-3.5 shrink-0" />
-                  <SelectValue placeholder="Add Tag Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getUniqueProductTags().map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] hover:bg-[#e2e8f0]">
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    Add Tag Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-2">
+                  {(() => {
+                    const tags = getUniqueProductTags()
+                    const unadded = tags.filter((t) => !productFilters.tags.includes(t))
+                    if (tags.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">No tags in current results</p>
+                    if (unadded.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">All tags added</p>
+                    return (
+                      <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
+                        {unadded.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="text-left text-[14px] px-3 py-2 rounded-[6px] hover:bg-[#f1f5f9] text-[#0f172a]"
+                            onClick={() => setProductFilters((prev) => ({ ...prev, tags: [...prev.tags, tag] }))}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Products Results */}
@@ -871,7 +882,7 @@ export default function SearchPage() {
               <div className="space-y-4">
                 {paginatedProducts.map((product) => (
                   <Link key={product.id} href={`/products/${product.id}`}>
-                    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-6 hover:shadow-md transition-shadow cursor-pointer">
+                    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[25px] hover:shadow-md transition-shadow cursor-pointer">
                       <CardContent className="p-0">
                         <div className="flex gap-6">
                           <div className="size-[128px] rounded-[8px] bg-[#f1f5f9] border border-[#e2e8f0] shrink-0 overflow-hidden flex items-center justify-center">
@@ -906,7 +917,7 @@ export default function SearchPage() {
                               </div>
                             ) : null}
                             {product.nutrition && (
-                              <div className="flex flex-wrap gap-4 pt-4 border-t border-[#f1f5f9]">
+                              <div className="flex flex-wrap gap-4 pt-[17px] border-t border-[#f1f5f9]">
                                 {NUT_ORDER.map(({ key, label, unit }) => {
                                   const v = (product.nutrition as any)?.[key]
                                   if (v == null) return null
@@ -934,7 +945,7 @@ export default function SearchPage() {
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-4 mt-0">
             {/* Customer Filters - Inline */}
-            <div className="flex flex-wrap gap-3 items-center py-[29px]">
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
               <Select
                 value={customerFilters.status}
                 onValueChange={(value) => setCustomerFilters((prev) => ({ ...prev, status: value }))}
@@ -963,26 +974,36 @@ export default function SearchPage() {
                   <SelectItem value="Restaurant">Restaurant</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !customerFilters.tags.includes(value)) {
-                    setCustomerFilters((prev) => ({ ...prev, tags: [...prev.tags, value] }))
-                  }
-                }}
-              >
-                <SelectTrigger className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] w-auto min-w-[140px] [&>span]:flex [&>span]:items-center [&>span]:gap-2">
-                  <Plus className="h-3.5 w-3.5 shrink-0" />
-                  <SelectValue placeholder="Add Tag Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getUniqueCustomerTags().map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] hover:bg-[#e2e8f0]">
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    Add Tag Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-2">
+                  {(() => {
+                    const tags = getUniqueCustomerTags()
+                    const unadded = tags.filter((t) => !customerFilters.tags.includes(t))
+                    if (tags.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">No tags in current results</p>
+                    if (unadded.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">All tags added</p>
+                    return (
+                      <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
+                        {unadded.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="text-left text-[14px] px-3 py-2 rounded-[6px] hover:bg-[#f1f5f9] text-[#0f172a]"
+                            onClick={() => setCustomerFilters((prev) => ({ ...prev, tags: [...prev.tags, tag] }))}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Customers Results */}
@@ -1065,7 +1086,7 @@ export default function SearchPage() {
           {/* Jobs Tab */}
           <TabsContent value="jobs" className="space-y-4 mt-0">
             {/* Job Filters - Inline */}
-            <div className="flex flex-wrap gap-3 items-center py-[29px]">
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
               <Select
                 value={jobFilters.status}
                 onValueChange={(value) => setJobFilters((prev) => ({ ...prev, status: value }))}
