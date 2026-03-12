@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronRight, Mail, Phone, Activity, Apple, AlertTriangle, Stethoscope, ArrowLeft, FileText } from "lucide-react"
+import { ChevronRight, Mail, Phone, Activity, Apple, AlertTriangle, Stethoscope, ArrowLeft, FileText, Sparkles, Package } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { apiFetch } from "@/lib/backend"
 import type { UICustomer } from "@/types/customer"
 import CustomerNotesDialog from "./CustomerNotesDialog"
 
@@ -27,6 +30,26 @@ const activityLabels: Record<string, string> = {
 export default function CustomerProfileDetailView({ customer, onDeleted, onSaved }: Props) {
   const router = useRouter()
   const [notesOpen, setNotesOpen] = React.useState(false)
+
+  // Recommended Products (lazy-loaded on demand)
+  const [recData, setRecData] = React.useState<any>(null)
+  const [recLoading, setRecLoading] = React.useState(false)
+  const [recLoaded, setRecLoaded] = React.useState(false)
+
+  const fetchRecommendations = React.useCallback(async () => {
+    if (recLoaded) return
+    setRecLoading(true)
+    try {
+      const res = await apiFetch(`/api/v1/customers/${customer.id}/recommendations?limit=20`)
+      const data = await res.json()
+      setRecData(data)
+    } catch {
+      setRecData({ error: true })
+    } finally {
+      setRecLoading(false)
+      setRecLoaded(true)
+    }
+  }, [customer.id, recLoaded])
 
   const hp = customer.healthProfile
   const restrictions = customer.restrictions ?? { required: [], preferred: [], allergens: [], conditions: [] }
@@ -150,14 +173,14 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
       </div>
 
       {/* Main Content */}
-      <div className="p-6 space-y-8 max-w-7xl">
+      <div className="p-6 space-y-8 w-full">
         {/* Health Profile section - cards (Age, Weight, Height, etc.) per Figma */}
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Activity className="h-5 w-5 text-[#00438f]" />
             <h2 className="text-lg font-bold text-[#0f172a]">Health Profile</h2>
           </div>
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-4">
             {[
               { label: "Age", value: hp?.age ?? "—" },
               { label: "Gender", value: hp?.gender ?? "—" },
@@ -169,7 +192,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             ].map(({ label, value }) => (
               <Card
                 key={label}
-                className="p-4 border-[#e2e8f0] rounded-xl bg-white shadow-sm min-w-[140px] flex-1 max-w-[180px] min-h-0 overflow-hidden"
+                className="p-4 border-[#e2e8f0] rounded-xl bg-white shadow-sm min-h-0 overflow-hidden"
               >
                 <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider truncate">
                   {label}
@@ -307,6 +330,84 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             </Card>
           </div>
         </div>
+      </div>
+
+      {/* Recommended Products Section */}
+      <div className="px-6 pb-6">
+        <Card className="p-6 border-[rgba(0,67,143,0.1)] rounded-xl shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#00438f]" />
+              <h2 className="text-lg font-bold text-[#0f172a]">Recommended Products</h2>
+            </div>
+            {!recLoaded && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+                onClick={fetchRecommendations}
+                disabled={recLoading}
+              >
+                {recLoading ? "Loading..." : "Load Recommendations"}
+              </Button>
+            )}
+          </div>
+
+          {!recLoaded && !recLoading && (
+            <p className="text-sm text-[#94a3b8]">Click to load AI-powered product recommendations for this customer.</p>
+          )}
+
+          {recLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+            </div>
+          )}
+
+          {recLoaded && recData?.error && (
+            <div className="flex items-center gap-3 text-[#64748b] py-4">
+              <Package className="h-8 w-8 opacity-30" />
+              <div>
+                <p className="font-medium">Recommendation engine unavailable</p>
+                <p className="text-sm">The AI service is offline or not configured.</p>
+              </div>
+            </div>
+          )}
+
+          {recLoaded && !recData?.error && (!recData?.products || recData.products.length === 0) && (
+            <p className="text-sm text-[#94a3b8] py-4">No recommendations available for this customer.</p>
+          )}
+
+          {recLoaded && !recData?.error && recData?.products?.length > 0 && (
+            <div className="space-y-3">
+              {recData.products.map((p: any) => (
+                <div key={p.id} className="flex items-start gap-4 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4">
+                  {p.image_url && (
+                    <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-lg object-cover flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#0f172a] truncate">{p.name ?? "—"}</p>
+                    <p className="text-sm text-[#64748b]">{p.brand ?? ""}</p>
+                    {p.reasons && p.reasons.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {p.reasons.slice(0, 3).map((r: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {p.score !== undefined && (
+                      <span className="text-sm font-bold text-[#00438f]">{Math.round((p.score ?? 0) * 100)}%</span>
+                    )}
+                    {p.calories !== undefined && (
+                      <p className="text-xs text-[#94a3b8] mt-0.5">{p.calories} kcal</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       <CustomerNotesDialog

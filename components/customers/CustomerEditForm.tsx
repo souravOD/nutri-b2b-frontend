@@ -21,6 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type DietOption = { code: string; label: string }
 type ConditionOption = { conditionCode: string; label: string }
@@ -474,12 +481,16 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
               </Button>
             </div>
             <div className="space-y-2 mb-4">
-              <select className={inputClass} value={avoidSelect} onChange={(e) => setAvoidSelect(e.target.value)}>
-                <option value="">Add allergen…</option>
-                {allergenOptions.map((a) => (
-                  <option key={a.code} value={a.code}>{a.label}</option>
-                ))}
-              </select>
+              <Select value={avoidSelect || undefined} onValueChange={setAvoidSelect}>
+                <SelectTrigger className={`${inputClass} w-full justify-between`}>
+                  <SelectValue placeholder="Add allergen…" />
+                </SelectTrigger>
+                <SelectContent side="bottom" align="start" className="max-h-[200px]">
+                  {allergenOptions.map((a) => (
+                    <SelectItem key={a.code} value={a.code}>{a.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input value={avoidCustomInput} onChange={(e) => setAvoidCustomInput(e.target.value)} placeholder="e.g. Peanuts" className={inputClass} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAvoid())} />
               <Button type="button" variant="outline" size="sm" onClick={addAvoid} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
@@ -505,19 +516,21 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
                 <Stethoscope className="h-5 w-5 text-[#00438f]" />
                 <h3 className="text-[18px] font-bold text-[#0f172a]">Conditions</h3>
               </div>
-              <div className="flex gap-2">
-                <select className={`${inputClass} text-sm h-8 min-w-0`} value={conditionSelect} onChange={(e) => setConditionSelect(e.target.value)}>
-                  <option value="">Add…</option>
-                  {conditionOptions.map((c) => (
-                    <option key={c.conditionCode} value={c.conditionCode}>{c.label}</option>
-                  ))}
-                </select>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={addCondition}>
-                  <Plus className="h-5 w-5 text-[#00438f]" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={addCondition}>
+                <Plus className="h-5 w-5 text-[#00438f]" />
+              </Button>
             </div>
             <div className="space-y-2 mb-4">
+              <Select value={conditionSelect || undefined} onValueChange={setConditionSelect}>
+                <SelectTrigger className={`${inputClass} w-full justify-between`}>
+                  <SelectValue placeholder="Add condition…" />
+                </SelectTrigger>
+                <SelectContent side="bottom" align="start" className="max-h-[200px]">
+                  {conditionOptions.map((c) => (
+                    <SelectItem key={c.conditionCode} value={c.conditionCode}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input value={conditionCustomInput} onChange={(e) => setConditionCustomInput(e.target.value)} placeholder="Or type custom condition" className={inputClass} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCondition())} />
             </div>
             <div className="space-y-2">

@@ -4,10 +4,22 @@ import type * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useMemo } from "react"
+import dynamic from "next/dynamic"
 import AuthGuard from "@/components/auth-guard"
+
+const B2BChatbot = dynamic(() => import("@/components/chatbot/B2BChatbot"), { ssr: false })
 
 import { useAuth, type UserRole } from "@/hooks/useAuth"
 import { useBrandingConfig } from "@/hooks/useBrandingConfig"
+
+/** Derives a display company name from the user's email domain.
+ *  e.g. "abc@walmart.com" → "Walmart", "12df@odysseyts.com" → "Odysseyts"
+ *  Returns null if email is missing or unparseable. */
+function getNameFromEmail(email?: string | null): string | null {
+  const company = email?.split("@")[1]?.split(".")[0]
+  if (!company) return null
+  return company.charAt(0).toUpperCase() + company.slice(1)
+}
 
 import {
   Sidebar,
@@ -113,8 +125,10 @@ function useFilteredNavItems(items: NavItem[]) {
 }
 
 export default function AppShell({ children, title, subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
+  const { user } = useAuth()
   const { vendorName } = useBrandingConfig()
-  const navTitle = title ?? `${vendorName} Vendor Portal`
+  const companyName = getNameFromEmail(user?.email) ?? vendorName
+  const navTitle = title ?? `${companyName} Vendor Portal`
 
   return (
     <SidebarProvider defaultOpen className="sidebar-vendor">
@@ -125,6 +139,7 @@ export default function AppShell({ children, title, subtitle }: { children: Reac
         {/* 🔁 AuthGuard FIRST, so nothing below renders until auth is settled */}
         <AuthGuard>
           <div className="px-4 md:px-6 py-4">{children}</div>
+          <B2BChatbot />
         </AuthGuard>
       </SidebarInset>
     </SidebarProvider>
@@ -133,7 +148,9 @@ export default function AppShell({ children, title, subtitle }: { children: Reac
 
 function AppSidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
   const { vendorName } = useBrandingConfig()
+  const companyName = getNameFromEmail(user?.email) ?? vendorName
   const [moreOpen, setMoreOpen] = useState(false)
   const filteredMain = useFilteredNavItems(mainNavItems)
   const filteredMore = useFilteredNavItems(moreNavItems)
@@ -143,9 +160,9 @@ function AppSidebar() {
       <SidebarHeader className="px-2 pt-2">
         <div className="flex items-center gap-2 px-2 py-1">
           <div className="h-8 w-8 rounded-md bg-[#0C4A7F] text-white inline-flex items-center justify-center font-semibold text-sm">
-            {vendorName.charAt(0).toUpperCase()}
+            {companyName.charAt(0).toUpperCase()}
           </div>
-          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">{`${vendorName} Vendor Portal`}</span>
+          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">{`${companyName} Vendor Portal`}</span>
         </div>
       </SidebarHeader>
       <SidebarSeparator />

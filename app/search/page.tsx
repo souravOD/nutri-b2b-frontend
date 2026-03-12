@@ -329,6 +329,27 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false)
   const debouncedQ = useDebounced(query, 350);
 
+  // RAG search suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const debouncedSuggestQ = useDebounced(query, 400)
+  useEffect(() => {
+    if (debouncedSuggestQ.length < 3 || activeTab !== "products") {
+      setSuggestions([])
+      return
+    }
+    let cancelled = false
+    apiFetch(`/api/v1/search/suggestions?q=${encodeURIComponent(debouncedSuggestQ)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) {
+          const s = data?.suggestions ?? data?.entities_found ?? []
+          setSuggestions(Array.isArray(s) ? s.slice(0, 5) : [])
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [debouncedSuggestQ, activeTab])
+
   // Filters state
   const [productFilters, setProductFilters] = useState({
     status: "all",
@@ -628,7 +649,7 @@ export default function SearchPage() {
         <h1 className="text-[36px] font-extrabold text-[#0f172a] leading-10">Search</h1>
 
         {/* Search Input - Figma: pt-16 pb-24 around input */}
-        <div className="relative pt-4 pb-6">
+        <div className="relative pt-4 pb-2">
           <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#6b7280]" />
           <Input
             id="search-input"
@@ -638,6 +659,22 @@ export default function SearchPage() {
             className="h-[56px] pl-12 bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] text-[18px] placeholder:text-[#6b7280]"
           />
         </div>
+
+        {/* RAG Search Suggestions */}
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2 pb-4">
+            <span className="text-xs text-[#94a3b8] self-center">Try:</span>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => setQuery(typeof s === "string" ? s : (s as any).text ?? String(s))}
+                className="px-3 py-1 rounded-full text-xs font-medium bg-[#f1f5f9] text-[#00438f] border border-[#e2e8f0] hover:bg-[#00438f]/10 transition-colors"
+              >
+                {typeof s === "string" ? s : (s as any).text ?? String(s)}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Active Filters */}
         {hasActiveFilters() && (

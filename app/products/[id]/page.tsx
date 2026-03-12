@@ -7,7 +7,8 @@ import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ChevronLeft, ChevronRight, History, Pencil } from "lucide-react"
+import { ChevronLeft, ChevronRight, History, Pencil, Users } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/backend"
 import ProductForm from "@/components/product-form"
 import QuickFactsCard from "@/components/product-detail/QuickFactsCard"
@@ -136,6 +137,30 @@ export default function ProductDetailPage() {
   const [editOpen, setEditOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
 
+  // Matching Customers tab (lazy-loaded)
+  const [matchData, setMatchData] = React.useState<any>(null)
+  const [matchLoading, setMatchLoading] = React.useState(false)
+  const [matchLoaded, setMatchLoaded] = React.useState(false)
+
+  const fetchMatchingCustomers = React.useCallback(async () => {
+    if (matchLoaded || !id) return
+    setMatchLoading(true)
+    try {
+      const res = await apiFetch(`/api/v1/products/${id}/matching-customers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 20, include_reasons: true, include_warnings: true }),
+      })
+      const data = await res.json()
+      setMatchData(data)
+    } catch {
+      setMatchData({ error: true })
+    } finally {
+      setMatchLoading(false)
+      setMatchLoaded(true)
+    }
+  }, [id, matchLoaded])
+
   React.useEffect(() => {
     if (!id) {
       router.replace("/products")
@@ -263,7 +288,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="overview" className="w-full">
+          <Tabs defaultValue="overview" className="w-full" onValueChange={(v) => { if (v === "matching") fetchMatchingCustomers() }}>
             <TabsList className="bg-transparent border-b-2 border-transparent gap-8 px-0 h-auto">
               <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-bold text-sm">
                 Overview
@@ -276,6 +301,10 @@ export default function ProductDetailPage() {
               </TabsTrigger>
               <TabsTrigger value="nutrition" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
                 Nutrition
+              </TabsTrigger>
+              <TabsTrigger value="matching" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Matching Customers
               </TabsTrigger>
             </TabsList>
 
@@ -356,6 +385,66 @@ export default function ProductDetailPage() {
                 <div className="max-w-md">
                   <NutritionFactsCard product={product} />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="matching" className="mt-0">
+                {matchLoading && (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                  </div>
+                )}
+                {!matchLoading && matchData?.error && (
+                  <div className="text-center py-10 text-[#64748b]">
+                    <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Customer matching unavailable</p>
+                    <p className="text-sm mt-1">The matching service is offline or not configured.</p>
+                  </div>
+                )}
+                {!matchLoading && matchData && !matchData.error && (
+                  <div className="space-y-4">
+                    {matchData.summary && (
+                      <div className="flex gap-4 flex-wrap mb-4">
+                        <span className="text-sm text-[#64748b]">Total: <strong>{matchData.summary.total_customers ?? 0}</strong></span>
+                        <span className="text-sm text-emerald-700">Safe: <strong>{matchData.summary.safe_count ?? 0}</strong></span>
+                        <span className="text-sm text-amber-700">Warning: <strong>{matchData.summary.warning_count ?? 0}</strong></span>
+                        <span className="text-sm text-rose-700">Excluded: <strong>{matchData.summary.excluded_count ?? 0}</strong></span>
+                      </div>
+                    )}
+                    {(!matchData.customers || matchData.customers.length === 0) && (
+                      <p className="text-[#64748b] text-sm py-6 text-center">No matching customer data found.</p>
+                    )}
+                    {(matchData.customers ?? []).map((c: any) => (
+                      <div key={c.customer_id ?? c.id} className="bg-white border border-[#e2e8f0] rounded-xl p-4 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-[#0f172a] truncate">{c.customer_name ?? c.name ?? "—"}</p>
+                          <p className="text-sm text-[#64748b] truncate">{c.email ?? ""}</p>
+                          {c.reasons && c.reasons.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {c.reasons.slice(0, 3).map((r: string, i: number) => (
+                                <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
+                              ))}
+                            </div>
+                          )}
+                          {c.warnings && c.warnings.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {c.warnings.slice(0, 2).map((w: string, i: number) => (
+                                <Badge key={i} className="text-xs bg-amber-100 text-amber-700 border-0">{w}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          {c.safety_status === "safe" && <Badge className="bg-emerald-100 text-emerald-700 border-0">Safe</Badge>}
+                          {c.safety_status === "warning" && <Badge className="bg-amber-100 text-amber-700 border-0">Warning</Badge>}
+                          {c.safety_status === "excluded" && <Badge className="bg-rose-100 text-rose-700 border-0">Excluded</Badge>}
+                          {c.match_score !== undefined && (
+                            <p className="text-xs text-[#94a3b8] mt-1">{Math.round((c.match_score ?? 0) * 100)}% match</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </div>
           </Tabs>
