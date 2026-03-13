@@ -17,6 +17,16 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/backend"
+
+function triggerDownload(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 import { formatDistanceToNow } from "date-fns"
 import {
   RefreshCw,
@@ -624,21 +634,56 @@ function RunDetailDialog({
               )}
             </div>
 
-            {/* Action buttons — disabled until backend ready */}
+            {/* Action buttons */}
             <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"
-                disabled
                 className="border-[#e2e8f0] rounded-[8px]"
-                title="Coming soon"
+                onClick={() => {
+                  if (!detail) return
+                  const lines: (string | number)[][] = [
+                    ["Job ID", detail.id],
+                    ["Status", detail.status],
+                    ["Records Written", detail.totalRecordsWritten],
+                    ["Total Errors", detail.totalErrors],
+                    ["Progress %", detail.progressPct],
+                    [],
+                    ["Layer", "Status", "Input", "Processed", "Written", "Failed", "Duration (s)", "Error"],
+                    ...detail.layers.map((l) => [
+                      l.pipelineName ?? "",
+                      l.status,
+                      l.recordsInput,
+                      l.recordsProcessed,
+                      l.recordsWritten,
+                      l.recordsFailed,
+                      l.durationSeconds ?? "",
+                      l.errorMessage ?? "",
+                    ]),
+                  ]
+                  const csv = lines.map((r) => r.map(String).join(",")).join("\n")
+                  triggerDownload(csv, `job-report-${detail.id}.csv`, "text/csv")
+                }}
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download Report
               </Button>
               <Button
-                disabled
                 className="bg-[#00438f] hover:bg-[#003366] text-white rounded-[8px]"
-                title="Coming soon"
+                onClick={() => {
+                  if (!detail || detail.layers.length === 0) return
+                  const headers = ["layer", "status", "records_input", "records_processed", "records_written", "records_failed", "duration_sec"]
+                  const rows = detail.layers.map((l) => [
+                    l.pipelineName ?? "",
+                    l.status,
+                    l.recordsInput,
+                    l.recordsProcessed,
+                    l.recordsWritten,
+                    l.recordsFailed,
+                    l.durationSeconds ?? "",
+                  ])
+                  const csv = [headers.join(","), ...rows.map((r) => r.map(String).join(","))].join("\n")
+                  triggerDownload(csv, `job-items-${detail.id}.csv`, "text/csv")
+                }}
               >
                 <FileDown className="h-4 w-4 mr-2" />
                 Export Items

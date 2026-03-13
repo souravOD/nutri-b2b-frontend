@@ -27,7 +27,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { AlertTriangle, Copy, Database, Globe, Info, Key, Loader2, Plus, Shield, User } from 'lucide-react'
+import { AlertTriangle, Copy, Database, Globe, Info, Key, Loader2, Plus, Shield, Trash2, User, Zap } from 'lucide-react'
 import { Checkbox } from "@/components/ui/checkbox"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
@@ -134,6 +134,103 @@ export default function SettingsPage() {
   })
   const [savingPermissions, setSavingPermissions] = useState(false)
 
+  // ── Webhook state ─────────────────────────────────────────────────────────
+  interface WebhookEndpoint {
+    id: string
+    url: string
+    description: string | null
+    events: string[]
+    enabled: boolean
+    createdAt: string
+  }
+  const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([])
+  const [webhookUrl, setWebhookUrl] = useState("")
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(["product.match.found", "import.completed"])
+  const [webhookSaving, setWebhookSaving] = useState(false)
+  const [webhookTestingId, setWebhookTestingId] = useState<string | null>(null)
+
+  const EVENT_OPTIONS = [
+    { value: "product.match.found", label: "Product Match Found" },
+    { value: "import.completed", label: "Import Completed" },
+    { value: "compliance.alert", label: "Compliance Alert" },
+    { value: "customer.profile.updated", label: "Customer Profile Updated" },
+    { value: "quality.score.low", label: "Quality Score Low" },
+  ]
+
+  const loadWebhooks = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/v1/webhooks")
+      if (res.ok) {
+        const json = await res.json()
+        setWebhooks(json.data ?? [])
+      }
+    } catch {}
+  }, [])
+
+  const handleAddWebhook = async () => {
+    if (!webhookUrl.trim()) return
+    setWebhookSaving(true)
+    try {
+      const res = await apiFetch("/api/v1/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: webhookUrl.trim(), events: webhookEvents, enabled: true }),
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setWebhooks((prev) => [...prev, json.data])
+        setWebhookUrl("")
+        setWebhookEvents(["product.match.found", "import.completed"])
+        toast({ title: "Webhook added", description: webhookUrl.trim() })
+      } else {
+        const json = await res.json().catch(() => ({}))
+        toast({ title: "Failed to add webhook", description: json.error ?? "Unknown error", variant: "destructive" })
+      }
+    } finally {
+      setWebhookSaving(false)
+    }
+  }
+
+  const handleToggleWebhook = async (id: string, enabled: boolean) => {
+    try {
+      const res = await apiFetch(`/api/v1/webhooks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      })
+      if (res.ok) {
+        setWebhooks((prev) => prev.map((w) => w.id === id ? { ...w, enabled } : w))
+      }
+    } catch {}
+  }
+
+  const handleDeleteWebhook = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/v1/webhooks/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setWebhooks((prev) => prev.filter((w) => w.id !== id))
+        toast({ title: "Webhook removed" })
+      }
+    } catch {}
+  }
+
+  const handleTestWebhook = async (id: string) => {
+    setWebhookTestingId(id)
+    try {
+      const res = await apiFetch(`/api/v1/webhooks/${id}/test`, { method: "POST" })
+      const json = await res.json().catch(() => ({}))
+      if (json.data?.success) {
+        toast({ title: "Test delivered", description: `HTTP ${json.data.status}` })
+      } else {
+        toast({ title: "Test failed", description: json.data?.responseBody ?? json.error ?? "No response", variant: "destructive" })
+      }
+    } catch (e: any) {
+      toast({ title: "Test failed", description: e?.message, variant: "destructive" })
+    } finally {
+      setWebhookTestingId(null)
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
@@ -194,6 +291,10 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchApiKeys()
   }, [fetchApiKeys])
+
+  useEffect(() => {
+    loadWebhooks()
+  }, [loadWebhooks])
 
   // Fetch users and role permissions for Role Permissions tab
   useEffect(() => {
@@ -660,10 +761,62 @@ export default function SettingsPage() {
                 <CardDescription className="text-[14px] text-[#64748b]">Configure webhook endpoints for real-time notifications</CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
+                {/* Existing webhooks list */}
+                {webhooks.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-[14px] font-bold text-[#0f172a]">Active Endpoints</Label>
+                    <div className="space-y-2">
+                      {webhooks.map((w) => (
+                        <div key={w.id} className="flex items-center justify-between border border-[#e2e8f0] rounded-[8px] px-4 py-3 gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-[#1e293b] truncate">{w.url}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {w.events.map((ev) => (
+                                <span key={ev} className="text-[10px] bg-[#eff6ff] text-[#00438f] rounded px-1.5 py-0.5 font-medium">{ev}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Switch
+                              checked={w.enabled}
+                              onCheckedChange={(v) => handleToggleWebhook(w.id, v)}
+                              className="scale-75"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={webhookTestingId === w.id}
+                              onClick={() => handleTestWebhook(w.id)}
+                              title="Send test payload"
+                              className="h-8 w-8 p-0 text-[#64748b] hover:text-[#00438f]"
+                            >
+                              {webhookTestingId === w.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Zap className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteWebhook(w.id)}
+                              title="Remove webhook"
+                              className="h-8 w-8 p-0 text-[#64748b] hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add new webhook form */}
                 <div className="space-y-2">
                   <Label htmlFor="webhookUrl" className="text-[14px] font-bold text-[#0f172a]">Webhook URL</Label>
                   <Input
                     id="webhookUrl"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
                     placeholder="https://your-app.com/webhook"
                     className="border-[#cbd5e1] rounded-[8px] px-4 py-[11px] text-[16px]"
                   />
@@ -671,23 +824,28 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <Label className="text-[14px] font-bold text-[#0f172a]">Events</Label>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" id="productMatch" defaultChecked className="rounded border-[#cbd5e1]" />
-                      <Label htmlFor="productMatch" className="text-[14px] font-medium text-[#334155]">Product Match Found</Label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" id="importComplete" defaultChecked className="rounded border-[#cbd5e1]" />
-                      <Label htmlFor="importComplete" className="text-[14px] font-medium text-[#334155]">Import Completed</Label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" id="complianceAlert" className="rounded border-[#cbd5e1]" />
-                      <Label htmlFor="complianceAlert" className="text-[14px] font-medium text-[#334155]">Compliance Alert</Label>
-                    </div>
+                    {EVENT_OPTIONS.map((opt) => (
+                      <div key={opt.value} className="flex items-center gap-3">
+                        <Checkbox
+                          id={`event-${opt.value}`}
+                          checked={webhookEvents.includes(opt.value)}
+                          onCheckedChange={(checked) => {
+                            setWebhookEvents((prev) =>
+                              checked ? [...prev, opt.value] : prev.filter((e) => e !== opt.value)
+                            )
+                          }}
+                        />
+                        <Label htmlFor={`event-${opt.value}`} className="text-[14px] font-medium text-[#334155]">{opt.label}</Label>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <Button
                   className="!bg-[#00438f] hover:!bg-[#003366] text-white font-bold text-[16px] h-12 min-w-[180px] px-8 py-3 rounded-[12px]"
+                  disabled={webhookSaving || !webhookUrl.trim()}
+                  onClick={handleAddWebhook}
                 >
+                  {webhookSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                   Add Webhook
                 </Button>
               </CardContent>

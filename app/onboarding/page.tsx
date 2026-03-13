@@ -55,7 +55,7 @@ export default function OnboardingPage() {
 
           <div className="space-y-2">
             <h1 className="text-[24px] font-bold text-[#0f172a] tracking-[-0.6px] leading-8">
-              Get your catalog into {vendorName} B2B
+              Get your catalog into {vendorName}
             </h1>
             <p className="text-[16px] text-[#64748b] leading-6">
               Import a CSV now or wire up your API. You can do both — start with whichever is fastest, then refine.

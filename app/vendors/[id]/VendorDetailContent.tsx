@@ -352,7 +352,7 @@ export function VendorDetailContent(props: VendorDetailContentProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={editSaving}>{editSaving ? "Saving..." : "Save"}</Button>
+            <Button onClick={saveEdit} disabled={editSaving} className="bg-[#00438f] hover:bg-[#003366] text-white">{editSaving ? "Saving..." : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
