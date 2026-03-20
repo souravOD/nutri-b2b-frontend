@@ -5,14 +5,36 @@ import Link from "next/link"
 import AppShell from "@/components/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AlertTriangle, BarChart3, CheckCircle, FileText, Loader2, PlayCircle, Shield, XCircle, FileDown } from "lucide-react"
+import {
+  AlertTriangle,
+  BarChart3,
+  Calendar,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  FileDown,
+  FileText,
+  Loader2,
+  PlayCircle,
+  Search,
+  Shield,
+  XCircle,
+} from "lucide-react"
 import { apiFetch } from "@/lib/backend"
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -41,8 +63,18 @@ interface ComplianceSummary {
   overallScore: number
 }
 
+type EffectiveStatus = "compliant" | "warning" | "non_compliant" | "expired"
+type TabKey = "all" | "compliant" | "warning" | "non_compliant"
+
+const PAGE_SIZE = 20
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function getStatusIconBox(status: string) {
+function resolveStatus(check: ComplianceCheck): EffectiveStatus {
+  if (check.next_review && new Date(check.next_review) < new Date()) return "expired"
+  return check.status
+}
+
+function getStatusIconBox(status: EffectiveStatus) {
   switch (status) {
     case "compliant":
       return (
@@ -62,6 +94,12 @@ function getStatusIconBox(status: string) {
           <XCircle className="h-5 w-5 text-[#b91c1c]" />
         </div>
       )
+    case "expired":
+      return (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f1f5f9]">
+          <Calendar className="h-5 w-5 text-[#64748b]" />
+        </div>
+      )
     default:
       return (
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f1f5f9]">
@@ -71,7 +109,7 @@ function getStatusIconBox(status: string) {
   }
 }
 
-function getStatusPill(status: string) {
+function getStatusPill(status: EffectiveStatus) {
   switch (status) {
     case "compliant":
       return (
@@ -88,7 +126,13 @@ function getStatusPill(status: string) {
     case "non_compliant":
       return (
         <span className="rounded-[4px] px-2 py-0.5 text-[10px] font-bold tracking-[0.5px] uppercase bg-[#fee2e2] text-[#b91c1c]">
-          NON-COMPLIANT
+          NOT COMPLIANT
+        </span>
+      )
+    case "expired":
+      return (
+        <span className="rounded-[4px] px-2 py-0.5 text-[10px] font-bold tracking-[0.5px] uppercase bg-[#f1f5f9] text-[#475569]">
+          EXPIRED
         </span>
       )
     default:
@@ -101,6 +145,19 @@ const formatDate = (d: string | null) => {
   return new Date(d).toLocaleDateString()
 }
 
+function buildPageNumbers(current: number, totalPages: number): number[] {
+  const delta = 2
+  const range: number[] = []
+  for (
+    let i = Math.max(1, current - delta);
+    i <= Math.min(totalPages, current + delta);
+    i++
+  ) {
+    range.push(i)
+  }
+  return range
+}
+
 // ── Check Detail Dialog ──────────────────────────────────────────────────────
 function CheckDetailDialog({
   check,
@@ -110,6 +167,7 @@ function CheckDetailDialog({
   onOpenChange: (open: boolean) => void
 }) {
   if (!check) return null
+  const effectiveStatus = resolveStatus(check)
   return (
     <Dialog open={!!check} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -118,28 +176,20 @@ function CheckDetailDialog({
         </DialogHeader>
         <div className="space-y-5">
           <div>
-            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-              Rule
-            </p>
+            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Rule</p>
             <p className="text-[14px] font-semibold text-[#0f172a]">{check.rule_title}</p>
           </div>
           <div>
-            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-              Regulation
-            </p>
+            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Regulation</p>
             <p className="text-[14px] text-[#475569]">{check.regulation}</p>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-                Status
-              </p>
-              {getStatusPill(check.status)}
+              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Status</p>
+              {getStatusPill(effectiveStatus)}
             </div>
             <div>
-              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-                Score
-              </p>
+              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Score</p>
               <p className="text-[14px] font-bold text-[#0f172a]">{check.score}%</p>
             </div>
             <div>
@@ -153,11 +203,7 @@ function CheckDetailDialog({
             <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
               Products Failed
             </p>
-            <p
-              className={`text-[14px] font-semibold ${
-                check.products_failed > 0 ? "text-[#b91c1c]" : "text-[#475569]"
-              }`}
-            >
+            <p className={`text-[14px] font-semibold ${check.products_failed > 0 ? "text-[#b91c1c]" : "text-[#475569]"}`}>
               {check.products_failed}
             </p>
           </div>
@@ -169,22 +215,16 @@ function CheckDetailDialog({
             <Progress value={check.score} className="h-2" />
           </div>
           <div>
-            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-              Checked
-            </p>
+            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Checked</p>
             <p className="text-[14px] text-[#475569]">{formatDate(check.checked_at)}</p>
           </div>
           <div>
-            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-              Next Review
-            </p>
+            <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Next Review</p>
             <p className="text-[14px] text-[#475569]">{formatDate(check.next_review)}</p>
           </div>
           {check.details && typeof check.details === "object" && Object.keys(check.details as object).length > 0 && (
             <div>
-              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
-                Details
-              </p>
+              <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">Details</p>
               <pre className="rounded-[8px] border border-[#e2e8f0] bg-[#f8fafc] p-4 text-[12px] text-[#475569] overflow-auto max-h-40">
                 {JSON.stringify(check.details, null, 2)}
               </pre>
@@ -206,44 +246,73 @@ export default function CompliancePage() {
     nonCompliant: 0,
     overallScore: 0,
   })
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+
+  const [search, setSearch] = useState("")
+  const [severity, setSeverity] = useState("")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [activeTab, setActiveTab] = useState<TabKey>("all")
+
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [reportLoading, setReportLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"all" | "compliant" | "warning" | "non_compliant">("all")
   const [selectedCheck, setSelectedCheck] = useState<ComplianceCheck | null>(null)
 
-  const fetchData = useCallback(async () => {
+  // Reset page when any filter changes
+  const changeTab = (tab: TabKey) => { setActiveTab(tab); setPage(1) }
+  const changeSearch = (v: string) => { setSearch(v); setPage(1) }
+  const changeSeverity = (v: string) => { setSeverity(v); setPage(1) }
+  const changeFromDate = (v: string) => { setFromDate(v); setPage(1) }
+  const changeToDate = (v: string) => { setToDate(v); setPage(1) }
+
+  const fetchChecks = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+      })
+      if (activeTab !== "all") params.set("status", activeTab)
+      if (search.trim()) params.set("q", search.trim())
+      if (severity && severity !== "_all") params.set("severity", severity)
+      if (fromDate) params.set("from_date", fromDate)
+      if (toDate) params.set("to_date", toDate)
+
       const [checksRes, summaryRes] = await Promise.all([
-        apiFetch("/api/compliance/checks?limit=50"),
+        apiFetch(`/api/compliance/checks?${params.toString()}`),
         apiFetch("/api/compliance/summary"),
       ])
+      if (!checksRes.ok) throw new Error(`Compliance checks failed (${checksRes.status})`)
+      if (!summaryRes.ok) throw new Error(`Compliance summary failed (${summaryRes.status})`)
       const checksJson = await checksRes.json()
       const summaryJson = await summaryRes.json()
       setChecks(checksJson.data || [])
-      setSummary(summaryJson)
+      setTotal(checksJson.total ?? 0)
+      setSummary({
+        totalRulesChecked: summaryJson.totalRulesChecked ?? 0,
+        compliant:         summaryJson.compliant         ?? 0,
+        warning:           summaryJson.warning           ?? 0,
+        nonCompliant:      summaryJson.nonCompliant       ?? 0,
+        overallScore:      summaryJson.overallScore       ?? 0,
+      })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load compliance data"
-      setError(message)
+      setError(err instanceof Error ? err.message : "Failed to load compliance data")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page, activeTab, search, severity, fromDate, toDate])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  useEffect(() => { fetchChecks() }, [fetchChecks])
 
   const runComplianceCheck = async () => {
     try {
       setRunning(true)
       const res = await apiFetch("/api/compliance/run", { method: "POST" })
-      if (res.ok) {
-        await fetchData()
-      }
+      if (res.ok) await fetchChecks()
     } catch (err) {
       console.error("[compliance] run error:", err)
     } finally {
@@ -271,67 +340,17 @@ export default function CompliancePage() {
     }
   }
 
-  const compliantItems = checks.filter((c) => c.status === "compliant")
-  const warningItems = checks.filter((c) => c.status === "warning")
-  const nonCompliantItems = checks.filter((c) => c.status === "non_compliant")
-  const displayedChecks =
-    activeTab === "all"
-      ? checks
-      : activeTab === "compliant"
-        ? compliantItems
-        : activeTab === "warning"
-          ? warningItems
-          : nonCompliantItems
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pageNumbers = buildPageNumbers(page, totalPages)
+  const startRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const endRow = Math.min(page * PAGE_SIZE, total)
 
-  const renderCheckCard = (item: ComplianceCheck) => (
-    <Card
-      key={item.id}
-      className="border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] bg-white"
-    >
-      <CardContent className="p-[25px]">
-        <div className="flex gap-4">
-          {getStatusIconBox(item.status)}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <h3 className="text-[14px] font-bold text-[#0f172a]">{item.rule_title}</h3>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {getStatusPill(item.status)}
-                <div className="text-right">
-                  <div className="text-[14px] font-semibold text-[#0f172a]">{item.score}%</div>
-                  <Progress value={item.score} className="w-16 h-1.5 mt-0.5" />
-                </div>
-              </div>
-            </div>
-            <p className="text-[14px] text-[#475569] mt-1">
-              {item.regulation} · {item.products_checked} products checked, {item.products_failed} failed
-            </p>
-            <p className="text-[12px] text-[#94a3b8] mt-2">
-              Checked: {formatDate(item.checked_at)} · Next review: {formatDate(item.next_review)}
-            </p>
-            <div className="mt-4">
-              <Button
-                size="sm"
-                className="bg-[#00438f] hover:bg-[#003366]"
-                onClick={() => setSelectedCheck(item)}
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                View Details
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  const renderEmpty = (label: string) => (
-    <Card className="border border-[#e2e8f0] rounded-[12px] bg-white">
-      <CardContent className="flex flex-col items-center justify-center py-12">
-        <Shield className="h-12 w-12 text-[#94a3b8] mb-4" />
-        <p className="text-[#64748b]">{label}</p>
-      </CardContent>
-    </Card>
-  )
+  const TABS: { key: TabKey; label: string; count: number }[] = [
+    { key: "all", label: "All Certifications", count: summary.totalRulesChecked },
+    { key: "compliant", label: "Compliant", count: summary.compliant },
+    { key: "warning", label: "Warnings", count: summary.warning },
+    { key: "non_compliant", label: "Non-Compliant", count: summary.nonCompliant },
+  ]
 
   return (
     <AppShell title="Compliance">
@@ -441,75 +460,205 @@ export default function CompliancePage() {
           </Card>
         </div>
 
-        {/* Underline Tabs */}
-        <div className="space-y-6">
+        {/* Tabs + Table */}
+        <div className="space-y-0">
+          {/* Underline Tabs */}
           <div className="flex gap-[32px] border-b border-[#e2e8f0]">
-            <button
-              type="button"
-              onClick={() => setActiveTab("all")}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "all"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
-                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
-              }`}
-            >
-              All Items ({checks.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("compliant")}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "compliant"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
-                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
-              }`}
-            >
-              Compliant ({compliantItems.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("warning")}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "warning"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
-                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
-              }`}
-            >
-              Warnings ({warningItems.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("non_compliant")}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "non_compliant"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
-                  : "border-transparent text-[#64748b] hover:text-[#0f172a]"
-              }`}
-            >
-              Non-Compliant ({nonCompliantItems.length})
-            </button>
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => changeTab(tab.key)}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-[#00438f] text-[#00438f] font-bold"
+                    : "border-transparent text-[#64748b] hover:text-[#0f172a]"
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
           </div>
 
-          {/* Check List */}
-          <div className="space-y-4">
+          {/* Filter bar */}
+          <div className="flex flex-wrap gap-3 items-center py-4">
+            <div className="relative flex-1 min-w-[200px] max-w-[280px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => changeSearch(e.target.value)}
+                placeholder="Search certifications..."
+                className="pl-9 h-9 border-[#e2e8f0] text-[13px]"
+              />
+            </div>
+            <Select value={severity} onValueChange={changeSeverity}>
+              <SelectTrigger className="h-9 w-[160px] border-[#e2e8f0] text-[13px]">
+                <SelectValue placeholder="All Risk Levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">All Risk Levels</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="info">Info</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => changeFromDate(e.target.value)}
+              className="h-9 w-[150px] border-[#e2e8f0] text-[13px]"
+            />
+            <span className="text-[#94a3b8] text-sm select-none">–</span>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => changeToDate(e.target.value)}
+              className="h-9 w-[150px] border-[#e2e8f0] text-[13px]"
+            />
+          </div>
+
+          {/* Table */}
+          <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
             {loading ? (
-              <div className="flex justify-center py-12">
+              <div className="flex justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-[#64748b]" />
               </div>
-            ) : displayedChecks.length === 0 ? (
-              renderEmpty(
-                activeTab === "compliant"
-                  ? "No compliant checks"
-                  : activeTab === "warning"
+            ) : checks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Shield className="h-12 w-12 text-[#94a3b8] mb-4" />
+                <p className="text-[#64748b]">
+                  {search || severity || fromDate || toDate
+                    ? "No certifications match your filters."
+                    : activeTab === "compliant"
+                    ? "No compliant checks"
+                    : activeTab === "warning"
                     ? "No warning checks"
                     : activeTab === "non_compliant"
-                      ? "No non-compliant checks"
-                      : "No compliance checks yet. Run a check to see results."
-              )
+                    ? "No non-compliant checks"
+                    : "No compliance checks yet. Run a check to see results."}
+                </p>
+              </div>
             ) : (
-              displayedChecks.map(renderCheckCard)
+              <div className="overflow-x-auto">
+                <table className="w-full text-[14px]">
+                  <thead>
+                    <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]">
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Certification Name
+                      </th>
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Regulation
+                      </th>
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Overall Score
+                      </th>
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Last Checked
+                      </th>
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Next Review
+                      </th>
+                      <th className="py-3 px-4 text-left text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px] whitespace-nowrap">
+                        Status
+                      </th>
+                      <th className="py-3 px-4 text-right text-[11px] font-bold text-[#64748b] uppercase tracking-[0.5px]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {checks.map((check) => {
+                      const effectiveStatus = resolveStatus(check)
+                      return (
+                        <tr
+                          key={check.id}
+                          className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors"
+                        >
+                          <td className="py-3 px-4 font-medium text-[#0f172a]">
+                            <div className="flex items-center gap-3">
+                              {getStatusIconBox(effectiveStatus)}
+                              <span>{check.rule_title}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-[#64748b] uppercase text-[12px] font-medium">
+                            {check.regulation}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <Progress value={check.score} className="w-16 h-1.5" />
+                              <span className="font-semibold text-[#0f172a]">{check.score}%</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-[#64748b] whitespace-nowrap">
+                            {formatDate(check.checked_at)}
+                          </td>
+                          <td className="py-3 px-4 text-[#64748b] whitespace-nowrap">
+                            {formatDate(check.next_review)}
+                          </td>
+                          <td className="py-3 px-4">
+                            {getStatusPill(effectiveStatus)}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-[#64748b] hover:text-[#0f172a] h-8 px-3"
+                              onClick={() => setSelectedCheck(check)}
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1.5" />
+                              Details
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
+
+            {/* Pagination */}
+            {!loading && total > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-[#e2e8f0]">
+                <span className="text-[13px] text-[#64748b]">
+                  {startRow} to {endRow} of {total} Certifications
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0 border-[#e2e8f0]"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {pageNumbers.map((n) => (
+                    <Button
+                      key={n}
+                      size="sm"
+                      variant={n === page ? "default" : "outline"}
+                      className={`h-8 w-8 p-0 border-[#e2e8f0] text-[13px] ${
+                        n === page ? "bg-[#00438f] hover:bg-[#003366] border-[#00438f]" : ""
+                      }`}
+                      onClick={() => setPage(n)}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0 border-[#e2e8f0]"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 

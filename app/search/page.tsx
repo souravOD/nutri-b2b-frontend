@@ -15,6 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Package, Users, Briefcase, X, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/backend"
+// TODO: Uncomment when db:push is run to create user_searches table
+// import { saveRecentSearch } from "@/lib/api-search"
+import SearchLandingView from "@/components/search/SearchLandingView"
 
 type Product = {
   id: string
@@ -402,11 +405,13 @@ export default function SearchPage() {
   load();
 }, []);
 
-  // Update URL when query changes
+  // Update URL when query changes; save non-empty queries to search history
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
     if (query) {
       params.set("q", query)
+      // TODO: Uncomment when db:push is run to create user_searches table
+      // saveRecentSearch(query) // fire-and-forget
     } else {
       params.delete("q")
     }
@@ -631,6 +636,21 @@ export default function SearchPage() {
       ...prev,
       tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }))
+  }
+
+  // Landing state: no query typed — show discovery page
+  const isLanding = !query.trim()
+  if (isLanding) {
+    return (
+      <AppShell title="Search" subtitle="Discover products, customers & vendors">
+        <SearchLandingView
+          onSearch={(q) => {
+            setQuery(q)
+            router.push(`/search?q=${encodeURIComponent(q)}`)
+          }}
+        />
+      </AppShell>
+    )
   }
 
   return (

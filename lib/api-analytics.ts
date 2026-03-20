@@ -32,3 +32,22 @@ export async function getAnalyticsOverview(days = 30): Promise<AnalyticsOverview
   return data as AnalyticsOverview;
 }
 
+export type EngagementAnalytics = {
+  statusDistribution: Record<string, number>;
+  activationRate: number;
+  totalCustomers: number;
+  customersWithProfile: number;
+  qualityScoreTrend: { day: string; avg_score: number }[];
+  newCustomersTrend: { day: string; count: number }[];
+  days: number;
+};
+
+export async function getEngagementAnalytics(days = 30): Promise<EngagementAnalytics> {
+  const res = await apiFetch(`/api/v1/analytics/engagement?days=${days}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((data as { error?: string })?.error ?? `Engagement analytics failed (${res.status})`);
+  }
+  return data as EngagementAnalytics;
+}
+

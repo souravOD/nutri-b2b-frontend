@@ -71,7 +71,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({ userId: me.$id, email: me.email, fullName: me.name }),
-            }).catch(() => {});
+            }).catch((err) => {
+              console.warn("[auth-guard] complete-registration fetch failed:", err);
+            });
           }
 
           hasProfile = await userProfileExists(DB_ID, USERPROFILES_COL, me.$id);

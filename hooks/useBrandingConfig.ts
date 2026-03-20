@@ -7,6 +7,9 @@ import { getVendorDisplayName } from "@/lib/vendor-config";
 export type BrandingConfig = {
   vendorName: string;
   copyrightText: string;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string | null;
 };
 
 const DEFAULT_COPYRIGHT = "© 2024. All rights reserved.";
@@ -14,7 +17,7 @@ const DEFAULT_COPYRIGHT = "© 2024. All rights reserved.";
 /**
  * Fetches branding config from backend.
  * When vendorSlug is provided, backend resolves vendorName from gold.vendors by slug.
- * Copyright is generic. Falls back to frontend vendor-config when backend is unreachable.
+ * Falls back to frontend vendor-config when backend is unreachable.
  */
 export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
   const [config, setConfig] = useState<BrandingConfig>(() => ({
@@ -22,6 +25,9 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
     copyrightText:
       (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_VENDOR_COPYRIGHT) ||
       DEFAULT_COPYRIGHT,
+    logoUrl: null,
+    faviconUrl: null,
+    primaryColor: null,
   }));
 
   useEffect(() => {
@@ -34,12 +40,13 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
         const res = await apiFetch(url);
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        const backendVendor = data?.vendorName?.trim();
-        const backendCopyright = data?.copyrightText?.trim();
         if (!cancelled) {
           setConfig({
-            vendorName: backendVendor || getVendorDisplayName(vendorSlug),
-            copyrightText: backendCopyright || DEFAULT_COPYRIGHT,
+            vendorName: data?.vendorName?.trim() || getVendorDisplayName(vendorSlug),
+            copyrightText: data?.copyrightText?.trim() || DEFAULT_COPYRIGHT,
+            logoUrl: data?.logoUrl || null,
+            faviconUrl: data?.faviconUrl || null,
+            primaryColor: data?.primaryColor || null,
           });
         }
       } catch {

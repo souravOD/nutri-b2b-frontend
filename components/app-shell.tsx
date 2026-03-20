@@ -149,7 +149,7 @@ export default function AppShell({ children, title, subtitle }: { children: Reac
 function AppSidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
-  const { vendorName } = useBrandingConfig()
+  const { vendorName, logoUrl } = useBrandingConfig()
   const companyName = getNameFromEmail(user?.email) ?? vendorName
   const [moreOpen, setMoreOpen] = useState(false)
   const filteredMain = useFilteredNavItems(mainNavItems)
@@ -159,8 +159,11 @@ function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 pt-2">
         <div className="flex items-center gap-2 px-2 py-1">
-          <div className="h-8 w-8 rounded-md bg-[#0C4A7F] text-white inline-flex items-center justify-center font-semibold text-sm">
-            {companyName.charAt(0).toUpperCase()}
+          <div className="h-8 w-8 rounded-md bg-[#0C4A7F] text-white inline-flex items-center justify-center font-semibold text-sm overflow-hidden flex-shrink-0">
+            {logoUrl
+              ? <img src={logoUrl} alt={companyName} className="h-full w-full object-cover" />
+              : companyName.charAt(0).toUpperCase()
+            }
           </div>
           <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">{`${companyName} Vendor Portal`}</span>
         </div>

@@ -27,10 +27,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { AlertTriangle, Copy, Database, Globe, Info, Key, Loader2, Plus, Shield, Trash2, User, Zap } from 'lucide-react'
+import { AlertTriangle, Copy, Database, Download, Globe, Info, Key, Loader2, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
 import { Checkbox } from "@/components/ui/checkbox"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/useAuth"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const normalizeDomain = (val: string) =>
@@ -50,6 +51,17 @@ const SETTINGS_KEYS = {
   sessionTimeoutEnabled: "pref.session_timeout_enabled",
   ipRestrictions: "pref.ip_restrictions",
   auditLogging: "pref.audit_logging",
+  brandingLogoUrl: "branding.logo_url",
+  brandingFaviconUrl: "branding.favicon_url",
+  brandingPrimaryColor: "branding.primary_color",
+  brandingCopyright: "branding.copyright",
+  crmProvider: "crm.provider",
+  crmAccessToken: "crm.access_token",
+  crmApiKey: "crm.api_key",
+  crmInstanceUrl: "crm.instance_url",
+  integrationUsdaKey: "integration.usda.api_key",
+  integrationNutritionLabelKey: "integration.nutrition_label.api_key",
+  integrationComplianceKey: "integration.compliance_checker.api_key",
 } as const
 
 // ── Role Permissions config (Figma design) ───────────────────────────────────
@@ -95,7 +107,59 @@ const ROLE_CONFIG: {
   },
 ]
 
+function BrandingLivePreview({ color, logoUrl }: { color: string; logoUrl: string }) {
+  const safeColor = /^#[0-9a-fA-F]{3,6}$/.test(color) ? color : "#2073BD"
+  return (
+    <div className="rounded-[10px] border border-[#e2e8f0] shadow-md overflow-hidden bg-white">
+      {/* Browser chrome */}
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-[#f1f5f9] border-b border-[#e2e8f0]">
+        <span className="size-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="size-2.5 rounded-full bg-[#febc2e]" />
+        <span className="size-2.5 rounded-full bg-[#28c840]" />
+      </div>
+      {/* Mini portal */}
+      <div className="flex h-[180px]">
+        {/* Sidebar */}
+        <div className="w-[64px] shrink-0 flex flex-col items-center py-3 gap-3" style={{ backgroundColor: safeColor }}>
+          <div className="size-8 rounded bg-white/20 flex items-center justify-center overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="size-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+            ) : (
+              <div className="size-4 rounded-sm bg-white/40" />
+            )}
+          </div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={`w-9 h-1.5 rounded-full ${i === 0 ? "bg-white/80" : "bg-white/25"}`} />
+          ))}
+        </div>
+        {/* Content area */}
+        <div className="flex-1 bg-[#f8fafc] p-3 space-y-2 overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <div className="h-2 w-14 rounded bg-[#e2e8f0]" />
+            <div className="size-4 rounded-full bg-[#e2e8f0]" />
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded p-1.5 border border-[#e2e8f0]">
+                <div className="h-1.5 w-7 rounded bg-[#e2e8f0] mb-1" />
+                <div className="h-2.5 w-5 rounded" style={{ backgroundColor: safeColor + "33" }} />
+              </div>
+            ))}
+          </div>
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-2.5 rounded bg-white border border-[#e2e8f0]" />
+          ))}
+          <div className="flex justify-end pt-1">
+            <div className="h-4 w-10 rounded" style={{ backgroundColor: safeColor }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
+  const { authContext } = useAuth()
   const [orgName, setOrgName] = useState("")
   const [orgDomain, setOrgDomain] = useState("")
   const [orgTimezone, setOrgTimezone] = useState("America/New_York")
@@ -111,6 +175,41 @@ export default function SettingsPage() {
   const [apiKeys, setApiKeys] = useState<{ id: string; key_prefix: string; label: string; environment: string; is_active: boolean }[]>([])
   const [apiKeysLoading, setApiKeysLoading] = useState(false)
   const [savingSecurity, setSavingSecurity] = useState(false)
+
+  // ── Branding state ─────────────────────────────────────────────────────────
+  const [brandingLogoUrl, setBrandingLogoUrl] = useState("")
+  const [brandingFaviconUrl, setBrandingFaviconUrl] = useState("")
+  const [brandingPrimaryColor, setBrandingPrimaryColor] = useState("#2073BD")
+  const [brandingCopyright, setBrandingCopyright] = useState("")
+  const [savingBranding, setSavingBranding] = useState(false)
+
+  // ── Privacy / GDPR state ───────────────────────────────────────────────────
+  interface PrivacyUser { userId: string; email: string; displayName?: string; role: string; status?: string; joinedAt?: string }
+  const [privacyUsers, setPrivacyUsers] = useState<PrivacyUser[]>([])
+  const [exportingUserId, setExportingUserId] = useState<string | null>(null)
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false)
+  const [purgeTarget, setPurgeTarget] = useState<PrivacyUser | null>(null)
+  const [purgeConfirmText, setPurgeConfirmText] = useState("")
+  const [purging, setPurging] = useState(false)
+
+  // ── API Integration state ──────────────────────────────────────────────────
+  const [usdaApiKey, setUsdaApiKey] = useState("")
+  const [nutritionLabelApiKey, setNutritionLabelApiKey] = useState("")
+  const [complianceApiKey, setComplianceApiKey] = useState("")
+  const [integrationDialogOpen, setIntegrationDialogOpen] = useState(false)
+  const [integrationDialogTarget, setIntegrationDialogTarget] = useState<"usda" | "nutrition_label" | "compliance_checker" | null>(null)
+  const [integrationDialogKey, setIntegrationDialogKey] = useState("")
+  const [savingIntegration, setSavingIntegration] = useState(false)
+
+  // ── CRM Integration state ──────────────────────────────────────────────────
+  const [crmProvider, setCrmProvider] = useState<"none" | "hubspot" | "salesforce">("none")
+  const [crmAccessToken, setCrmAccessToken] = useState("")
+  const [crmApiKey, setCrmApiKey] = useState("")
+  const [crmInstanceUrl, setCrmInstanceUrl] = useState("")
+  const [savingCrm, setSavingCrm] = useState(false)
+  const [crmSyncing, setCrmSyncing] = useState(false)
+  const [crmSyncResult, setCrmSyncResult] = useState<{ synced: number; failed: number; total: number } | null>(null)
+
   const [generateKeyOpen, setGenerateKeyOpen] = useState(false)
   const [newKeyModal, setNewKeyModal] = useState<{ api_key: string; hmac_secret: string; environment: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -155,7 +254,53 @@ export default function SettingsPage() {
     { value: "compliance.alert", label: "Compliance Alert" },
     { value: "customer.profile.updated", label: "Customer Profile Updated" },
     { value: "quality.score.low", label: "Quality Score Low" },
+    { value: "customer.created", label: "Customer Created" },
+    { value: "customer.updated", label: "Customer Updated" },
+    { value: "health_profile.updated", label: "Health Profile Updated" },
   ]
+
+  // ── API Integration helpers ────────────────────────────────────────────────
+  const isIntegrationConnected = (apiKey: string) => apiKey.trim().length > 0
+
+  const openIntegrationDialog = (target: "usda" | "nutrition_label" | "compliance_checker", currentKey: string) => {
+    setIntegrationDialogTarget(target)
+    setIntegrationDialogKey(currentKey)
+    setIntegrationDialogOpen(true)
+  }
+
+  const handleSaveIntegration = async () => {
+    if (!integrationDialogTarget || !integrationDialogKey.trim()) return
+    setSavingIntegration(true)
+    try {
+      const settingsKeyMap = {
+        usda: SETTINGS_KEYS.integrationUsdaKey,
+        nutrition_label: SETTINGS_KEYS.integrationNutritionLabelKey,
+        compliance_checker: SETTINGS_KEYS.integrationComplianceKey,
+      }
+      const setterMap = {
+        usda: setUsdaApiKey,
+        nutrition_label: setNutritionLabelApiKey,
+        compliance_checker: setComplianceApiKey,
+      }
+      const res = await apiFetch(`/api/settings/${settingsKeyMap[integrationDialogTarget]}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: integrationDialogKey.trim() }),
+      })
+      if (res.ok) {
+        setterMap[integrationDialogTarget](integrationDialogKey.trim())
+        toast({ title: "Integration connected", description: "API key saved successfully." })
+        setIntegrationDialogOpen(false)
+        setIntegrationDialogKey("")
+      } else {
+        toast({ title: "Failed to save", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Failed to save", variant: "destructive" })
+    } finally {
+      setSavingIntegration(false)
+    }
+  }
 
   const loadWebhooks = useCallback(async () => {
     try {
@@ -260,6 +405,17 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.sessionTimeoutEnabled)) setSessionTimeoutEnabled(map.get(SETTINGS_KEYS.sessionTimeoutEnabled) === "true")
         if (map.has(SETTINGS_KEYS.ipRestrictions)) setIpRestrictions(map.get(SETTINGS_KEYS.ipRestrictions) === "true")
         if (map.has(SETTINGS_KEYS.auditLogging)) setAuditLogging(map.get(SETTINGS_KEYS.auditLogging) === "true")
+        if (map.has(SETTINGS_KEYS.brandingLogoUrl)) setBrandingLogoUrl(map.get(SETTINGS_KEYS.brandingLogoUrl) ?? "")
+        if (map.has(SETTINGS_KEYS.brandingFaviconUrl)) setBrandingFaviconUrl(map.get(SETTINGS_KEYS.brandingFaviconUrl) ?? "")
+        if (map.has(SETTINGS_KEYS.brandingPrimaryColor)) setBrandingPrimaryColor(map.get(SETTINGS_KEYS.brandingPrimaryColor) ?? "#2073BD")
+        if (map.has(SETTINGS_KEYS.brandingCopyright)) setBrandingCopyright(map.get(SETTINGS_KEYS.brandingCopyright) ?? "")
+        if (map.has(SETTINGS_KEYS.crmProvider)) setCrmProvider((map.get(SETTINGS_KEYS.crmProvider) as any) ?? "none")
+        if (map.has(SETTINGS_KEYS.crmAccessToken)) setCrmAccessToken(map.get(SETTINGS_KEYS.crmAccessToken) ?? "")
+        if (map.has(SETTINGS_KEYS.crmApiKey)) setCrmApiKey(map.get(SETTINGS_KEYS.crmApiKey) ?? "")
+        if (map.has(SETTINGS_KEYS.crmInstanceUrl)) setCrmInstanceUrl(map.get(SETTINGS_KEYS.crmInstanceUrl) ?? "")
+        if (map.has(SETTINGS_KEYS.integrationUsdaKey)) setUsdaApiKey(map.get(SETTINGS_KEYS.integrationUsdaKey) ?? "")
+        if (map.has(SETTINGS_KEYS.integrationNutritionLabelKey)) setNutritionLabelApiKey(map.get(SETTINGS_KEYS.integrationNutritionLabelKey) ?? "")
+        if (map.has(SETTINGS_KEYS.integrationComplianceKey)) setComplianceApiKey(map.get(SETTINGS_KEYS.integrationComplianceKey) ?? "")
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load settings")
@@ -463,6 +619,61 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveBranding = async () => {
+    try {
+      setSavingBranding(true)
+      setError(null)
+      setSuccess(null)
+      await Promise.all([
+        saveSetting(SETTINGS_KEYS.brandingLogoUrl, brandingLogoUrl.trim()),
+        saveSetting(SETTINGS_KEYS.brandingFaviconUrl, brandingFaviconUrl.trim()),
+        saveSetting(SETTINGS_KEYS.brandingPrimaryColor, brandingPrimaryColor.trim()),
+        saveSetting(SETTINGS_KEYS.brandingCopyright, brandingCopyright.trim()),
+      ])
+      setSuccess("Branding settings saved — reload to see changes")
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+      successTimeoutRef.current = window.setTimeout(() => setSuccess(null), 4000)
+    } catch (err: any) {
+      setError(err?.message || "Failed to save branding settings")
+    } finally {
+      setSavingBranding(false)
+    }
+  }
+
+  const handleSaveCrm = async () => {
+    try {
+      setSavingCrm(true)
+      setError(null)
+      await Promise.all([
+        saveSetting(SETTINGS_KEYS.crmProvider, crmProvider),
+        saveSetting(SETTINGS_KEYS.crmAccessToken, crmAccessToken.trim()),
+        saveSetting(SETTINGS_KEYS.crmApiKey, crmApiKey.trim()),
+        saveSetting(SETTINGS_KEYS.crmInstanceUrl, crmInstanceUrl.trim()),
+      ])
+      toast({ title: "CRM settings saved" })
+    } catch (err: any) {
+      setError(err?.message || "Failed to save CRM settings")
+    } finally {
+      setSavingCrm(false)
+    }
+  }
+
+  const handleCrmSync = async () => {
+    setCrmSyncing(true)
+    setCrmSyncResult(null)
+    try {
+      const res = await apiFetch("/api/v1/integrations/crm/sync", { method: "POST" })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((body as any)?.error ?? "Sync failed")
+      setCrmSyncResult({ synced: body.synced ?? 0, failed: body.failed ?? 0, total: body.total ?? 0 })
+      toast({ title: "CRM sync complete", description: `${body.synced}/${body.total} contacts synced` })
+    } catch (err: any) {
+      toast({ title: "CRM sync failed", description: err?.message, variant: "destructive" })
+    } finally {
+      setCrmSyncing(false)
+    }
+  }
+
   const handleRevokeKey = async (keyId: string) => {
     if (!confirm("Are you sure you want to revoke this API key? This cannot be undone.")) return
     try {
@@ -504,6 +715,72 @@ export default function SettingsPage() {
       }
     } catch (err: any) {
       toast({ title: "Failed to create key", description: (err as any)?.message, variant: "destructive" })
+    }
+  }
+
+  // ── Privacy handlers ───────────────────────────────────────────────────────
+  const loadPrivacyUsers = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/users")
+      if (res.ok) {
+        const body = await res.json().catch(() => ({} as any))
+        const list = Array.isArray(body?.data) ? body.data : []
+        setPrivacyUsers(list.map((u: any) => ({
+          userId: u.userId,
+          email: u.email || "",
+          displayName: u.displayName,
+          role: u.role || "vendor_viewer",
+          status: u.status ?? "active",
+          joinedAt: u.linkedAt ?? null,
+        })).filter((u: PrivacyUser) => u.userId))
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    loadPrivacyUsers()
+  }, [loadPrivacyUsers])
+
+  const handleExportUser = async (userId: string, email: string) => {
+    setExportingUserId(userId)
+    try {
+      const res = await apiFetch(`/api/users/${userId}/export`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error((body as any)?.detail ?? "Export failed")
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `user-export-${userId}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err?.message, variant: "destructive" })
+    } finally {
+      setExportingUserId(null)
+    }
+  }
+
+  const handlePurgeUser = async () => {
+    if (!purgeTarget || purgeConfirmText !== "DELETE") return
+    setPurging(true)
+    try {
+      const res = await apiFetch(`/api/users/${purgeTarget.userId}/purge`, { method: "DELETE" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error((body as any)?.detail ?? "Purge failed")
+      }
+      toast({ title: "Account purged", description: `${purgeTarget.email} has been permanently deleted.` })
+      setPurgeDialogOpen(false)
+      setPurgeTarget(null)
+      setPurgeConfirmText("")
+      await loadPrivacyUsers()
+    } catch (err: any) {
+      toast({ title: "Purge failed", description: err?.message, variant: "destructive" })
+    } finally {
+      setPurging(false)
     }
   }
 
@@ -578,6 +855,18 @@ export default function SettingsPage() {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Security
+            </TabsTrigger>
+            <TabsTrigger
+              value="branding"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+            >
+              Branding
+            </TabsTrigger>
+            <TabsTrigger
+              value="privacy"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+            >
+              Privacy &amp; GDPR
             </TabsTrigger>
           </TabsList>
 
@@ -692,63 +981,98 @@ export default function SettingsPage() {
                 <CardDescription className="text-[14px] text-[#64748b]">Manage external API connections and webhooks</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
+                {/* USDA Food Data Central */}
                 <div className="flex items-center justify-between p-6">
                   <div className="flex gap-4 items-center">
-                    <div className="size-[48px] rounded-[8px] bg-[rgba(0,67,143,0.05)] flex items-center justify-center shrink-0">
-                      <Globe className="h-6 w-6 text-[#00438f]" />
+                    <div className="size-[48px] rounded-[8px] bg-[#fff7ed] flex items-center justify-center shrink-0">
+                      <Globe className="h-6 w-6 text-[#ea580c]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-[14px] text-[#0f172a]">USDA Food Data Central</h3>
-                      <p className="text-[12px] text-[#64748b]">Nutrition data API integration</p>
+                      <p className="text-[12px] text-[#64748b]">Access comprehensive nutritional data for raw and processed foods.</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
-                    <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-[#10b981]" />
-                      Connected
-                    </span>
-                    <Button className="border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent">
-                      Configure
+                    {isIntegrationConnected(usdaApiKey) ? (
+                      <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#10b981]" />Connected
+                      </span>
+                    ) : (
+                      <span className="bg-[#f1f5f9] text-[#475569] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#94a3b8]" />Disconnected
+                      </span>
+                    )}
+                    <Button
+                      onClick={() => openIntegrationDialog("usda", usdaApiKey)}
+                      className={isIntegrationConnected(usdaApiKey)
+                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
+                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                    >
+                      {isIntegrationConnected(usdaApiKey) ? "Configure" : "Connect"}
                     </Button>
                   </div>
                 </div>
+
+                {/* Nutrition Label API */}
                 <div className="border-t border-[#f1f5f9] flex items-center justify-between p-6">
                   <div className="flex gap-4 items-center">
-                    <div className="size-[48px] rounded-[8px] bg-[#f1f5f9] flex items-center justify-center shrink-0">
-                      <Database className="h-6 w-6 text-[#64748b]" />
+                    <div className="size-[48px] rounded-[8px] bg-[#eff6ff] flex items-center justify-center shrink-0">
+                      <Database className="h-6 w-6 text-[#2563eb]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-[14px] text-[#0f172a]">Nutrition Label API</h3>
-                      <p className="text-[12px] text-[#64748b]">Automated label generation service</p>
+                      <p className="text-[12px] text-[#64748b]">Generate regulatory compliant nutrition fact labels automatically.</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
-                    <span className="bg-[#f1f5f9] text-[#475569] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-[#94a3b8]" />
-                      Disconnected
-                    </span>
-                    <Button className="bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]">
-                      Connect
+                    {isIntegrationConnected(nutritionLabelApiKey) ? (
+                      <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#10b981]" />Connected
+                      </span>
+                    ) : (
+                      <span className="bg-[#f1f5f9] text-[#475569] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#94a3b8]" />Disconnected
+                      </span>
+                    )}
+                    <Button
+                      onClick={() => openIntegrationDialog("nutrition_label", nutritionLabelApiKey)}
+                      className={isIntegrationConnected(nutritionLabelApiKey)
+                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
+                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                    >
+                      {isIntegrationConnected(nutritionLabelApiKey) ? "Configure" : "Connect"}
                     </Button>
                   </div>
                 </div>
+
+                {/* Compliance Checker */}
                 <div className="border-t border-[#f1f5f9] flex items-center justify-between p-6">
                   <div className="flex gap-4 items-center">
-                    <div className="size-[48px] rounded-[8px] bg-[rgba(0,67,143,0.05)] flex items-center justify-center shrink-0">
-                      <Shield className="h-6 w-6 text-[#00438f]" />
+                    <div className="size-[48px] rounded-[8px] bg-[#f5f3ff] flex items-center justify-center shrink-0">
+                      <Shield className="h-6 w-6 text-[#7c3aed]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-[14px] text-[#0f172a]">Compliance Checker</h3>
-                      <p className="text-[12px] text-[#64748b]">Regulatory compliance validation</p>
+                      <p className="text-[12px] text-[#64748b]">Verify product formulations against global health regulations.</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
-                    <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-[#10b981]" />
-                      Connected
-                    </span>
-                    <Button className="border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent">
-                      Configure
+                    {isIntegrationConnected(complianceApiKey) ? (
+                      <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#10b981]" />Connected
+                      </span>
+                    ) : (
+                      <span className="bg-[#f1f5f9] text-[#475569] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-[#94a3b8]" />Disconnected
+                      </span>
+                    )}
+                    <Button
+                      onClick={() => openIntegrationDialog("compliance_checker", complianceApiKey)}
+                      className={isIntegrationConnected(complianceApiKey)
+                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
+                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                    >
+                      {isIntegrationConnected(complianceApiKey) ? "Configure" : "Connect"}
                     </Button>
                   </div>
                 </div>
@@ -823,7 +1147,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-4">
                   <Label className="text-[14px] font-bold text-[#0f172a]">Events</Label>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {EVENT_OPTIONS.map((opt) => (
                       <div key={opt.value} className="flex items-center gap-3">
                         <Checkbox
@@ -835,7 +1159,7 @@ export default function SettingsPage() {
                             )
                           }}
                         />
-                        <Label htmlFor={`event-${opt.value}`} className="text-[14px] font-medium text-[#334155]">{opt.label}</Label>
+                        <Label htmlFor={`event-${opt.value}`} className="text-[13px] font-medium text-[#334155] leading-tight">{opt.label}</Label>
                       </div>
                     ))}
                   </div>
@@ -848,6 +1172,80 @@ export default function SettingsPage() {
                   {webhookSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                   Add Webhook
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* CRM Integration Card */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">CRM Integration</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">Connect to Salesforce or HubSpot to sync customer contacts automatically.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-5">
+                <div className="space-y-2">
+                  <Label className="text-[14px] font-semibold text-[#334155]">CRM Provider</Label>
+                  <div className="flex gap-3">
+                    {(["none", "hubspot", "salesforce"] as const).map((p) => (
+                      <Button
+                        key={p}
+                        size="sm"
+                        variant={crmProvider === p ? "default" : "outline"}
+                        className={`capitalize ${crmProvider === p ? "bg-[#00438f] text-white" : "border-[#cbd5e1] text-[#334155]"}`}
+                        onClick={() => setCrmProvider(p)}
+                      >
+                        {p === "none" ? "Disabled" : p.charAt(0).toUpperCase() + p.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {crmProvider === "hubspot" && (
+                  <div className="space-y-2">
+                    <Label className="text-[14px] font-semibold text-[#334155]">HubSpot Access Token</Label>
+                    <Input
+                      type="password"
+                      placeholder="pat-na1-..."
+                      value={crmApiKey}
+                      onChange={(e) => setCrmApiKey(e.target.value)}
+                      className="border-[#cbd5e1] font-mono text-sm"
+                    />
+                    <p className="text-[12px] text-[#64748b]">Private App token from HubSpot → Settings → Integrations → Private Apps.</p>
+                  </div>
+                )}
+
+                {crmProvider === "salesforce" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-[14px] font-semibold text-[#334155]">Access Token</Label>
+                      <Input type="password" placeholder="00D..." value={crmAccessToken} onChange={(e) => setCrmAccessToken(e.target.value)} className="border-[#cbd5e1] font-mono text-sm" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[14px] font-semibold text-[#334155]">Instance URL</Label>
+                      <Input placeholder="https://yourorg.salesforce.com" value={crmInstanceUrl} onChange={(e) => setCrmInstanceUrl(e.target.value)} className="border-[#cbd5e1]" />
+                    </div>
+                  </>
+                )}
+
+                <Separator className="bg-[#f1f5f9]" />
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Button onClick={handleSaveCrm} disabled={savingCrm} className="bg-[#00438f] hover:bg-[#003366] text-white">
+                    {savingCrm ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save CRM Settings
+                  </Button>
+                  {crmProvider !== "none" && (
+                    <Button variant="outline" onClick={handleCrmSync} disabled={crmSyncing} className="border-[#cbd5e1] text-[#334155]">
+                      {crmSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                      Sync Customers Now
+                    </Button>
+                  )}
+                </div>
+
+                {crmSyncResult && (
+                  <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                    Sync complete: {crmSyncResult.synced} synced, {crmSyncResult.failed} failed, {crmSyncResult.total} total.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1279,8 +1677,324 @@ export default function SettingsPage() {
               </DialogContent>
             </Dialog>
           </TabsContent>
+
+          {/* ── Branding Tab ─────────────────────────────────────────── */}
+          <TabsContent value="branding" className="space-y-6 pt-8">
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <div className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-[#00438f]" />
+                  <CardTitle className="text-[18px] font-bold text-[#0f172a]">White-Label Branding</CardTitle>
+                </div>
+                <CardDescription className="text-[14px] text-[#64748b]">
+                  Customise the portal appearance for your organisation. Changes apply immediately after saving.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 px-6 space-y-6">
+                <div className="flex gap-8 items-start">
+                  {/* Left: form fields */}
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
+                    <div className="space-y-2">
+                      <Label htmlFor="branding-logo" className="text-[14px] font-medium text-[#0f172a]">Logo URL</Label>
+                      <Input
+                        id="branding-logo"
+                        placeholder="https://example.com/logo.png"
+                        value={brandingLogoUrl}
+                        onChange={(e) => setBrandingLogoUrl(e.target.value)}
+                        className="border-[#e2e8f0]"
+                      />
+                      <p className="text-[12px] text-[#64748b]">Displayed in the sidebar header. Recommended: 64×64 px PNG.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branding-favicon" className="text-[14px] font-medium text-[#0f172a]">Favicon URL</Label>
+                      <Input
+                        id="branding-favicon"
+                        placeholder="https://example.com/favicon.ico"
+                        value={brandingFaviconUrl}
+                        onChange={(e) => setBrandingFaviconUrl(e.target.value)}
+                        className="border-[#e2e8f0]"
+                      />
+                      <p className="text-[12px] text-[#64748b]">Browser tab icon. Recommended: 32×32 px ICO or PNG.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branding-color" className="text-[14px] font-medium text-[#0f172a]">Primary Colour</Label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          id="branding-color"
+                          value={brandingPrimaryColor.startsWith("#") ? brandingPrimaryColor : "#2073BD"}
+                          onChange={(e) => setBrandingPrimaryColor(e.target.value)}
+                          className="h-10 w-14 cursor-pointer rounded border border-[#e2e8f0] p-1"
+                        />
+                        <Input
+                          value={brandingPrimaryColor}
+                          onChange={(e) => setBrandingPrimaryColor(e.target.value)}
+                          placeholder="#2073BD"
+                          className="border-[#e2e8f0] font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[12px] text-[#64748b]">Applied to buttons, active nav items and focus rings.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branding-copyright" className="text-[14px] font-medium text-[#0f172a]">Copyright Text</Label>
+                      <Input
+                        id="branding-copyright"
+                        placeholder="© 2025 Acme Corp. All rights reserved."
+                        value={brandingCopyright}
+                        onChange={(e) => setBrandingCopyright(e.target.value)}
+                        className="border-[#e2e8f0]"
+                      />
+                      <p className="text-[12px] text-[#64748b]">Displayed in the portal footer and login page.</p>
+                    </div>
+                  </div>
+
+                  {/* Right: live preview */}
+                  <div className="w-[280px] shrink-0">
+                    <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wide mb-2">Live Preview</p>
+                    <BrandingLivePreview color={brandingPrimaryColor} logoUrl={brandingLogoUrl} />
+                  </div>
+                </div>
+
+                <Separator className="bg-[#f1f5f9]" />
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveBranding}
+                    disabled={savingBranding}
+                    className="bg-[#00438f] hover:bg-[#003366] text-white"
+                  >
+                    {savingBranding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save Branding
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── PRIVACY & GDPR TAB ── */}
+          <TabsContent value="privacy" className="space-y-6 pt-8">
+
+            {/* Export Data card — available to all admins with manage:users */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a] flex items-center gap-2">
+                  <Database className="h-5 w-5 text-[#00438f]" />
+                  User Data Export
+                </CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">
+                  Download all account data associated with a user as a JSON file (GDPR Article 20).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {privacyUsers.length === 0 ? (
+                  <p className="text-sm text-[#94a3b8] p-6">No users found.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[13px]">
+                      <thead>
+                        <tr className="border-b border-[#f1f5f9]">
+                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-6">User</th>
+                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Role</th>
+                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Status</th>
+                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Joined Date</th>
+                          <th className="text-right font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-6">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#f1f5f9]">
+                        {privacyUsers.map((u) => (
+                          <tr key={u.userId} className="hover:bg-[#f8fafc]">
+                            <td className="py-3 px-6">
+                              <div className="flex items-center gap-3">
+                                <div className="size-8 rounded-full bg-[#00438f]/10 flex items-center justify-center shrink-0 text-[12px] font-bold text-[#00438f]">
+                                  {(u.displayName || u.email).slice(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-[#0f172a]">{u.displayName || u.email}</p>
+                                  <p className="text-[12px] text-[#64748b]">{u.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-[#334155] capitalize">
+                              {u.role.replace(/_/g, " ")}
+                            </td>
+                            <td className="py-3 px-4">
+                              {u.status === "active" || !u.status ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] text-[#065f46] text-[11px] font-medium px-2 py-0.5">
+                                  <span className="size-1.5 rounded-full bg-[#10b981]" />Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f1f5f9] text-[#475569] text-[11px] font-medium px-2 py-0.5">
+                                  <span className="size-1.5 rounded-full bg-[#94a3b8]" />Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-[#64748b]">
+                              {u.joinedAt
+                                ? new Date(u.joinedAt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+                                : "—"}
+                            </td>
+                            <td className="py-3 px-6 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-[#cbd5e1] text-[#334155] gap-1.5"
+                                disabled={exportingUserId === u.userId}
+                                onClick={() => handleExportUser(u.userId, u.email)}
+                              >
+                                {exportingUserId === u.userId
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Download className="h-3.5 w-3.5" />}
+                                Export
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone — superadmin only */}
+            {authContext.role === "superadmin" && (
+              <Card className="rounded-[12px] border border-red-200 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                <CardHeader className="border-b border-red-100 pb-[25px] pt-6 px-6 bg-red-50">
+                  <CardTitle className="text-[18px] font-bold text-red-700 flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5" />
+                    Danger Zone
+                  </CardTitle>
+                  <CardDescription className="text-[14px] text-red-600">
+                    Permanently purge a user account — anonymises all PII and deletes vendor access. This cannot be undone.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {privacyUsers.filter((u) => u.userId !== authContext.userId).length === 0 ? (
+                    <p className="text-sm text-[#94a3b8]">No other users to purge.</p>
+                  ) : (
+                    <div className="divide-y divide-[#f1f5f9]">
+                      {privacyUsers
+                        .filter((u) => u.userId !== authContext.userId)
+                        .map((u) => (
+                          <div key={u.userId} className="flex items-center justify-between py-3">
+                            <div>
+                              <p className="text-sm font-medium text-[#0f172a]">{u.displayName || u.email}</p>
+                              <p className="text-xs text-[#64748b]">{u.email} · <span className="capitalize">{u.role.replace("_", " ")}</span></p>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => {
+                                setPurgeTarget(u)
+                                setPurgeConfirmText("")
+                                setPurgeDialogOpen(true)
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Purge
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Purge Confirmation Dialog ── */}
+      <Dialog open={purgeDialogOpen} onOpenChange={(open) => { setPurgeDialogOpen(open); if (!open) { setPurgeTarget(null); setPurgeConfirmText("") } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-700 flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" />
+              Confirm Account Purge
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <span className="block">
+                You are about to permanently purge <strong>{purgeTarget?.email}</strong>.
+                All personal data will be anonymised and their vendor access removed.
+              </span>
+              <span className="block text-red-600 font-medium">This action cannot be undone.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium text-[#334155]">
+              Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+            </Label>
+            <Input
+              value={purgeConfirmText}
+              onChange={(e) => setPurgeConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="border-red-200 focus-visible:ring-red-400"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPurgeDialogOpen(false)} disabled={purging}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePurgeUser}
+              disabled={purgeConfirmText !== "DELETE" || purging}
+            >
+              {purging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Purge Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── API Integration Configure/Connect Dialog ── */}
+      <Dialog open={integrationDialogOpen} onOpenChange={(open) => { setIntegrationDialogOpen(open); if (!open) setIntegrationDialogKey("") }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {integrationDialogTarget === "usda"
+                ? "USDA Food Data Central"
+                : integrationDialogTarget === "nutrition_label"
+                ? "Nutrition Label API"
+                : "Compliance Checker"}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your API key to {isIntegrationConnected(
+                integrationDialogTarget === "usda" ? usdaApiKey
+                : integrationDialogTarget === "nutrition_label" ? nutritionLabelApiKey
+                : complianceApiKey
+              ) ? "update this" : "connect this"} integration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-[14px] font-semibold text-[#334155]">API Key</Label>
+            <Input
+              type="password"
+              placeholder="Enter API key..."
+              value={integrationDialogKey}
+              onChange={(e) => setIntegrationDialogKey(e.target.value)}
+              className="font-mono border-[#cbd5e1]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIntegrationDialogOpen(false)} disabled={savingIntegration}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              disabled={savingIntegration || !integrationDialogKey.trim()}
+              onClick={handleSaveIntegration}
+            >
+              {savingIntegration ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

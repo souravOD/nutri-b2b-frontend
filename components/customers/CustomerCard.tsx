@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { UserCheck, UserX, Mail, Phone } from "lucide-react"
 import type { UICustomer } from "@/types/customer"
 
 type Props = {
@@ -67,22 +68,32 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
             </Avatar>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-[#0f172a] truncate">{customer.name}</h3>
-              <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
+              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                <Mail className="h-3 w-3 shrink-0" />
+                {customer.email}
+              </p>
               {customer.phone && (
-                <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                  <Phone className="h-3 w-3 shrink-0" />
+                  {customer.phone}
+                </p>
               )}
             </div>
           </div>
-          <Badge className={`text-xs shrink-0 ${getStatusColor(customer.status)}`}>{customer.status}</Badge>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge className={`text-xs ${getStatusColor(customer.status)}`}>{customer.status}</Badge>
+            {customer.healthProfile
+              ? <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><UserCheck className="h-3 w-3" />Profile</span>
+              : <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400"><UserX className="h-3 w-3" />No profile</span>
+            }
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0 space-y-3">
         {/* Health Snapshot */}
         {healthChips.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Health Restrictions</p>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
               {healthChips.map((chip, index) => (
                 <Badge key={index} variant="outline" className="text-xs border-[#e2e8f0]">
                   {chip}
@@ -112,39 +123,35 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
                   </Tooltip>
                 </TooltipProvider>
               )}
-            </div>
           </div>
         )}
 
         {/* Tags */}
         {tags.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Tags</p>
-            <div className="flex flex-wrap gap-1.5">
-              {visibleTags.map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs bg-[#f1f5f9] text-[#00438f]">
-                  {tag}
-                </Badge>
-              ))}
-              {remainingTagsCount > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs bg-[#f0f4f8]">
-                        +{remainingTagsCount}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="space-y-1">
-                        {tags.slice(3).map((tag, i) => (
-                          <div key={i} className="text-xs">{tag}</div>
-                        ))}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {visibleTags.map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs bg-[#f1f5f9] text-[#00438f]">
+                {tag}
+              </Badge>
+            ))}
+            {remainingTagsCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="text-xs bg-[#f0f4f8]">
+                      +{remainingTagsCount}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      {tags.slice(3).map((tag, i) => (
+                        <div key={i} className="text-xs">{tag}</div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         )}
 

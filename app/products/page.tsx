@@ -76,34 +76,6 @@ type Product = {
   country?: string
 }
 
-// type Product = {
-//   id: string
-//   name: string
-//   sku: string
-//   status: "active" | "inactive"
-//   category: string
-//   brand?: string
-//   barcode?: string
-//   servingSize?: string
-//   packageWeight?: string
-//   imageUrl?: string
-//   diets?: string[]
-//   certifications?: string[]
-//   allergens?: string[]
-//   nutrition?: {
-//     calories?: number
-//     protein?: number
-//     carbs?: number
-//     fat?: number
-//     sugar?: number
-//     sodium?: number
-//   }
-//   ingredients?: string[]      // ← make this an array
-//   tags: string[]
-//   updatedAt: string
-//   country?: string
-// }
-
 
 function productToFormValues(p: any) {
   if (!p) return undefined

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Grid3X3, List as ListIcon } from "lucide-react";
+import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX } from "lucide-react";
 
 import type { UICustomer } from "@/types/customer";
 import { listCustomers } from "@/lib/api-customers";
@@ -40,11 +40,14 @@ import CustomerListEmpty from "@/components/customers/CustomerListEmpty";
 import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
 
 /** URL param helpers */
+type SegmentFilter = "all" | "with_profile" | "no_profile";
+
 type ParamState = {
   q?: string | null;
   status?: "all" | "active" | "archived" | null;
   tags?: string[] | null; // stored as CSV in URL
   view?: "cards" | "list" | null;
+  segment?: SegmentFilter | null;
 };
 
 function useUrlState() {
@@ -52,13 +55,14 @@ function useUrlState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list" } => {
+  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; segment: SegmentFilter } => {
     const q = searchParams.get("q") ?? "";
     const status = (searchParams.get("status") as "all" | "active" | "archived") || "all";
     const tagsCsv = searchParams.get("tags") || "";
     const tags = tagsCsv ? tagsCsv.split(",").filter(Boolean) : [];
     const view = (searchParams.get("view") as "cards" | "list") || "cards";
-    return { q, status, tags, view };
+    const segment = (searchParams.get("segment") as SegmentFilter) || "all";
+    return { q, status, tags, view, segment };
   }, [searchParams]);
 
   const set = React.useCallback(
@@ -130,9 +134,13 @@ export default function CustomersIndexPage() {
     const q = url.q.trim().toLowerCase();
     const status = url.status;
     const tags = new Set(url.tags);
+    const segment = url.segment;
 
     return customers.filter((c) => {
       if (status !== "all" && c.status !== status) return false;
+
+      if (segment === "with_profile" && !c.healthProfile) return false;
+      if (segment === "no_profile" && c.healthProfile) return false;
 
       if (tags.size) {
         const hasAll = Array.from(tags).every((t) => c.tags?.includes(t));
@@ -232,6 +240,31 @@ export default function CustomersIndexPage() {
               </TabsList>
             </Tabs>
           </div>
+        </div>
+
+        {/* Segment filter row */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#64748b]">Segment:</span>
+          {(["all", "with_profile", "no_profile"] as SegmentFilter[]).map((seg) => {
+            const labels: Record<SegmentFilter, { label: string; icon: React.ReactNode }> = {
+              all: { label: "All", icon: null },
+              with_profile: { label: "With Health Profile", icon: <UserCheck className="h-3.5 w-3.5" /> },
+              no_profile: { label: "No Profile", icon: <UserX className="h-3.5 w-3.5" /> },
+            };
+            const isActive = url.segment === seg;
+            return (
+              <Button
+                key={seg}
+                size="sm"
+                variant={isActive ? "default" : "outline"}
+                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
+                onClick={() => set({ segment: seg })}
+              >
+                {labels[seg].icon}
+                {labels[seg].label}
+              </Button>
+            );
+          })}
         </div>
 
       </div>

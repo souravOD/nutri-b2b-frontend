@@ -18,8 +18,14 @@ export async function listCustomers(): Promise<UICustomer[]> {
   return normalizeListResponse(raw).map(toUICustomer);
 }
 
-export async function getCustomer(id: string) {
-  const res = await apiFetch(`/customers/${encodeURIComponent(id)}`); // <-- backend route, no /api
+export async function getCustomer(id: string, options?: { reasonForAccess?: string }) {
+  const extraHeaders: Record<string, string> = {}
+  if (options?.reasonForAccess) {
+    extraHeaders["X-Access-Reason"] = options.reasonForAccess
+  }
+  const res = await apiFetch(`/customers/${encodeURIComponent(id)}`, { // <-- backend route, no /api
+    headers: extraHeaders,
+  });
   if (!res.ok) throw new Error(`Customer ${id} failed: ${res.status}`);
 
   const json = await res.json().catch(() => null);
