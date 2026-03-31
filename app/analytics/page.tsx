@@ -7,12 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,7 +17,7 @@ import {
 import { getAnalyticsOverview, getHealthSummary, getEngagementAnalytics, type AnalyticsOverview, type HealthSummary, type EngagementAnalytics } from "@/lib/api-analytics"
 import { apiFetch } from "@/lib/backend"
 import Link from "next/link"
-import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react"
+import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronRight } from "lucide-react"
 
 type RecentRun = {
   id: string
@@ -139,27 +135,41 @@ export default function AnalyticsPage() {
       .finally(() => setLoading(false))
   }, [days])
 
-  // Merge productTrend + customerTrend by day for combo chart
-  const trendData = React.useMemo(() => {
+  const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
+
+  async function handleExport(type: "overview" | "health" | "engagement") {
+    try {
+      const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}`)
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `analytics-${type}-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { /* silent */ }
+  }
+
+  const monthlyTrendData = React.useMemo(() => {
     if (!overview) return []
-    const map = new Map<string, { day: string; products: number; customers: number }>()
+    const map = new Map<string, { month: string; products: number; customers: number; _key: string }>()
     for (const { day, count } of overview.productTrend) {
-      map.set(day, { day, products: count, customers: 0 })
+      const key = day.slice(0, 7)
+      const label = new Date(day + "T00:00:00").toLocaleString("en-US", { month: "short" }).toUpperCase()
+      const existing = map.get(key)
+      if (existing) existing.products += count
+      else map.set(key, { month: label, products: count, customers: 0, _key: key })
     }
     for (const { day, count } of overview.customerTrend) {
-      const existing = map.get(day)
-      if (existing) existing.customers = count
-      else map.set(day, { day, products: 0, customers: count })
+      const key = day.slice(0, 7)
+      const label = new Date(day + "T00:00:00").toLocaleString("en-US", { month: "short" }).toUpperCase()
+      const existing = map.get(key)
+      if (existing) existing.customers += count
+      else map.set(key, { month: label, products: 0, customers: count, _key: key })
     }
-    return Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day))
+    return Array.from(map.values()).sort((a, b) => a._key.localeCompare(b._key))
   }, [overview])
-
-  const runData = React.useMemo(() => {
-    if (!overview) return []
-    return overview.runTrend.map((r) => ({ day: r.day, runs: r.count }))
-  }, [overview])
-
-  const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
 
   const overviewTrends = React.useMemo(() => {
     if (!overview) return null
@@ -178,10 +188,44 @@ export default function AnalyticsPage() {
   return (
     <AppShell>
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-sm text-[#64748b]">
+          <span>Portal</span>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-[#0f172a] font-medium">Analytics</span>
+        </div>
+
+        {/* System status */}
+        <div className="flex items-center gap-1.5">
+          <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-xs text-emerald-600 font-medium">System status: All systems operational</span>
+        </div>
+
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-[#1e293b]">Analytics</h1>
-            <p className="text-sm text-[#64748b] mt-1">Trends and health distributions across your catalog</p>
+            <h1 className="text-2xl font-bold text-[#0f172a]">Analytics</h1>
+            <p className="text-sm text-[#64748b] mt-1">Trends and health distributions across your Sam's Club catalog</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              {(["overview", "health"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleExport(type)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  {type === "overview" ? "Overview CSV" : "Health CSV"}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => handleExport("engagement")}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Engagement CSV
+            </button>
           </div>
         </div>
 
@@ -196,7 +240,6 @@ export default function AnalyticsPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="health">Health Summary</TabsTrigger>
             <TabsTrigger value="engagement">Engagement</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           </TabsList>
 
           {/* ── OVERVIEW TAB ── */}
@@ -262,28 +305,18 @@ export default function AnalyticsPage() {
                 <CardContent>
                   {loading ? (
                     <div className="h-48 flex items-center justify-center text-[#94a3b8] text-sm">Loading…</div>
-                  ) : isEmpty || trendData.length === 0 ? (
+                  ) : isEmpty || monthlyTrendData.length === 0 ? (
                     <EmptyChart message="No data yet — run an ingestion to populate this chart." />
                   ) : (
                     <ChartContainer config={trendConfig} className="h-48 w-full">
-                      <AreaChart data={trendData}>
-                        <defs>
-                          <linearGradient id="gradProducts" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#00438f" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#00438f" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="gradCustomers" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <BarChart data={monthlyTrendData} barCategoryGap="30%" barGap={4}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Area type="monotone" dataKey="products" stroke="#00438f" strokeWidth={2} fill="url(#gradProducts)" dot={false} />
-                        <Area type="monotone" dataKey="customers" stroke="#94a3b8" strokeWidth={2} fill="url(#gradCustomers)" dot={false} />
-                      </AreaChart>
+                        <Bar dataKey="products" fill="#00438f" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="customers" fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                      </BarChart>
                     </ChartContainer>
                   )}
                 </CardContent>
@@ -308,8 +341,19 @@ export default function AnalyticsPage() {
                   </div>
                   {/* Rows */}
                   {recentRuns.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center h-40 text-[12px] text-[#94a3b8]">
-                      No ingestion runs yet.
+                    <div className="flex-1 flex flex-col items-center justify-center py-8 px-6 text-center">
+                      <div className="h-14 w-14 rounded-[14px] bg-[#f1f5f9] flex items-center justify-center mb-3">
+                        <BarChart3 className="h-7 w-7 text-[#94a3b8]" />
+                      </div>
+                      <p className="text-sm font-semibold text-[#334155] mb-1">Ingestion Runs</p>
+                      <p className="text-xs text-[#94a3b8] mb-4">No data ingestion activities recorded yet. Ready to populate your dashboard?</p>
+                      <Link
+                        href="/jobs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#00438f] border border-[#00438f] rounded-lg hover:bg-[#00438f]/5 transition-colors"
+                      >
+                        <Package className="h-3.5 w-3.5" />
+                        Start New Import
+                      </Link>
                     </div>
                   ) : (
                     <div className="flex-1">
@@ -548,154 +592,9 @@ export default function AnalyticsPage() {
             )}
           </TabsContent>
 
-          {/* ── DASHBOARD TAB ── */}
-          <TabsContent value="dashboard" className="mt-6 space-y-6">
-
-            {/* KPI Row */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-              <DashKpiCard label="Total Members" value={overview?.totals.customers ?? null} />
-              <DashKpiCard label="DAU / MAU Ratio" value={null} unit="%" />
-              <DashKpiCard label="Retention Rate" value={null} unit="%" />
-              <DashKpiCard label="NPS Score" value={null} />
-            </div>
-
-            {/* 2-column: Health + Shopping */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* LEFT — Health & Nutrition Insights */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wide text-[#1e293b]">Health & Nutrition Insights</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wide mb-2">Goal Achievement</p>
-                    <p className="text-sm text-[#94a3b8]">No data available</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wide mb-3">Top Dietary Preferences</p>
-                    {(health?.dietary_preference_distribution ?? []).slice(0, 4).map((pref) => {
-                      const total = (health?.dietary_preference_distribution ?? []).reduce((s, d) => s + d.customer_count, 0) || 1
-                      const pct = Math.round((pref.customer_count / total) * 100)
-                      return (
-                        <div key={pref.name} className="flex items-center gap-3 mb-2">
-                          <span className="text-xs text-[#1e293b] w-28 truncate shrink-0">{pref.name}</span>
-                          <div className="flex-1 h-1.5 bg-[#f1f5f9] rounded-full overflow-hidden">
-                            <div className="h-full bg-[#00438f] rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs font-semibold text-[#1e293b] w-8 text-right shrink-0">{pct}%</span>
-                        </div>
-                      )
-                    })}
-                    {(health?.dietary_preference_distribution?.length ?? 0) === 0 && (
-                      <p className="text-sm text-[#94a3b8]">No preference data</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wide mb-2">Trending Meal Plans</p>
-                    <p className="text-sm text-[#94a3b8]">No data available</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* RIGHT — Shopping & Revenue Impact */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wide text-[#1e293b]">Shopping & Revenue Impact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">List Completion Rate</p>
-                      <p className="text-2xl font-bold text-[#94a3b8] mt-1">—</p>
-                      <p className="text-xs text-[#94a3b8]">No data available</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Completed Syncs</p>
-                      <p className="text-2xl font-bold text-[#1e293b] mt-1">{overview?.totals.completedJobs.toLocaleString() ?? "—"}</p>
-                      <p className="text-xs text-[#64748b]">Total ingestion jobs</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Avg. Basket Size</p>
-                      <p className="text-2xl font-bold text-[#94a3b8] mt-1">—</p>
-                      <p className="text-xs text-[#94a3b8]">No data available</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wide mb-2">Product Category Insights</p>
-                    <p className="text-sm text-[#94a3b8]">No usage data available</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ROI Banner */}
-            <div className="rounded-xl bg-[#00438f] p-6">
-              <p className="text-[11px] font-bold uppercase tracking-[1.4px] text-white/70 mb-4">Projected Annual ROI & Cost Savings</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {(["Budget Adherence", "Food Waste Reduction", "Health Cost Savings"] as const).map((label) => (
-                  <div key={label}>
-                    <p className="text-3xl font-bold text-white/40">—</p>
-                    <p className="text-xs text-white/60 mt-1">{label}</p>
-                    <p className="text-[10px] text-white/40 mt-0.5">No data available</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Category Distribution Table */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wide text-[#1e293b]">Category Distribution Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-4 pb-2 border-b border-[#e2e8f0]">
-                  {["Category Name", "Current Usage", "Trend (30D)", "Satisfaction"].map((h, i) => (
-                    <span key={h} className={`text-[10px] font-semibold uppercase tracking-[0.5px] text-[#94a3b8] ${i > 0 ? "text-right" : ""}`}>{h}</span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-center h-32 text-sm text-[#94a3b8]">
-                  No category usage data yet.
-                </div>
-              </CardContent>
-            </Card>
-
-          </TabsContent>
-
         </Tabs>
       </div>
     </AppShell>
-  )
-}
-
-function DashKpiCard({
-  label, value, unit, trend, trendUp,
-}: {
-  label: string; value: number | null; unit?: string; trend?: string; trendUp?: boolean
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">{label}</p>
-        {value !== null ? (
-          <p className="text-2xl font-bold text-[#1e293b] mt-1">
-            {value.toLocaleString()}{unit}
-          </p>
-        ) : (
-          <p className="text-2xl font-bold text-[#94a3b8] mt-1">—</p>
-        )}
-        {trend && value !== null ? (
-          <div className="flex items-center gap-1 mt-1">
-            {trendUp
-              ? <ArrowUpRight className="h-3.5 w-3.5 text-[#10b981]" />
-              : <ArrowDownRight className="h-3.5 w-3.5 text-[#ef4444]" />}
-            <span className={`text-xs font-medium ${trendUp ? "text-[#10b981]" : "text-[#ef4444]"}`}>{trend}</span>
-          </div>
-        ) : value === null ? (
-          <p className="text-xs text-[#94a3b8] mt-1">No data available</p>
-        ) : null}
-      </CardContent>
-    </Card>
   )
 }
 

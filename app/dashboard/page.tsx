@@ -35,6 +35,7 @@ type DashboardData = {
   integrationUsage: number;
   trendingCats: TrendingCat[];
   popularProducts: PopularProduct[];
+  activationRate: number | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,18 +121,20 @@ export default function DashboardPage() {
     integrationUsage: 0,
     trendingCats: [],
     popularProducts: [],
+    activationRate: null,
   });
 
   React.useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const [overviewRes, healthRes, runsRes, catsRes, popRes] = await Promise.allSettled([
+        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes] = await Promise.allSettled([
           apiFetch("/api/v1/analytics/overview?days=30"),
           apiFetch("/api/v1/analytics/health-summary"),
           apiFetch("/api/v1/ingest/runs"),
           apiFetch("/api/v1/search/trending-categories"),
           apiFetch("/api/v1/search/popular-products?limit=3"),
+          apiFetch("/api/v1/analytics/engagement?days=30"),
         ]);
         if (!alive) return;
 
@@ -174,8 +177,15 @@ export default function DashboardPage() {
           popularProducts = toArray<PopularProduct>(j).slice(0, 3);
         }
 
+        let activationRate: number | null = null;
+        if (engagementRes.status === "fulfilled" && engagementRes.value.ok) {
+          const j = await engagementRes.value.json().catch(() => ({}));
+          const rate = j.activationRate ?? j.activation_rate ?? null;
+          if (typeof rate === "number" && !isNaN(rate)) activationRate = rate;
+        }
+
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -253,9 +263,9 @@ export default function DashboardPage() {
               />
               <KpiCard
                 label="Retention Rate"
-                value="—"
+                value={data.activationRate !== null ? `${data.activationRate.toFixed(1)}%` : "—"}
                 icon={TrendingUp}
-                sub="Not yet tracked"
+                sub={data.activationRate !== null ? "Health profile activation" : "Not yet tracked"}
                 iconBg="bg-[#dcfce7]"
                 iconColor="text-[#059669]"
               />

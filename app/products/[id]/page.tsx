@@ -7,7 +7,7 @@ import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ChevronLeft, ChevronRight, History, Pencil, Users } from "lucide-react"
+import { ChevronLeft, ChevronRight, History, Pencil, Users, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/backend"
 import ProductForm from "@/components/product-form"
@@ -17,6 +17,10 @@ import ComplianceCard from "@/components/product-detail/ComplianceCard"
 import VendorNotesCard from "@/components/product-detail/VendorNotesCard"
 import ProductInternalNotesCard from "@/components/product-detail/ProductInternalNotesCard"
 import ProductImageCard from "@/components/product-detail/ProductImageCard"
+import SafetyCheckCard from "@/components/product-detail/SafetyCheckCard"
+import ProductIntelCard from "@/components/product-detail/ProductIntelCard"
+import SubstitutionsCard from "@/components/product-detail/SubstitutionsCard"
+import PriceSensitivityCard from "@/components/product-detail/PriceSensitivityCard"
 import {
   Dialog,
   DialogContent,
@@ -306,6 +310,10 @@ export default function ProductDetailPage() {
                 <Users className="h-3.5 w-3.5" />
                 Matching Customers
               </TabsTrigger>
+              <TabsTrigger value="intelligence" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Intelligence
+              </TabsTrigger>
             </TabsList>
 
             <div className="bg-[#f5f7f8] border border-[#e2e8f0] rounded-2xl p-8 mt-6">
@@ -445,6 +453,19 @@ export default function ProductDetailPage() {
                     ))}
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="intelligence" className="mt-0">
+                <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+                  <div className="space-y-6">
+                    <SafetyCheckCard productId={id ?? ""} allergens={product.allergens ?? []} />
+                    <SubstitutionsCard productId={id ?? ""} customerId={customerId} />
+                  </div>
+                  <div className="space-y-6">
+                    <ProductIntelCard productId={id ?? ""} />
+                    <PriceSensitivityCard />
+                  </div>
+                </div>
               </TabsContent>
             </div>
           </Tabs>
