@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import * as React from "react"
@@ -8,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ChevronLeft, ChevronRight, History, Pencil, Users, Sparkles } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/backend"
 import ProductForm from "@/components/product-form"
 import QuickFactsCard from "@/components/product-detail/QuickFactsCard"
@@ -153,7 +153,7 @@ export default function ProductDetailPage() {
       const res = await apiFetch(`/api/v1/products/${id}/matching-customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 20, include_reasons: true, include_warnings: true }),
+        body: JSON.stringify({ limit: 20 }),
       })
       const data = await res.json()
       setMatchData(data)
@@ -412,10 +412,7 @@ export default function ProductDetailPage() {
                   <div className="space-y-4">
                     {matchData.summary && (
                       <div className="flex gap-4 flex-wrap mb-4">
-                        <span className="text-sm text-[#64748b]">Total: <strong>{matchData.summary.total_customers ?? 0}</strong></span>
-                        <span className="text-sm text-emerald-700">Safe: <strong>{matchData.summary.safe_count ?? 0}</strong></span>
-                        <span className="text-sm text-amber-700">Warning: <strong>{matchData.summary.warning_count ?? 0}</strong></span>
-                        <span className="text-sm text-rose-700">Excluded: <strong>{matchData.summary.excluded_count ?? 0}</strong></span>
+                        <span className="text-sm text-[#64748b]">Matched: <strong>{matchData.summary.total_matched ?? matchData.summary.total_customers ?? 0}</strong></span>
                       </div>
                     )}
                     {(!matchData.customers || matchData.customers.length === 0) && (
@@ -426,25 +423,8 @@ export default function ProductDetailPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-[#0f172a] truncate">{c.customer_name ?? c.name ?? "—"}</p>
                           <p className="text-sm text-[#64748b] truncate">{c.email ?? ""}</p>
-                          {c.reasons && c.reasons.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {c.reasons.slice(0, 3).map((r: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
-                              ))}
-                            </div>
-                          )}
-                          {c.warnings && c.warnings.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {c.warnings.slice(0, 2).map((w: string, i: number) => (
-                                <Badge key={i} className="text-xs bg-amber-100 text-amber-700 border-0">{w}</Badge>
-                              ))}
-                            </div>
-                          )}
                         </div>
                         <div className="flex-shrink-0 text-right">
-                          {c.safety_status === "safe" && <Badge className="bg-emerald-100 text-emerald-700 border-0">Safe</Badge>}
-                          {c.safety_status === "warning" && <Badge className="bg-amber-100 text-amber-700 border-0">Warning</Badge>}
-                          {c.safety_status === "excluded" && <Badge className="bg-rose-100 text-rose-700 border-0">Excluded</Badge>}
                           {c.match_score !== undefined && (
                             <p className="text-xs text-[#94a3b8] mt-1">{Math.round((c.match_score ?? 0) * 100)}% match</p>
                           )}

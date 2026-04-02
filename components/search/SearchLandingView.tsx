@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, Clock } from "lucide-react"
+import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 // TODO: Uncomment when db:push is run to create user_searches table
 // import { getRecentSearches, saveRecentSearch } from "@/lib/api-search"
@@ -41,7 +41,7 @@ export default function SearchLandingView({ onSearch }: Props) {
   }
 
   return (
-    <div className="px-8 py-6 space-y-10 max-w-[960px]">
+    <div className="space-y-10 w-full">
       {/* Hero search bar */}
       <div className="space-y-4">
         <h1 className="text-[32px] font-bold text-[#0f172a]">Search</h1>

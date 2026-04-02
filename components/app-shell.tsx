@@ -1,11 +1,12 @@
 "use client"
 
 import type * as React from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useMemo } from "react"
 import dynamic from "next/dynamic"
 import AuthGuard from "@/components/auth-guard"
+import { apiFetch } from "@/lib/backend"
 
 const B2BChatbot = dynamic(() => import("@/components/chatbot/B2BChatbot"), { ssr: false })
 
@@ -54,14 +55,10 @@ import {
   Store,
   User,
   Users,
+  X,
+  Megaphone,
 } from "lucide-react"
 import TopNav from "./top-nav"
-
-type AppShellProps = {
-  children?: React.ReactNode
-  title?: string
-  subtitle?: string
-}
 
 // ── Nav item type with optional role / permission gating ───────────
 type NavItem = {
@@ -124,11 +121,37 @@ function useFilteredNavItems(items: NavItem[]) {
   }, [items, authContext])
 }
 
-export default function AppShell({ children, title, subtitle }: { children: React.ReactNode; title?: string; subtitle?: string }) {
+type Banner = { id: string; title: string; description?: string; priority: string }
+
+export default function AppShell({ children, title }: { children: React.ReactNode; title?: string; subtitle?: string }) {
   const { user } = useAuth()
   const { vendorName } = useBrandingConfig()
   const companyName = getNameFromEmail(user?.email) ?? vendorName
   const navTitle = title ?? `${companyName} Vendor Portal`
+
+  const [banners, setBanners] = useState<Banner[]>([])
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    apiFetch("/api/v1/alerts/banners")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data?.banners)) setBanners(data.banners) })
+      .catch(() => {})
+  }, [])
+
+  const activeBanners = banners.filter((b) => !dismissedIds.has(b.id))
+
+  function dismissBanner(id: string) {
+    setDismissedIds((prev) => new Set([...prev, id]))
+    // Best-effort: mark as dismissed on server
+    apiFetch(`/api/v1/alerts/${id}`, { method: "PATCH", body: JSON.stringify({ status: "dismissed" }) }).catch(() => {})
+  }
+
+  const priorityStyle: Record<string, string> = {
+    high: "bg-[#fef2f2] border-[#fecaca] text-[#991b1b]",
+    medium: "bg-[#fffbeb] border-[#fde68a] text-[#92400e]",
+    low: "bg-[#eff6ff] border-[#bfdbfe] text-[#1e40af]",
+  }
 
   return (
     <SidebarProvider defaultOpen className="sidebar-vendor">
@@ -136,6 +159,19 @@ export default function AppShell({ children, title, subtitle }: { children: Reac
       <SidebarInset>
         {/* Top bar is always visible; guard protects the main content */}
         <TopNav title={navTitle} />
+        {/* ── System Announcement Banners ── */}
+        {activeBanners.map((banner) => (
+          <div key={banner.id} className={`flex items-start gap-3 px-5 py-3 border-b text-sm ${priorityStyle[banner.priority] ?? priorityStyle.low}`}>
+            <Megaphone className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold">{banner.title}</span>
+              {banner.description && <span className="ml-2 opacity-80">{banner.description}</span>}
+            </div>
+            <button onClick={() => dismissBanner(banner.id)} aria-label="Dismiss" className="opacity-50 hover:opacity-100 transition-opacity">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
         {/* 🔁 AuthGuard FIRST, so nothing below renders until auth is settled */}
         <AuthGuard>
           <div className="px-4 md:px-6 py-4">{children}</div>

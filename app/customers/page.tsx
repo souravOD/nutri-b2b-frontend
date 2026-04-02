@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import * as React from "react";
@@ -29,7 +30,15 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX } from "lucide-react";
+import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX, Download, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { apiFetch } from "@/lib/backend";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 import type { UICustomer } from "@/types/customer";
 import { listCustomers } from "@/lib/api-customers";
@@ -89,7 +98,7 @@ function useUrlState() {
 }
 
 export default function CustomersIndexPage() {
-  const { toast } = useToast();
+  useToast();
   const router = useRouter();
   const { get, set } = useUrlState();
 
@@ -101,7 +110,74 @@ export default function CustomersIndexPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const url = get();
 
+  // CSV import state
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importRows, setImportRows] = React.useState<Record<string, string>[]>([]);
+  const [importFileName, setImportFileName] = React.useState("");
+  const [importError, setImportError] = React.useState<string | null>(null);
+  const [importing, setImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<{ inserted: number; updated: number; errors: any[] } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   function navigateToDetail(id: string) { router.push(`/customers/${id}`) }
+
+  function parseCsv(text: string): Record<string, string>[] {
+    const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    return lines.slice(1).map((line) => {
+      const vals = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+      return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? ""]));
+    });
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    setImportResult(null);
+    setImportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCsv(text);
+      if (rows.length === 0) {
+        setImportError("No data rows found. Check the file has a header row and at least one data row.");
+        setImportRows([]);
+      } else {
+        setImportRows(rows);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleImportConfirm() {
+    if (importRows.length === 0) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await apiFetch("/api/v1/customers/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customers: importRows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || data?.message || "Import failed");
+      setImportResult({ inserted: data.inserted ?? 0, updated: data.updated ?? 0, errors: data.errors ?? [] });
+    } catch (err: any) {
+      setImportError(err?.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function resetImportDialog() {
+    setImportRows([]);
+    setImportFileName("");
+    setImportError(null);
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   // load customers once
   React.useEffect(() => {
@@ -198,13 +274,36 @@ export default function CustomersIndexPage() {
               {loading ? "Loading…" : `${filtered.length} total records found in database`}
             </p>
           </div>
-          <Button
-            onClick={() => setAddOpen(true)}
-            className="bg-[#00438f] hover:bg-[#003366] text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Customer
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/v1/customers/export";
+                a.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
+              onClick={() => { resetImportDialog(); setImportOpen(true); }}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button
+              onClick={() => setAddOpen(true)}
+              className="bg-[#00438f] hover:bg-[#003366] text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
+          </div>
         </div>
 
         {/* Controls Bar: Search + status toggle + Quick Filters (horizontal per Figma) */}
@@ -360,6 +459,106 @@ export default function CustomersIndexPage() {
       </div>
 
       <AddCustomerDialog open={addOpen} onOpenChange={setAddOpen} />
+
+      {/* CSV Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) resetImportDialog(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Customers from CSV</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Column guide */}
+            <div className="rounded-lg bg-[#f8fafc] border border-[#e2e8f0] p-3 text-xs text-[#64748b]">
+              <p className="font-semibold text-[#475569] mb-1">Expected columns (first row must be header):</p>
+              <p className="font-mono">external_id, full_name, email, dob, age, gender, phone</p>
+              <p className="mt-1">Only <strong>external_id</strong> is required. All other columns are optional.</p>
+            </div>
+
+            {/* File picker */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <Button
+                variant="outline"
+                className="border-[#e2e8f0] text-[#475569]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {importFileName || "Choose CSV file…"}
+              </Button>
+            </div>
+
+            {/* Error */}
+            {importError && (
+              <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                {importError}
+              </div>
+            )}
+
+            {/* Import result */}
+            {importResult && (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <p>Import complete — <strong>{importResult.inserted}</strong> inserted, <strong>{importResult.updated}</strong> updated.</p>
+                  {importResult.errors.length > 0 && (
+                    <p className="mt-1 text-amber-700">{importResult.errors.length} row(s) had errors.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            {importRows.length > 0 && !importResult && (
+              <div>
+                <p className="text-sm text-[#64748b] mb-2">
+                  Preview — showing first 5 of <strong>{importRows.length}</strong> rows
+                </p>
+                <div className="overflow-x-auto rounded-lg border border-[#e2e8f0]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(importRows[0]).map((h) => (
+                          <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importRows.slice(0, 5).map((row, i) => (
+                        <TableRow key={i}>
+                          {Object.values(row).map((v, j) => (
+                            <TableCell key={j} className="text-xs max-w-[120px] truncate">{v}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+            {!importResult && (
+              <Button
+                disabled={importRows.length === 0 || importing}
+                onClick={handleImportConfirm}
+                className="bg-[#00438f] hover:bg-[#003366] text-white"
+              >
+                {importing ? "Importing…" : `Confirm Import (${importRows.length} rows)`}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

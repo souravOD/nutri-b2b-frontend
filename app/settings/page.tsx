@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -27,7 +27,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { AlertTriangle, Copy, Database, Download, Globe, Info, Key, Loader2, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Copy, Database, Download, Globe, Info, Loader2, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
 import { Checkbox } from "@/components/ui/checkbox"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
@@ -54,7 +54,11 @@ const SETTINGS_KEYS = {
   brandingLogoUrl: "branding.logo_url",
   brandingFaviconUrl: "branding.favicon_url",
   brandingPrimaryColor: "branding.primary_color",
+  brandingSecondaryColor: "branding.secondary_color",
+  brandingAccentColor: "branding.accent_color",
   brandingCopyright: "branding.copyright",
+  brandingWelcomeMessage: "branding.welcome_message",
+  brandingFontUrl: "branding.font_url",
   crmProvider: "crm.provider",
   crmAccessToken: "crm.access_token",
   crmApiKey: "crm.api_key",
@@ -62,6 +66,8 @@ const SETTINGS_KEYS = {
   integrationUsdaKey: "integration.usda.api_key",
   integrationNutritionLabelKey: "integration.nutrition_label.api_key",
   integrationComplianceKey: "integration.compliance_checker.api_key",
+  integrationGa4Id: "integration.ga4_measurement_id",
+  accessRevocationGraceDays: "access_revocation_grace_days",
 } as const
 
 // ── Role Permissions config (Figma design) ───────────────────────────────────
@@ -172,6 +178,7 @@ export default function SettingsPage() {
   const [sessionTimeoutEnabled, setSessionTimeoutEnabled] = useState(true)
   const [ipRestrictions, setIpRestrictions] = useState(false)
   const [auditLogging, setAuditLogging] = useState(true)
+  const [graceDays, setGraceDays] = useState("0")
   const [apiKeys, setApiKeys] = useState<{ id: string; key_prefix: string; label: string; environment: string; is_active: boolean }[]>([])
   const [apiKeysLoading, setApiKeysLoading] = useState(false)
   const [savingSecurity, setSavingSecurity] = useState(false)
@@ -180,7 +187,11 @@ export default function SettingsPage() {
   const [brandingLogoUrl, setBrandingLogoUrl] = useState("")
   const [brandingFaviconUrl, setBrandingFaviconUrl] = useState("")
   const [brandingPrimaryColor, setBrandingPrimaryColor] = useState("#2073BD")
+  const [brandingSecondaryColor, setBrandingSecondaryColor] = useState("#64748b")
+  const [brandingAccentColor, setBrandingAccentColor] = useState("#10b981")
   const [brandingCopyright, setBrandingCopyright] = useState("")
+  const [brandingWelcomeMessage, setBrandingWelcomeMessage] = useState("")
+  const [brandingFontUrl, setBrandingFontUrl] = useState("")
   const [savingBranding, setSavingBranding] = useState(false)
 
   // ── Privacy / GDPR state ───────────────────────────────────────────────────
@@ -196,6 +207,7 @@ export default function SettingsPage() {
   const [usdaApiKey, setUsdaApiKey] = useState("")
   const [nutritionLabelApiKey, setNutritionLabelApiKey] = useState("")
   const [complianceApiKey, setComplianceApiKey] = useState("")
+  const [ga4MeasurementId, setGa4MeasurementId] = useState("")
   const [integrationDialogOpen, setIntegrationDialogOpen] = useState(false)
   const [integrationDialogTarget, setIntegrationDialogTarget] = useState<"usda" | "nutrition_label" | "compliance_checker" | null>(null)
   const [integrationDialogKey, setIntegrationDialogKey] = useState("")
@@ -212,6 +224,7 @@ export default function SettingsPage() {
 
   const [generateKeyOpen, setGenerateKeyOpen] = useState(false)
   const [newKeyModal, setNewKeyModal] = useState<{ api_key: string; hmac_secret: string; environment: string } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingPrefs, setSavingPrefs] = useState(false)
@@ -405,10 +418,15 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.sessionTimeoutEnabled)) setSessionTimeoutEnabled(map.get(SETTINGS_KEYS.sessionTimeoutEnabled) === "true")
         if (map.has(SETTINGS_KEYS.ipRestrictions)) setIpRestrictions(map.get(SETTINGS_KEYS.ipRestrictions) === "true")
         if (map.has(SETTINGS_KEYS.auditLogging)) setAuditLogging(map.get(SETTINGS_KEYS.auditLogging) === "true")
+        if (map.has(SETTINGS_KEYS.accessRevocationGraceDays)) setGraceDays(map.get(SETTINGS_KEYS.accessRevocationGraceDays) ?? "0")
         if (map.has(SETTINGS_KEYS.brandingLogoUrl)) setBrandingLogoUrl(map.get(SETTINGS_KEYS.brandingLogoUrl) ?? "")
         if (map.has(SETTINGS_KEYS.brandingFaviconUrl)) setBrandingFaviconUrl(map.get(SETTINGS_KEYS.brandingFaviconUrl) ?? "")
         if (map.has(SETTINGS_KEYS.brandingPrimaryColor)) setBrandingPrimaryColor(map.get(SETTINGS_KEYS.brandingPrimaryColor) ?? "#2073BD")
+        if (map.has(SETTINGS_KEYS.brandingSecondaryColor)) setBrandingSecondaryColor(map.get(SETTINGS_KEYS.brandingSecondaryColor) ?? "#64748b")
+        if (map.has(SETTINGS_KEYS.brandingAccentColor)) setBrandingAccentColor(map.get(SETTINGS_KEYS.brandingAccentColor) ?? "#10b981")
         if (map.has(SETTINGS_KEYS.brandingCopyright)) setBrandingCopyright(map.get(SETTINGS_KEYS.brandingCopyright) ?? "")
+        if (map.has(SETTINGS_KEYS.brandingWelcomeMessage)) setBrandingWelcomeMessage(map.get(SETTINGS_KEYS.brandingWelcomeMessage) ?? "")
+        if (map.has(SETTINGS_KEYS.brandingFontUrl)) setBrandingFontUrl(map.get(SETTINGS_KEYS.brandingFontUrl) ?? "")
         if (map.has(SETTINGS_KEYS.crmProvider)) setCrmProvider((map.get(SETTINGS_KEYS.crmProvider) as any) ?? "none")
         if (map.has(SETTINGS_KEYS.crmAccessToken)) setCrmAccessToken(map.get(SETTINGS_KEYS.crmAccessToken) ?? "")
         if (map.has(SETTINGS_KEYS.crmApiKey)) setCrmApiKey(map.get(SETTINGS_KEYS.crmApiKey) ?? "")
@@ -416,6 +434,7 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.integrationUsdaKey)) setUsdaApiKey(map.get(SETTINGS_KEYS.integrationUsdaKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationNutritionLabelKey)) setNutritionLabelApiKey(map.get(SETTINGS_KEYS.integrationNutritionLabelKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationComplianceKey)) setComplianceApiKey(map.get(SETTINGS_KEYS.integrationComplianceKey) ?? "")
+        if (map.has(SETTINGS_KEYS.integrationGa4Id)) setGa4MeasurementId(map.get(SETTINGS_KEYS.integrationGa4Id) ?? "")
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load settings")
@@ -608,6 +627,7 @@ export default function SettingsPage() {
         saveSetting(SETTINGS_KEYS.sessionTimeoutEnabled, String(sessionTimeoutEnabled)),
         saveSetting(SETTINGS_KEYS.ipRestrictions, String(ipRestrictions)),
         saveSetting(SETTINGS_KEYS.auditLogging, String(auditLogging)),
+        saveSetting(SETTINGS_KEYS.accessRevocationGraceDays, String(Math.max(0, parseInt(graceDays, 10) || 0))),
       ])
       setSuccess("Security settings saved")
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
@@ -628,7 +648,11 @@ export default function SettingsPage() {
         saveSetting(SETTINGS_KEYS.brandingLogoUrl, brandingLogoUrl.trim()),
         saveSetting(SETTINGS_KEYS.brandingFaviconUrl, brandingFaviconUrl.trim()),
         saveSetting(SETTINGS_KEYS.brandingPrimaryColor, brandingPrimaryColor.trim()),
+        saveSetting(SETTINGS_KEYS.brandingSecondaryColor, brandingSecondaryColor.trim()),
+        saveSetting(SETTINGS_KEYS.brandingAccentColor, brandingAccentColor.trim()),
         saveSetting(SETTINGS_KEYS.brandingCopyright, brandingCopyright.trim()),
+        saveSetting(SETTINGS_KEYS.brandingWelcomeMessage, brandingWelcomeMessage.trim()),
+        saveSetting(SETTINGS_KEYS.brandingFontUrl, brandingFontUrl.trim()),
       ])
       setSuccess("Branding settings saved — reload to see changes")
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
@@ -741,6 +765,7 @@ export default function SettingsPage() {
     loadPrivacyUsers()
   }, [loadPrivacyUsers])
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleExportUser = async (userId: string, email: string) => {
     setExportingUserId(userId)
     try {
@@ -1074,6 +1099,57 @@ export default function SettingsPage() {
                     >
                       {isIntegrationConnected(complianceApiKey) ? "Configure" : "Connect"}
                     </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Google Analytics 4 */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Analytics Tracking</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">Connect your own Google Analytics property to track portal usage</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="size-[48px] rounded-[8px] bg-[#fef3c7] flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-6 w-6 text-[#d97706]" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-bold text-[14px] text-[#0f172a]">Google Analytics 4</h3>
+                    <p className="text-[12px] text-[#64748b]">Enter your GA4 Measurement ID to track page views and user interactions in your own GA4 property. The ID starts with <span className="font-mono">G-</span>.</p>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        placeholder="G-XXXXXXXXXX"
+                        value={ga4MeasurementId}
+                        onChange={(e) => setGa4MeasurementId(e.target.value.trim())}
+                        className="max-w-xs font-mono border-[#e2e8f0] text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={!ga4MeasurementId.trim()}
+                        onClick={async () => {
+                          try {
+                            await apiFetch(`/api/settings/${SETTINGS_KEYS.integrationGa4Id}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ value: ga4MeasurementId.trim() }),
+                            })
+                            toast({ title: "GA4 Measurement ID saved" })
+                          } catch {
+                            toast({ title: "Failed to save", variant: "destructive" })
+                          }
+                        }}
+                        className="bg-[#00438f] hover:bg-[#003366] text-white"
+                      >
+                        Save
+                      </Button>
+                      {ga4MeasurementId && (
+                        <span className="bg-[#d1fae5] text-[#065f46] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                          <span className="size-1.5 rounded-full bg-[#10b981]" />Active
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1492,6 +1568,20 @@ export default function SettingsPage() {
                   </div>
                   <Switch checked={auditLogging} onCheckedChange={setAuditLogging} className="data-[state=checked]:bg-[#00438f]" />
                 </div>
+                <div className="flex items-center justify-between pt-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-[14px] font-bold text-[#0f172a]">Access Revocation Grace Period</Label>
+                    <p className="text-[12px] text-[#64748b]">Days after membership expiry before access is automatically revoked (0 = immediate).</p>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="365"
+                    value={graceDays}
+                    onChange={(e) => setGraceDays(e.target.value)}
+                    className="w-20 text-right border border-[#e2e8f0] rounded-[6px] px-3 py-1.5 text-[14px] text-[#0f172a] bg-white focus:outline-none focus:ring-2 focus:ring-[#00438f]"
+                  />
+                </div>
               </CardContent>
               <div className="bg-[#f8fafc] border-t border-[#f1f5f9] p-6 flex justify-end">
                 <Button
@@ -1739,6 +1829,46 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-2">
+                      <Label htmlFor="branding-secondary-color" className="text-[14px] font-medium text-[#0f172a]">Secondary Colour</Label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          id="branding-secondary-color"
+                          value={brandingSecondaryColor.startsWith("#") ? brandingSecondaryColor : "#64748b"}
+                          onChange={(e) => setBrandingSecondaryColor(e.target.value)}
+                          className="h-10 w-14 cursor-pointer rounded border border-[#e2e8f0] p-1"
+                        />
+                        <Input
+                          value={brandingSecondaryColor}
+                          onChange={(e) => setBrandingSecondaryColor(e.target.value)}
+                          placeholder="#64748b"
+                          className="border-[#e2e8f0] font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[12px] text-[#64748b]">Applied to secondary elements, muted text and backgrounds.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branding-accent-color" className="text-[14px] font-medium text-[#0f172a]">Accent Colour</Label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          id="branding-accent-color"
+                          value={brandingAccentColor.startsWith("#") ? brandingAccentColor : "#10b981"}
+                          onChange={(e) => setBrandingAccentColor(e.target.value)}
+                          className="h-10 w-14 cursor-pointer rounded border border-[#e2e8f0] p-1"
+                        />
+                        <Input
+                          value={brandingAccentColor}
+                          onChange={(e) => setBrandingAccentColor(e.target.value)}
+                          placeholder="#10b981"
+                          className="border-[#e2e8f0] font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[12px] text-[#64748b]">Applied to success states, highlights and call-to-action accents.</p>
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor="branding-copyright" className="text-[14px] font-medium text-[#0f172a]">Copyright Text</Label>
                       <Input
                         id="branding-copyright"
@@ -1747,7 +1877,32 @@ export default function SettingsPage() {
                         onChange={(e) => setBrandingCopyright(e.target.value)}
                         className="border-[#e2e8f0]"
                       />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="branding-welcome" className="text-[14px] font-medium text-[#0f172a]">Dashboard Welcome Message</Label>
+                      <textarea
+                        id="branding-welcome"
+                        placeholder="Welcome to your wellness portal! Explore your members' health insights below."
+                        value={brandingWelcomeMessage}
+                        onChange={(e) => setBrandingWelcomeMessage(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-md border border-[#e2e8f0] px-3 py-2 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 resize-none"
+                      />
+                      <p className="text-[11px] text-[#94a3b8]">Shown as a banner at the top of the dashboard for all users in your portal.</p>
                       <p className="text-[12px] text-[#64748b]">Displayed in the portal footer and login page.</p>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="branding-font-url" className="text-[14px] font-medium text-[#0f172a]">Custom Font URL</Label>
+                      <Input
+                        id="branding-font-url"
+                        placeholder="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+                        value={brandingFontUrl}
+                        onChange={(e) => setBrandingFontUrl(e.target.value)}
+                        className="border-[#e2e8f0]"
+                      />
+                      <p className="text-[11px] text-[#94a3b8]">Google Fonts or self-hosted CSS URL. Applied globally to all pages in your portal.</p>
                     </div>
                   </div>
 

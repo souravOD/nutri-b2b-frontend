@@ -10,6 +10,10 @@ export type BrandingConfig = {
   logoUrl: string | null;
   faviconUrl: string | null;
   primaryColor: string | null;
+  secondaryColor: string | null;
+  accentColor: string | null;
+  fontUrl: string | null;
+  ga4MeasurementId: string | null;
 };
 
 const DEFAULT_COPYRIGHT = "© 2024. All rights reserved.";
@@ -28,6 +32,10 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
     logoUrl: null,
     faviconUrl: null,
     primaryColor: null,
+    secondaryColor: null,
+    accentColor: null,
+    fontUrl: null,
+    ga4MeasurementId: null,
   }));
 
   useEffect(() => {
@@ -47,6 +55,10 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
             logoUrl: data?.logoUrl || null,
             faviconUrl: data?.faviconUrl || null,
             primaryColor: data?.primaryColor || null,
+            secondaryColor: data?.secondaryColor || null,
+            accentColor: data?.accentColor || null,
+            fontUrl: data?.fontUrl || null,
+            ga4MeasurementId: data?.ga4MeasurementId || null,
           });
         }
       } catch {

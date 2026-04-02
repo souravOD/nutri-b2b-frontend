@@ -38,7 +38,7 @@ function hexToOklch(hex: string): string | null {
  * Renders nothing visible — side-effects only.
  */
 export default function BrandingApplicator() {
-  const { primaryColor, faviconUrl } = useBrandingConfig();
+  const { primaryColor, secondaryColor, accentColor, faviconUrl, fontUrl, ga4MeasurementId } = useBrandingConfig();
 
   useEffect(() => {
     if (!primaryColor) return;
@@ -47,6 +47,20 @@ export default function BrandingApplicator() {
     document.documentElement.style.setProperty("--primary", cssValue);
     document.documentElement.style.setProperty("--ring", cssValue);
   }, [primaryColor]);
+
+  useEffect(() => {
+    if (!secondaryColor) return;
+    const color = secondaryColor.trim();
+    const cssValue = color.startsWith("#") ? (hexToOklch(color) ?? color) : color;
+    document.documentElement.style.setProperty("--secondary", cssValue);
+  }, [secondaryColor]);
+
+  useEffect(() => {
+    if (!accentColor) return;
+    const color = accentColor.trim();
+    const cssValue = color.startsWith("#") ? (hexToOklch(color) ?? color) : color;
+    document.documentElement.style.setProperty("--accent", cssValue);
+  }, [accentColor]);
 
   useEffect(() => {
     if (!faviconUrl) return;
@@ -58,6 +72,43 @@ export default function BrandingApplicator() {
     }
     link.href = faviconUrl;
   }, [faviconUrl]);
+
+  useEffect(() => {
+    if (!fontUrl) return;
+    const id = "vendor-font-stylesheet";
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = fontUrl;
+      document.head.appendChild(link);
+    } else {
+      (document.getElementById(id) as HTMLLinkElement).href = fontUrl;
+    }
+    document.documentElement.style.setProperty("--font-family", "var(--vendor-font, sans-serif)");
+  }, [fontUrl]);
+
+  useEffect(() => {
+    if (!ga4MeasurementId) return;
+    const scriptId = "vendor-ga4-script";
+    if (document.getElementById(scriptId)) return; // already injected
+    // Async gtag loader
+    const loaderScript = document.createElement("script");
+    loaderScript.id = scriptId;
+    loaderScript.async = true;
+    loaderScript.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ga4MeasurementId)}`;
+    document.head.appendChild(loaderScript);
+    // Inline gtag init
+    const initScript = document.createElement("script");
+    initScript.id = "vendor-ga4-init";
+    initScript.textContent = [
+      "window.dataLayer = window.dataLayer || [];",
+      "function gtag(){dataLayer.push(arguments);}",
+      "gtag('js', new Date());",
+      `gtag('config', '${ga4MeasurementId}');`,
+    ].join("\n");
+    document.head.appendChild(initScript);
+  }, [ga4MeasurementId]);
 
   return null;
 }

@@ -11,7 +11,6 @@ import {
   Users,
   Activity,
   TrendingUp,
-  TrendingDown,
   Star,
   ExternalLink,
   Heart,
@@ -19,6 +18,7 @@ import {
   BarChart3,
   ArrowUpRight,
   Zap,
+  X,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -28,6 +28,8 @@ type TrendingCat   = { id: string; code: string; label: string; description: str
 type PopularProduct = { id: string; name: string; dietaryTags?: string[] | null };
 type IngestRun     = { status: string; totalRecordsWritten?: number; total_records_written?: number };
 
+type GoalMetric = { metric: string; achieved_pct: number };
+
 type DashboardData = {
   totals: OverviewTotals;
   dietary: DietaryPref[];
@@ -36,6 +38,7 @@ type DashboardData = {
   trendingCats: TrendingCat[];
   popularProducts: PopularProduct[];
   activationRate: number | null;
+  goalAchievement: GoalMetric[];
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -114,6 +117,8 @@ function StarRating({ n }: { n: number }) {
 export default function DashboardPage() {
   const { vendorName } = useBrandingConfig();
   const [loading, setLoading] = React.useState(true);
+  const [welcomeMessage, setWelcomeMessage] = React.useState<string | null>(null);
+  const [welcomeDismissed, setWelcomeDismissed] = React.useState(false);
   const [data, setData] = React.useState<DashboardData>({
     totals: { products: 0, customers: 0, completedJobs: 0 },
     dietary: [],
@@ -122,19 +127,22 @@ export default function DashboardPage() {
     trendingCats: [],
     popularProducts: [],
     activationRate: null,
+    goalAchievement: [],
   });
 
   React.useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes] = await Promise.allSettled([
+        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes] = await Promise.allSettled([
           apiFetch("/api/v1/analytics/overview?days=30"),
           apiFetch("/api/v1/analytics/health-summary"),
           apiFetch("/api/v1/ingest/runs"),
           apiFetch("/api/v1/search/trending-categories"),
           apiFetch("/api/v1/search/popular-products?limit=3"),
           apiFetch("/api/v1/analytics/engagement?days=30"),
+          apiFetch("/api/v1/settings/branding.welcome_message"),
+          apiFetch("/api/v1/analytics/goal-achievement?days=30"),
         ]);
         if (!alive) return;
 
@@ -184,8 +192,21 @@ export default function DashboardPage() {
           if (typeof rate === "number" && !isNaN(rate)) activationRate = rate;
         }
 
+        if (welcomeRes.status === "fulfilled" && welcomeRes.value.ok) {
+          const j = await welcomeRes.value.json().catch(() => ({}));
+          const msg = j.value ?? j.welcome_message ?? null;
+          if (alive && typeof msg === "string" && msg.trim()) setWelcomeMessage(msg.trim());
+        }
+
+        let goalAchievement: GoalMetric[] = [];
+        if (goalRes.status === "fulfilled" && goalRes.value.ok) {
+          const j = await goalRes.value.json().catch(() => ({}));
+          const arr = toArray<GoalMetric>(j.metrics ?? j);
+          if (arr.length > 0) goalAchievement = arr;
+        }
+
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -241,6 +262,21 @@ export default function DashboardPage() {
             </span>
           </div>
 
+          {/* ── Welcome Message Banner ─────────────────────────────────────── */}
+          {welcomeMessage && !welcomeDismissed && (
+            <div className="flex items-start gap-3 rounded-[12px] border border-[#bfdbfe] bg-[#eff6ff] px-5 py-4">
+              <Zap className="h-5 w-5 text-[#3b82f6] mt-0.5 shrink-0" />
+              <p className="flex-1 text-[14px] text-[#1e40af] leading-relaxed">{welcomeMessage}</p>
+              <button
+                onClick={() => setWelcomeDismissed(true)}
+                className="text-[#93c5fd] hover:text-[#3b82f6] transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* ── Section 1: Engagement Overview ─────────────────────────────── */}
           <section>
             <p className="text-[13px] font-bold text-[#0f172a] mb-4">Engagement Overview</p>
@@ -294,11 +330,20 @@ export default function DashboardPage() {
                 {/* Goal Achievement */}
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-[#94a3b8] mb-3">Goal Achievement</p>
-                  <div className="space-y-3">
-                    <PctBar label="Protein Targets" pctVal={82} />
-                    <PctBar label="Calorie Deficit" pctVal={64} />
-                    <PctBar label="Micronutrients" pctVal={48} color="#94a3b8" />
-                  </div>
+                  {data.goalAchievement.length > 0 ? (
+                    <div className="space-y-3">
+                      {data.goalAchievement.map((g, i) => (
+                        <PctBar
+                          key={g.metric}
+                          label={g.metric}
+                          pctVal={Math.round(g.achieved_pct)}
+                          color={i === data.goalAchievement.length - 1 ? "#94a3b8" : "#00438f"}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#94a3b8]">No goal data yet</p>
+                  )}
                 </div>
 
                 {/* Top Dietary Preferences */}
@@ -480,7 +525,7 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ) : (
-                      data.trendingCats.map((c, idx) => {
+                      data.trendingCats.map((c) => {
                         const stars = c.product_count > 20 ? 5 : c.product_count > 10 ? 4 : c.product_count > 5 ? 3 : 2;
                         const usage = c.product_count >= 1000
                           ? `${(c.product_count / 1000).toFixed(1)}k users`

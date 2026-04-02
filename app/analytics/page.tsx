@@ -12,12 +12,17 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
 } from "recharts"
 import { getAnalyticsOverview, getHealthSummary, getEngagementAnalytics, type AnalyticsOverview, type HealthSummary, type EngagementAnalytics } from "@/lib/api-analytics"
 import { apiFetch } from "@/lib/backend"
 import Link from "next/link"
-import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronRight } from "lucide-react"
+import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type RecentRun = {
   id: string
@@ -89,9 +94,6 @@ const trendConfig = {
   runs: { label: "Runs", color: "#8b5cf6" },
 }
 
-const healthConfig = {
-  customer_count: { label: "Customers", color: "#00438f" },
-}
 
 export default function AnalyticsPage() {
   const [days, setDays] = React.useState<7 | 30 | 90 | 365>(30)
@@ -101,11 +103,21 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [recentRuns, setRecentRuns] = React.useState<RecentRun[]>([])
+  const [goalAchievement, setGoalAchievement] = React.useState<{
+    members_tracked: number;
+    avg_calorie_achievement_pct: number | null;
+    avg_protein_achievement_pct: number | null;
+    avg_carbs_achievement_pct: number | null;
+  } | null>(null)
+  const [topRecipes, setTopRecipes] = React.useState<{
+    id: string; name: string; avg_rating: number; rating_count: number; image_url?: string
+  }[]>([])
 
   const loadRecentRuns = React.useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/ingest/runs")
       const json = await res.json()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const items = (json.data ?? []).slice(0, 4).map((j: any) => ({
         id: j.id,
         flowName: j.flowName ?? j.flow_name ?? "unknown",
@@ -125,11 +137,19 @@ export default function AnalyticsPage() {
   React.useEffect(() => {
     setLoading(true)
     setError(null)
-    Promise.all([getAnalyticsOverview(days), getHealthSummary(), getEngagementAnalytics(days)])
-      .then(([ov, hs, eng]) => {
+    Promise.all([
+      getAnalyticsOverview(days),
+      getHealthSummary(),
+      getEngagementAnalytics(days),
+      apiFetch(`/api/v1/analytics/goal-achievement?days=${days}`).then((r) => r.json()).catch(() => null),
+      apiFetch("/api/v1/analytics/top-recipes?limit=10").then((r) => r.json()).catch(() => null),
+    ])
+      .then(([ov, hs, eng, ga, tr]) => {
         setOverview(ov)
         setHealth(hs)
         setEngagement(eng)
+        if (ga) setGoalAchievement(ga)
+        if (tr?.recipes) setTopRecipes(tr.recipes)
       })
       .catch((e) => setError(e?.message ?? "Failed to load analytics"))
       .finally(() => setLoading(false))
@@ -137,15 +157,15 @@ export default function AnalyticsPage() {
 
   const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
 
-  async function handleExport(type: "overview" | "health" | "engagement") {
+  async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" = "csv") {
     try {
-      const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}`)
+      const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}&format=${format}`)
       if (!res.ok) return
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `analytics-${type}-${new Date().toISOString().slice(0, 10)}.csv`
+      a.download = `analytics-${type}-${new Date().toISOString().slice(0, 10)}.${format}`
       a.click()
       URL.revokeObjectURL(url)
     } catch { /* silent */ }
@@ -204,29 +224,36 @@ export default function AnalyticsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#0f172a]">Analytics</h1>
-            <p className="text-sm text-[#64748b] mt-1">Trends and health distributions across your Sam's Club catalog</p>
+            <p className="text-sm text-[#64748b] mt-1">Trends and health distributions across your Sam&apos;s Club catalog</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2">
-              {(["overview", "health"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleExport(type)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors">
+                <Download className="h-4 w-4" />
+                Download Report
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {([
+                { label: "Engagement CSV",  type: "engagement", format: "csv"  },
+                { label: "Engagement XLSX", type: "engagement", format: "xlsx" },
+                { label: "Health CSV",      type: "health",     format: "csv"  },
+                { label: "Health XLSX",     type: "health",     format: "xlsx" },
+                { label: "Overview CSV",    type: "overview",   format: "csv"  },
+                { label: "Overview XLSX",   type: "overview",   format: "xlsx" },
+              ] as { label: string; type: "overview" | "health" | "engagement"; format: "csv" | "xlsx" }[]).map(({ label, type, format }) => (
+                <DropdownMenuItem
+                  key={label}
+                  onClick={() => handleExport(type, format)}
+                  className="flex items-center gap-2 cursor-pointer"
                 >
-                  <Download className="h-4 w-4" />
-                  {type === "overview" ? "Overview CSV" : "Health CSV"}
-                </button>
+                  <Download className="h-3.5 w-3.5 text-[#64748b]" />
+                  {label}
+                </DropdownMenuItem>
               ))}
-            </div>
-            <button
-              onClick={() => handleExport("engagement")}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors"
-            >
-              <Download className="h-4 w-4" />
-              Engagement CSV
-            </button>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {error && (
@@ -593,6 +620,70 @@ export default function AnalyticsPage() {
           </TabsContent>
 
         </Tabs>
+
+        {/* ── Goal Achievement ──────────────────────────────────────────── */}
+        {goalAchievement && goalAchievement.members_tracked > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Heart className="h-4 w-4 text-[#00438f]" />
+                Nutritional Goal Achievement
+                <span className="ml-auto text-xs font-normal text-[#94a3b8]">{goalAchievement.members_tracked} members tracked</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {([
+                  { label: "Calorie Goal", pct: goalAchievement.avg_calorie_achievement_pct },
+                  { label: "Protein Goal", pct: goalAchievement.avg_protein_achievement_pct },
+                  { label: "Carbs Goal",   pct: goalAchievement.avg_carbs_achievement_pct },
+                ] as { label: string; pct: number | null }[]).map(({ label, pct }) => (
+                  <div key={label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-[#1e293b]">{label}</span>
+                      <span className="font-semibold text-[#0f172a]">{pct != null ? `${pct}%` : "—"}</span>
+                    </div>
+                    <div className="h-2 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#00438f] transition-all"
+                        style={{ width: pct != null ? `${Math.min(pct, 100)}%` : "0%" }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Top-Rated Recipes ─────────────────────────────────────────── */}
+        {topRecipes.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-[#00438f]" />
+                Top-Rated Recipes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="divide-y divide-[#f1f5f9]">
+                {topRecipes.map((r, i) => (
+                  <div key={r.id} className="flex items-center gap-3 py-2">
+                    <span className="text-[11px] font-bold text-[#94a3b8] w-5 shrink-0">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1e293b] truncate">{r.name}</p>
+                      <p className="text-xs text-[#94a3b8]">{r.rating_count} {r.rating_count === 1 ? "rating" : "ratings"}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-sm font-bold text-[#f59e0b]">{r.avg_rating?.toFixed(1)}</span>
+                      <span className="text-[#f59e0b]">★</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppShell>
   )
