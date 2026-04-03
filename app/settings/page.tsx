@@ -285,23 +285,30 @@ export default function SettingsPage() {
     if (!integrationDialogTarget || !integrationDialogKey.trim()) return
     setSavingIntegration(true)
     try {
-      const settingsKeyMap = {
+      const settingsKeyMap: Record<"usda" | "nutrition_label" | "compliance_checker", string> = {
         usda: SETTINGS_KEYS.integrationUsdaKey,
         nutrition_label: SETTINGS_KEYS.integrationNutritionLabelKey,
         compliance_checker: SETTINGS_KEYS.integrationComplianceKey,
       }
-      const setterMap = {
+      const setterMap: Record<"usda" | "nutrition_label" | "compliance_checker", (v: string) => void> = {
         usda: setUsdaApiKey,
         nutrition_label: setNutritionLabelApiKey,
         compliance_checker: setComplianceApiKey,
       }
-      const res = await apiFetch(`/api/settings/${settingsKeyMap[integrationDialogTarget]}`, {
+      const settingsKey = settingsKeyMap[integrationDialogTarget]
+      const setter = setterMap[integrationDialogTarget]
+      if (!settingsKey || !setter) {
+        toast({ title: "Failed to save", description: "Unknown integration target.", variant: "destructive" })
+        return
+      }
+      const trimmedKey = integrationDialogKey.trim()
+      const res = await apiFetch(`/api/settings/${settingsKey}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: integrationDialogKey.trim() }),
+        body: JSON.stringify({ value: trimmedKey }),
       })
       if (res.ok) {
-        setterMap[integrationDialogTarget](integrationDialogKey.trim())
+        setter(trimmedKey)
         toast({ title: "Integration connected", description: "API key saved successfully." })
         setIntegrationDialogOpen(false)
         setIntegrationDialogKey("")
@@ -326,20 +333,25 @@ export default function SettingsPage() {
   }, [])
 
   const handleAddWebhook = async () => {
-    if (!webhookUrl.trim()) return
+    const trimmed = webhookUrl.trim()
+    if (!trimmed) return
+    try { new URL(trimmed) } catch {
+      toast({ title: "Invalid URL", description: "Please enter a valid URL (include https://)", variant: "destructive" })
+      return
+    }
     setWebhookSaving(true)
     try {
       const res = await apiFetch("/api/v1/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: webhookUrl.trim(), events: webhookEvents, enabled: true }),
+        body: JSON.stringify({ url: trimmed, events: webhookEvents, enabled: true }),
       })
       if (res.ok) {
         const json = await res.json()
         setWebhooks((prev) => [...prev, json.data])
         setWebhookUrl("")
         setWebhookEvents(["product.match.found", "import.completed"])
-        toast({ title: "Webhook added", description: webhookUrl.trim() })
+        toast({ title: "Webhook added", description: trimmed })
       } else {
         const json = await res.json().catch(() => ({}))
         toast({ title: "Failed to add webhook", description: json.error ?? "Unknown error", variant: "destructive" })
@@ -810,6 +822,10 @@ export default function SettingsPage() {
   }
 
   const copyToClipboard = (text: string, label: string) => {
+    if (!navigator?.clipboard?.writeText) {
+      toast({ title: "Copy not supported", description: "Clipboard API unavailable in this environment.", variant: "destructive" })
+      return
+    }
     navigator.clipboard.writeText(text).then(
       () => toast({ title: `${label} copied` }),
       () => toast({ title: "Copy failed", variant: "destructive" })

@@ -174,14 +174,16 @@ export default function AnalyticsPage() {
   const monthlyTrendData = React.useMemo(() => {
     if (!overview) return []
     const map = new Map<string, { month: string; products: number; customers: number; _key: string }>()
-    for (const { day, count } of overview.productTrend) {
+    const productTrend = Array.isArray(overview.productTrend) ? overview.productTrend : []
+    const customerTrend = Array.isArray(overview.customerTrend) ? overview.customerTrend : []
+    for (const { day, count } of productTrend) {
       const key = day.slice(0, 7)
       const label = new Date(day + "T00:00:00").toLocaleString("en-US", { month: "short" }).toUpperCase()
       const existing = map.get(key)
       if (existing) existing.products += count
       else map.set(key, { month: label, products: count, customers: 0, _key: key })
     }
-    for (const { day, count } of overview.customerTrend) {
+    for (const { day, count } of customerTrend) {
       const key = day.slice(0, 7)
       const label = new Date(day + "T00:00:00").toLocaleString("en-US", { month: "short" }).toUpperCase()
       const existing = map.get(key)
@@ -873,7 +875,8 @@ function RunAddedCell({ run }: { run: RecentRun }) {
   if (run.status === "failed") {
     return <span className="text-[12px] font-semibold text-[#ba1a1a] text-right">0</span>
   }
-  const lower = (run.sourceName ?? run.flowName).toLowerCase()
+  const labelSource = run.sourceName ?? run.flowName ?? ""
+  const lower = labelSource.toLowerCase()
   const isProduct = lower.includes("product")
   const isCustomer = lower.includes("customer")
   const count = run.totalRecordsWritten

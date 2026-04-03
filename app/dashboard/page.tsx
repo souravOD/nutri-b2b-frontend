@@ -149,10 +149,11 @@ export default function DashboardPage() {
         let totals: OverviewTotals = { products: 0, customers: 0, completedJobs: 0 };
         if (overviewRes.status === "fulfilled" && overviewRes.value.ok) {
           const j = await overviewRes.value.json().catch(() => ({}));
+          const src = j.totals ?? j;
           totals = {
-            products: j.totals?.products ?? 0,
-            customers: j.totals?.customers ?? 0,
-            completedJobs: j.totals?.completedJobs ?? 0,
+            products: src.products ?? 0,
+            customers: src.customers ?? 0,
+            completedJobs: src.completedJobs ?? src.completed_jobs ?? 0,
           };
         }
 

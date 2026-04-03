@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import * as React from "react"
@@ -298,8 +299,12 @@ export default function ImportWizard({
     setStep(1)
   }
 
-  const mappedCount = mappings.filter((m) => m.destination && m.destination !== "__skip__").length
-  const skippedCount = mappings.filter((m) => m.destination === "__skip__").length
+  const mappedCount = mappings?.length
+    ? mappings.filter((m) => m.destination && m.destination !== "__skip__").length
+    : 0
+  const skippedCount = mappings?.length
+    ? mappings.filter((m) => m.destination === "__skip__").length
+    : 0
 
   const goToReview = () => {
     if (file && preview?.headers?.length && mappedCount > 0) {
@@ -313,11 +318,15 @@ export default function ImportWizard({
 
   const proceedFromMap = async () => {
     setMapError(null)
-    if (!file || !mappings.length) return
+    if (!file || !mappings.length) {
+      setMapError("No columns available to map. Please go back and re-upload your CSV.")
+      return
+    }
     if (mappedCount === 0) {
       setMapError("Map at least one column to a destination field.")
       return
     }
+    setUploading(true)
     try {
       const blob = await transformCsvContent(file, mappings)
       const transformedFile = new File([blob], file.name, { type: "text/csv" })
@@ -326,6 +335,7 @@ export default function ImportWizard({
       setStatusMsg(`Error: ${e?.message || String(e)}`)
       setDone(true)
       setStep(4)
+    } finally {
       setUploading(false)
     }
   }
