@@ -68,6 +68,8 @@ const SETTINGS_KEYS = {
   integrationComplianceKey: "integration.compliance_checker.api_key",
   integrationGa4Id: "integration.ga4_measurement_id",
   accessRevocationGraceDays: "access_revocation_grace_days",
+  emailTemplateOnboarding: "email_template.onboarding",
+  emailTemplateReengagement: "email_template.reengagement",
 } as const
 
 // ── Role Permissions config (Figma design) ───────────────────────────────────
@@ -261,6 +263,30 @@ export default function SettingsPage() {
   const [webhookSaving, setWebhookSaving] = useState(false)
   const [webhookTestingId, setWebhookTestingId] = useState<string | null>(null)
 
+  // ── Communications state ──────────────────────────────────────────────────
+  type EmailTemplate = { subject: string; previewText: string; bodyText: string }
+  const DEFAULT_ONBOARDING: EmailTemplate = {
+    subject: "Welcome to the platform!",
+    previewText: "Get started with your wellness journey",
+    bodyText: "Hi {{name}},\n\nWelcome! We're thrilled to have you on board.\n\nTo get started, complete your health profile and explore personalized product recommendations.\n\nBest,\nThe Team",
+  }
+  const DEFAULT_REENGAGEMENT: EmailTemplate = {
+    subject: "We miss you — come back and check your recommendations",
+    previewText: "New products matched to your health profile",
+    bodyText: "Hi {{name}},\n\nIt's been a while! We have new products tailored specifically for your health goals.\n\nLog in to see what's new.\n\nBest,\nThe Team",
+  }
+  const [onboardingTemplate, setOnboardingTemplate] = useState<EmailTemplate>(DEFAULT_ONBOARDING)
+  const [reengagementTemplate, setReengagementTemplate] = useState<EmailTemplate>(DEFAULT_REENGAGEMENT)
+  const [editingTemplate, setEditingTemplate] = useState<"onboarding" | "reengagement" | null>(null)
+  const [editTemplateForm, setEditTemplateForm] = useState<EmailTemplate>(DEFAULT_ONBOARDING)
+  const [previewTemplate, setPreviewTemplate] = useState<"onboarding" | "reengagement" | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [announcementTitle, setAnnouncementTitle] = useState("")
+  const [announcementMessage, setAnnouncementMessage] = useState("")
+  const [announcementPriority, setAnnouncementPriority] = useState<"high" | "medium" | "low">("medium")
+  const [announcementExpiry, setAnnouncementExpiry] = useState<"1d" | "3d" | "7d" | "never">("3d")
+  const [creatingAnnouncement, setCreatingAnnouncement] = useState(false)
+
   const EVENT_OPTIONS = [
     { value: "product.match.found", label: "Product Match Found" },
     { value: "import.completed", label: "Import Completed" },
@@ -401,6 +427,56 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveTemplate = async (type: "onboarding" | "reengagement") => {
+    setSavingTemplate(true)
+    try {
+      const key = type === "onboarding" ? SETTINGS_KEYS.emailTemplateOnboarding : SETTINGS_KEYS.emailTemplateReengagement
+      await apiFetch(`/api/v1/settings/${key}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: JSON.stringify(editTemplateForm) }),
+      })
+      if (type === "onboarding") setOnboardingTemplate(editTemplateForm)
+      else setReengagementTemplate(editTemplateForm)
+      setEditingTemplate(null)
+      toast({ title: "Template saved" })
+    } catch {
+      toast({ title: "Failed to save template", variant: "destructive" })
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  const handleCreateAnnouncement = async () => {
+    if (!announcementTitle.trim()) return
+    setCreatingAnnouncement(true)
+    try {
+      const res = await apiFetch("/api/v1/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: announcementTitle.trim(),
+          description: announcementMessage.trim() || undefined,
+          priority: announcementPriority,
+          expiresIn: announcementExpiry === "never" ? undefined : announcementExpiry,
+        }),
+      })
+      if (res.ok) {
+        setAnnouncementTitle("")
+        setAnnouncementMessage("")
+        setAnnouncementPriority("medium")
+        setAnnouncementExpiry("3d")
+        toast({ title: "Announcement created", description: "It will appear as a banner for all users." })
+      } else {
+        toast({ title: "Failed to create announcement", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Failed to create announcement", variant: "destructive" })
+    } finally {
+      setCreatingAnnouncement(false)
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
@@ -447,6 +523,12 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.integrationNutritionLabelKey)) setNutritionLabelApiKey(map.get(SETTINGS_KEYS.integrationNutritionLabelKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationComplianceKey)) setComplianceApiKey(map.get(SETTINGS_KEYS.integrationComplianceKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationGa4Id)) setGa4MeasurementId(map.get(SETTINGS_KEYS.integrationGa4Id) ?? "")
+        if (map.has(SETTINGS_KEYS.emailTemplateOnboarding)) {
+          try { setOnboardingTemplate(JSON.parse(map.get(SETTINGS_KEYS.emailTemplateOnboarding)!)) } catch { /* use default */ }
+        }
+        if (map.has(SETTINGS_KEYS.emailTemplateReengagement)) {
+          try { setReengagementTemplate(JSON.parse(map.get(SETTINGS_KEYS.emailTemplateReengagement)!)) } catch { /* use default */ }
+        }
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load settings")
@@ -908,6 +990,12 @@ export default function SettingsPage() {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Privacy &amp; GDPR
+            </TabsTrigger>
+            <TabsTrigger
+              value="communications"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+            >
+              Communications
             </TabsTrigger>
           </TabsList>
 
@@ -2076,6 +2164,127 @@ export default function SettingsPage() {
               </Card>
             )}
           </TabsContent>
+
+          {/* ── COMMUNICATIONS TAB ── */}
+          <TabsContent value="communications" className="space-y-6 pt-8">
+
+            {/* Info banner */}
+            <div className="flex items-start gap-3 rounded-[12px] border border-[#bfdbfe] bg-[#eff6ff] px-5 py-4">
+              <Info className="h-5 w-5 text-[#3b82f6] mt-0.5 shrink-0" />
+              <p className="text-[14px] text-[#1e40af] leading-relaxed">
+                Connect an email service provider in the <strong>Integrations</strong> tab to activate sending. Templates are saved and ready to use when connected.
+              </p>
+            </div>
+
+            {/* Email Templates */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Email Templates</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">Customize the emails sent to your members.</CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-[#f1f5f9] p-0">
+                {(["onboarding", "reengagement"] as const).map((type) => {
+                  const tpl = type === "onboarding" ? onboardingTemplate : reengagementTemplate
+                  const label = type === "onboarding" ? "Welcome / Onboarding" : "Re-engagement"
+                  const desc = type === "onboarding" ? "Sent when a new member joins" : "Sent to inactive members"
+                  return (
+                    <div key={type} className="flex items-start justify-between gap-4 px-6 py-5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-[#0f172a]">{label}</p>
+                        <p className="text-[12px] text-[#64748b] mt-0.5">{desc}</p>
+                        <p className="text-[12px] text-[#334155] mt-1 truncate">Subject: {tpl.subject}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[13px]"
+                          onClick={() => setPreviewTemplate(type)}
+                        >
+                          Preview
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[13px]"
+                          onClick={() => { setEditingTemplate(type); setEditTemplateForm(tpl) }}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Create Announcement */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Create Announcement</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">Post a banner visible to all portal users. Banners appear at the top of every page until dismissed or expired.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 py-5 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] font-semibold text-[#334155]">Title <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={announcementTitle}
+                    onChange={(e) => setAnnouncementTitle(e.target.value)}
+                    placeholder="e.g. Platform maintenance scheduled for Sunday"
+                    className="border-[#cbd5e1]"
+                    maxLength={255}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] font-semibold text-[#334155]">Message <span className="text-[#94a3b8] font-normal">(optional)</span></Label>
+                  <textarea
+                    value={announcementMessage}
+                    onChange={(e) => setAnnouncementMessage(e.target.value)}
+                    rows={2}
+                    placeholder="Additional details..."
+                    className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] font-semibold text-[#334155]">Priority</Label>
+                    <select
+                      value={announcementPriority}
+                      onChange={(e) => setAnnouncementPriority(e.target.value as any)}
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] font-semibold text-[#334155]">Expires In</Label>
+                    <select
+                      value={announcementExpiry}
+                      onChange={(e) => setAnnouncementExpiry(e.target.value as any)}
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                    >
+                      <option value="1d">1 day</option>
+                      <option value="3d">3 days</option>
+                      <option value="7d">7 days</option>
+                      <option value="never">Never</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="pt-1">
+                  <Button
+                    onClick={handleCreateAnnouncement}
+                    disabled={!announcementTitle.trim() || creatingAnnouncement}
+                    className="bg-[#00438f] hover:bg-[#003070] text-white"
+                  >
+                    {creatingAnnouncement ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Post Announcement
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -2118,6 +2327,80 @@ export default function SettingsPage() {
               {purging ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
               Purge Account
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Email Template Edit Dialog ── */}
+      <Dialog open={editingTemplate !== null} onOpenChange={(open) => { if (!open) setEditingTemplate(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit {editingTemplate === "onboarding" ? "Welcome / Onboarding" : "Re-engagement"} Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[14px] font-semibold text-[#334155]">Subject</Label>
+              <Input
+                value={editTemplateForm.subject}
+                onChange={(e) => setEditTemplateForm((f) => ({ ...f, subject: e.target.value }))}
+                className="border-[#cbd5e1]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[14px] font-semibold text-[#334155]">Preview Text</Label>
+              <Input
+                value={editTemplateForm.previewText}
+                onChange={(e) => setEditTemplateForm((f) => ({ ...f, previewText: e.target.value }))}
+                className="border-[#cbd5e1]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[14px] font-semibold text-[#334155]">Body</Label>
+              <textarea
+                value={editTemplateForm.bodyText}
+                onChange={(e) => setEditTemplateForm((f) => ({ ...f, bodyText: e.target.value }))}
+                rows={6}
+                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f] font-mono"
+              />
+              <p className="text-[11px] text-[#94a3b8]">Use {"{{name}}"} for member name.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTemplate(null)} disabled={savingTemplate}>Cancel</Button>
+            <Button
+              className="bg-[#00438f] hover:bg-[#003070] text-white"
+              disabled={savingTemplate || !editTemplateForm.subject.trim()}
+              onClick={() => editingTemplate && handleSaveTemplate(editingTemplate)}
+            >
+              {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Email Template Preview Dialog ── */}
+      <Dialog open={previewTemplate !== null} onOpenChange={(open) => { if (!open) setPreviewTemplate(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Template Preview</DialogTitle>
+          </DialogHeader>
+          {previewTemplate && (() => {
+            const tpl = previewTemplate === "onboarding" ? onboardingTemplate : reengagementTemplate
+            return (
+              <div className="space-y-3 py-2">
+                <div className="rounded-lg border border-[#e2e8f0] p-4 bg-[#f8fafc] space-y-1">
+                  <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wide">Subject</p>
+                  <p className="text-[14px] font-medium text-[#0f172a]">{tpl.subject}</p>
+                </div>
+                <div className="rounded-lg border border-[#e2e8f0] p-4 bg-white">
+                  <pre className="text-[13px] text-[#334155] whitespace-pre-wrap font-sans leading-relaxed">{tpl.bodyText}</pre>
+                </div>
+              </div>
+            )
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewTemplate(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

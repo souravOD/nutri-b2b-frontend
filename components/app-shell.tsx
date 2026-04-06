@@ -47,6 +47,7 @@ import {
   Building2,
   ChevronRight,
   GraduationCap,
+  HelpCircle,
   Home,
   Package,
   Search,
@@ -59,6 +60,7 @@ import {
   Megaphone,
 } from "lucide-react"
 import TopNav from "./top-nav"
+import { NpsSurvey, useNpsTrigger } from "@/components/nps-survey"
 
 // ── Nav item type with optional role / permission gating ───────────
 type NavItem = {
@@ -87,11 +89,13 @@ const mainNavItems: NavItem[] = [
   { title: "Tenant Selector", href: "/vendors", icon: Building2, roles: ["superadmin"], exact: true },
   { title: "Vendors", href: "/vendors/manage", icon: Store, roles: ["superadmin"], sectionMatch: "/vendors" },
   { title: "User Management", href: "/user-management", icon: User, permission: "manage:users" },
+  { title: "Campaigns", href: "/campaigns", icon: Megaphone, permission: "manage:settings" },
 ]
 
 const moreNavItems: NavItem[] = [
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
   { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
+  { title: "Help", href: "/help", icon: HelpCircle },
 ]
 
 // ── Helper: filter nav items based on user's role + permissions ────
@@ -128,6 +132,7 @@ export default function AppShell({ children, title }: { children: React.ReactNod
   const { vendorName } = useBrandingConfig()
   const companyName = getNameFromEmail(user?.email) ?? vendorName
   const navTitle = title ?? `${companyName} Vendor Portal`
+  const { show: showNps, dismiss: dismissNps } = useNpsTrigger()
 
   const [banners, setBanners] = useState<Banner[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -177,6 +182,7 @@ export default function AppShell({ children, title }: { children: React.ReactNod
           <div className="px-4 md:px-6 py-4">{children}</div>
           <B2BChatbot />
         </AuthGuard>
+        <NpsSurvey open={showNps} onClose={dismissNps} />
       </SidebarInset>
     </SidebarProvider>
   )

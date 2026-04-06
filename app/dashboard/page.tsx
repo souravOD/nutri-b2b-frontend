@@ -41,6 +41,7 @@ type DashboardData = {
   activationRate: number | null;
   goalAchievement: GoalMetric[];
   roi: RoiData;
+  npsScore: number | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -131,13 +132,14 @@ export default function DashboardPage() {
     activationRate: null,
     goalAchievement: [],
     roi: { budgetAdherence: null, foodWasteReduction: null, healthCostSavings: null },
+    npsScore: null,
   });
 
   React.useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes, roiRes] = await Promise.allSettled([
+        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes, roiRes, npsRes] = await Promise.allSettled([
           apiFetch("/api/v1/analytics/overview?days=30"),
           apiFetch("/api/v1/analytics/health-summary"),
           apiFetch("/api/v1/ingest/runs"),
@@ -147,6 +149,7 @@ export default function DashboardPage() {
           apiFetch("/api/v1/settings/branding.welcome_message"),
           apiFetch("/api/v1/analytics/goal-achievement?days=30"),
           apiFetch("/api/v1/analytics/roi"),
+          apiFetch("/api/v1/analytics/nps"),
         ]);
         if (!alive) return;
 
@@ -220,8 +223,14 @@ export default function DashboardPage() {
           };
         }
 
+        let npsScore: number | null = null;
+        if (npsRes.status === "fulfilled" && npsRes.value.ok) {
+          const j = await npsRes.value.json().catch(() => ({}));
+          if (typeof j.nps_score === "number") npsScore = j.nps_score;
+        }
+
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi, npsScore });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -322,9 +331,9 @@ export default function DashboardPage() {
               />
               <KpiCard
                 label="NPS Score"
-                value="—"
+                value={data.npsScore !== null ? (data.npsScore >= 0 ? `+${data.npsScore}` : String(data.npsScore)) : "—"}
                 icon={Star}
-                sub="Not yet tracked"
+                sub={data.npsScore !== null ? "Net Promoter Score" : "No responses yet"}
                 iconBg="bg-[#fef3c7]"
                 iconColor="text-[#d97706]"
               />
