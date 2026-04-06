@@ -29,6 +29,7 @@ type PopularProduct = { id: string; name: string; dietaryTags?: string[] | null 
 type IngestRun     = { status: string; totalRecordsWritten?: number; total_records_written?: number };
 
 type GoalMetric = { metric: string; achieved_pct: number };
+type RoiData = { budgetAdherence: string | null; foodWasteReduction: string | null; healthCostSavings: string | null };
 
 type DashboardData = {
   totals: OverviewTotals;
@@ -39,6 +40,7 @@ type DashboardData = {
   popularProducts: PopularProduct[];
   activationRate: number | null;
   goalAchievement: GoalMetric[];
+  roi: RoiData;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -128,13 +130,14 @@ export default function DashboardPage() {
     popularProducts: [],
     activationRate: null,
     goalAchievement: [],
+    roi: { budgetAdherence: null, foodWasteReduction: null, healthCostSavings: null },
   });
 
   React.useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes] = await Promise.allSettled([
+        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes, roiRes] = await Promise.allSettled([
           apiFetch("/api/v1/analytics/overview?days=30"),
           apiFetch("/api/v1/analytics/health-summary"),
           apiFetch("/api/v1/ingest/runs"),
@@ -143,6 +146,7 @@ export default function DashboardPage() {
           apiFetch("/api/v1/analytics/engagement?days=30"),
           apiFetch("/api/v1/settings/branding.welcome_message"),
           apiFetch("/api/v1/analytics/goal-achievement?days=30"),
+          apiFetch("/api/v1/analytics/roi"),
         ]);
         if (!alive) return;
 
@@ -206,8 +210,18 @@ export default function DashboardPage() {
           if (arr.length > 0) goalAchievement = arr;
         }
 
+        let roi: RoiData = { budgetAdherence: null, foodWasteReduction: null, healthCostSavings: null };
+        if (roiRes.status === "fulfilled" && roiRes.value.ok) {
+          const j = await roiRes.value.json().catch(() => ({}));
+          roi = {
+            budgetAdherence: j.budgetAdherence ?? null,
+            foodWasteReduction: j.foodWasteReduction ?? null,
+            healthCostSavings: j.healthCostSavings ?? null,
+          };
+        }
+
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -481,9 +495,9 @@ export default function DashboardPage() {
             <p className="text-[13px] font-bold text-white mb-5">Projected Annual ROI &amp; Cost Savings</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-white/20">
               {[
-                { label: "Budget Adherence", value: "—", desc: "Average member spending stays within projected meal plan costs." },
-                { label: "Food Waste Reduction", value: "—", desc: "Estimated monthly reduction in household food waste via planning." },
-                { label: "Health Cost Savings", value: "—", desc: "Projected preventive health savings across total member population." },
+                { label: "Budget Adherence", value: data.roi.budgetAdherence ?? "—", desc: "Average member spending stays within projected meal plan costs." },
+                { label: "Food Waste Reduction", value: data.roi.foodWasteReduction ?? "—", desc: "Estimated monthly reduction in household food waste via planning." },
+                { label: "Health Cost Savings", value: data.roi.healthCostSavings ?? "—", desc: "Projected preventive health savings across total member population." },
               ].map(({ label, value, desc }, i) => (
                 <div key={label} className={i > 0 ? "pt-4 sm:pt-0 sm:pl-6" : ""}>
                   <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-white/60">{label}</p>

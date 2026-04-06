@@ -16,11 +16,12 @@ import {
 import { getAnalyticsOverview, getHealthSummary, getEngagementAnalytics, type AnalyticsOverview, type HealthSummary, type EngagementAnalytics } from "@/lib/api-analytics"
 import { apiFetch } from "@/lib/backend"
 import Link from "next/link"
-import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight } from "lucide-react"
+import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight, FileText } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -112,6 +113,9 @@ export default function AnalyticsPage() {
   const [topRecipes, setTopRecipes] = React.useState<{
     id: string; name: string; avg_rating: number; rating_count: number; image_url?: string
   }[]>([])
+  const [retention, setRetention] = React.useState<{
+    cohort_month: string; cohort_size: number; retained_count: number; retention_pct: number
+  }[]>([])
 
   const loadRecentRuns = React.useCallback(async () => {
     try {
@@ -143,13 +147,15 @@ export default function AnalyticsPage() {
       getEngagementAnalytics(days),
       apiFetch(`/api/v1/analytics/goal-achievement?days=${days}`).then((r) => r.json()).catch(() => null),
       apiFetch("/api/v1/analytics/top-recipes?limit=10").then((r) => r.json()).catch(() => null),
+      apiFetch(`/api/v1/analytics/retention?days=${Math.min(days * 6, 365)}`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([ov, hs, eng, ga, tr]) => {
+      .then(([ov, hs, eng, ga, tr, ret]) => {
         setOverview(ov)
         setHealth(hs)
         setEngagement(eng)
         if (ga) setGoalAchievement(ga)
         if (tr?.recipes) setTopRecipes(tr.recipes)
+        if (ret?.cohorts) setRetention(ret.cohorts)
       })
       .catch((e) => setError(e?.message ?? "Failed to load analytics"))
       .finally(() => setLoading(false))
@@ -157,7 +163,7 @@ export default function AnalyticsPage() {
 
   const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
 
-  async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" = "csv") {
+  async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" | "pdf" = "csv") {
     try {
       const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}&format=${format}`)
       if (!res.ok) return
@@ -165,7 +171,8 @@ export default function AnalyticsPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `analytics-${type}-${new Date().toISOString().slice(0, 10)}.${format}`
+      const dateStr = new Date().toISOString().slice(0, 10)
+      a.download = format === "pdf" ? `analytics-report-${dateStr}.pdf` : `analytics-${type}-${dateStr}.${format}`
       a.click()
       URL.revokeObjectURL(url)
     } catch { /* silent */ }
@@ -254,6 +261,14 @@ export default function AnalyticsPage() {
                   {label}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleExport("overview", "pdf")}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <FileText className="h-3.5 w-3.5 text-[#64748b]" />
+                Full Report PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -614,6 +629,62 @@ export default function AnalyticsPage() {
                           </CardContent>
                         </Card>
                       </div>
+
+                      {/* Member Retention by Cohort */}
+                      {retention.length > 0 && (() => {
+                        const avgRetention = Math.round(retention.reduce((s, c) => s + c.retention_pct, 0) / retention.length)
+                        return (
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-base font-medium flex items-center gap-2">
+                                Member Retention by Cohort
+                                <span className="ml-auto text-xs font-normal text-[#94a3b8]">
+                                  {avgRetention}% avg retention · {retention.length} cohort{retention.length !== 1 ? "s" : ""}
+                                </span>
+                              </CardTitle>
+                              <p className="text-xs text-[#64748b]">Members grouped by join month — how many remain active today</p>
+                            </CardHeader>
+                            <CardContent>
+                              <ChartContainer
+                                config={{
+                                  cohort_size: { label: "Total Joined", color: "#bfdbfe" },
+                                  retained_count: { label: "Still Active", color: "#00438f" },
+                                }}
+                                className="h-56 w-full"
+                              >
+                                <BarChart data={retention}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                  <XAxis
+                                    dataKey="cohort_month"
+                                    tick={{ fontSize: 11 }}
+                                    tickFormatter={(v) => {
+                                      const [year, month] = String(v).split("-")
+                                      return new Date(Number(year), Number(month) - 1).toLocaleString("en-US", { month: "short", year: "2-digit" })
+                                    }}
+                                  />
+                                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                                  <ChartTooltip
+                                    content={({ active, payload, label }) => {
+                                      if (!active || !payload?.length) return null
+                                      const cohort = retention.find((c) => c.cohort_month === label)
+                                      return (
+                                        <div className="bg-white border border-[#e2e8f0] rounded-lg shadow-sm px-3 py-2 text-xs">
+                                          <p className="font-semibold text-[#0f172a] mb-1">{label}</p>
+                                          <p className="text-[#64748b]">Joined: <span className="font-medium text-[#1e293b]">{cohort?.cohort_size ?? 0}</span></p>
+                                          <p className="text-[#64748b]">Still active: <span className="font-medium text-[#1e293b]">{cohort?.retained_count ?? 0}</span></p>
+                                          <p className="text-[#00438f] font-semibold mt-1">{cohort?.retention_pct ?? 0}% retained</p>
+                                        </div>
+                                      )
+                                    }}
+                                  />
+                                  <Bar dataKey="cohort_size" fill="#bfdbfe" radius={[4, 4, 0, 0]} name="Total Joined" />
+                                  <Bar dataKey="retained_count" fill="#00438f" radius={[4, 4, 0, 0]} name="Still Active" />
+                                </BarChart>
+                              </ChartContainer>
+                            </CardContent>
+                          </Card>
+                        )
+                      })()}
                     </>
                   )
                 })()}
