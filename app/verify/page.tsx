@@ -6,6 +6,7 @@ import { account, databases } from "@/lib/appwrite"
 import { Query } from "appwrite"
 import { Button } from "@/components/ui/button"
 import AuthLayout from "@/components/auth/AuthLayout"
+import { useBrandingConfig } from "@/hooks/useBrandingConfig"
 
 const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DB_ID!
 const USERPROFILES_COL = process.env.NEXT_PUBLIC_APPWRITE_USERPROFILES_COL!
@@ -67,8 +68,12 @@ export default function VerifyPage() {
     }
   }
 
+  const branding = useBrandingConfig()
+
   return (
     <AuthLayout
+      vendorName={branding.vendorName}
+      copyrightText={branding.copyrightText}
       title={
         status === "verifying"
           ? "Completing verification…"
@@ -113,7 +118,7 @@ async function afterVerifiedRedirect(router: ReturnType<typeof useRouter>) {
       Query.limit(1),
     ])
 
-    return router.replace(profs.total > 0 ? "/dashboard" : "/login?needs_admin_attach=1")
+    return router.replace(profs.total > 0 ? "/account-created" : "/login?needs_admin_attach=1")
   } catch {
     // No session or other error — do not go to onboarding
     return router.replace("/login?vendor_match_failed=1")

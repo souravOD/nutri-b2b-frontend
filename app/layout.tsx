@@ -2,11 +2,15 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 // You can keep using your client provider directly; it's fine in a server layout
 import { AuthProvider } from "@/hooks/useAuth";
 import { Suspense } from "react";
+import BrandingApplicator from "@/components/branding-applicator";
 
 export const metadata: Metadata = {
   title: "Odyssey Nutrition B2B Console",
@@ -19,9 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       // Apply font variables from next/font here (no inline <style> injection)
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${inter.variable}`}
     >
       <body className="font-sans antialiased">
+        <BrandingApplicator />
         <AuthProvider><Suspense fallback={null}>{children}</Suspense></AuthProvider>
         <Toaster />
       </body>

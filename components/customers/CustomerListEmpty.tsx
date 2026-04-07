@@ -10,16 +10,19 @@ type Props = {
 
 export default function CustomerListEmpty({ onAddCustomer }: Props) {
   return (
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="rounded-full bg-muted p-4 mb-4">
-          <Users className="h-8 w-8 text-muted-foreground" />
+    <Card className="border-dashed border-2 border-[#e2e8f0] rounded-xl bg-[#f8fafc]">
+      <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="rounded-full bg-[#2073BD]/10 p-5 mb-6">
+          <Users className="h-10 w-10 text-[#2073BD]" />
         </div>
-        <h3 className="text-lg font-semibold mb-2">No customers found</h3>
-        <p className="text-muted-foreground mb-6 max-w-sm">
+        <h3 className="text-xl font-semibold text-[#0f172a] mb-2">No customers found</h3>
+        <p className="text-muted-foreground mb-8 max-w-md">
           Get started by adding your first customer. You can import customer data or create them individually.
         </p>
-        <Button onClick={onAddCustomer} className="gap-2">
+        <Button
+          onClick={onAddCustomer}
+          className="gap-2 bg-[#2073BD] hover:bg-[#1a5f9e] text-white"
+        >
           <Plus className="h-4 w-4" />
           Add Customer
         </Button>

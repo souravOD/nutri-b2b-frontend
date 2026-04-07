@@ -5,16 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation"
 import AuthLayout from "@/components/auth/AuthLayout"
 import LoginForm from "@/components/auth/LoginForm"
 import { account } from "@/lib/appwrite"
+import { useBrandingConfig } from "@/hooks/useBrandingConfig"
 
 export default function LoginPage() {
   const router = useRouter()
   const sp = useSearchParams()
+  const branding = useBrandingConfig()
   const blockAutoRedirect =
     !!sp.get("auth_error") ||
     sp.get("needs_admin_attach") === "1" ||
     sp.get("vendor_match_failed") === "1"
 
-  // If already logged in, go straight to dashboard (no toasts here)
   React.useEffect(() => {
     if (blockAutoRedirect) return
     let done = false
@@ -31,8 +32,10 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in to Odyssey"
-      subtitle="Enter your credentials to access the B2B console."
+      vendorName={branding.vendorName}
+      title="Sign in to B2B portal"
+      subtitle="Enter your credentials to access your account"
+      copyrightText={branding.copyrightText}
     >
       <LoginForm />
     </AuthLayout>

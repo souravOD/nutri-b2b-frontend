@@ -9,6 +9,7 @@ export type UserRole = "superadmin" | "vendor_admin" | "vendor_operator" | "vend
 type User = { $id: string; name?: string | null; email: string } | null;
 
 type AuthContextData = {
+  userId: string | null;
   role: UserRole | null;
   permissions: string[];
   vendorId: string | null;
@@ -26,7 +27,7 @@ type Ctx = {
 };
 const C = createContext<Ctx | null>(null);
 
-const EMPTY_CTX: AuthContextData = { role: null, permissions: [], vendorId: null };
+const EMPTY_CTX: AuthContextData = { userId: null, role: null, permissions: [], vendorId: null };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setAuthContext({
+          userId: data.userId ?? null,
           role: data.role ?? null,
           permissions: data.permissions ?? [],
           vendorId: data.vendorId ?? null,
@@ -100,7 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // Force JWT recache from the active Appwrite session.
     clearJWT();
-    await refresh();
+    try {
+      await refresh();
+    } catch (err) {
+      console.warn("[useAuth] refresh() failed after signIn:", err);
+    }
   };
 
   const signUp = async (name: string, email: string, password: string) => {

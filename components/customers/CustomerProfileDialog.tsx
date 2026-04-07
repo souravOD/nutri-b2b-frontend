@@ -97,23 +97,20 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
   }
 
   const header = (
-    <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/80 px-5 py-4 backdrop-blur">
+    <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[#e2e8f0] bg-white px-6 py-4">
       <div className="min-w-0">
-        <DialogTitle className="truncate text-xl font-semibold">{customer ? customer.name : loading ? "Loading..." : "Customer"}</DialogTitle>
-        <DialogDescription className="text-muted-foreground">Profile & health (no recommendations).</DialogDescription>
+        <DialogTitle className="truncate text-xl font-semibold text-[#0f172a]">Edit Customer Profile</DialogTitle>
+        <DialogDescription className="text-[#64748b] mt-0.5">
+          {customer ? `Updating health and dietary targets for ${customer.name}` : loading ? "Loading..." : "Edit profile details."}
+        </DialogDescription>
       </div>
       <div className="flex items-center gap-2">
-        {!editing ? (
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button>
-        ) : (
-          <Button size="sm" onClick={onSave} disabled={!canSave || loading}><Save className="mr-2 h-4 w-4" />Save</Button>
-        )}
-         <Button size="sm" onClick={() => setConfirmOpen(true)}
-        className="bg-red-600 hover:bg-red-600/90 text-white font-medium shadow-sm">
-            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            <span>Delete</span>
+        <Button size="sm" onClick={() => setConfirmOpen(true)}
+          className="bg-red-600 hover:bg-red-600/90 text-white font-medium shadow-sm">
+          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+          <span>Delete</span>
         </Button>
-        <DialogClose className="rounded-md p-2 hover:bg-muted" aria-label="Close">
+        <DialogClose className="rounded-md p-2 hover:bg-[#f1f5f9]" aria-label="Close">
           <X className="h-5 w-5" />
         </DialogClose>
       </div>
@@ -141,33 +138,66 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
 
     return (
       <div className="space-y-8">
-        {/* Basic fields (inline edit) */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" value={form.name} onChange={(e) => setForm(s => ({ ...s, name: e.target.value }))} disabled={!editing} placeholder="Full name" />
+        {/* Two-column layout: General Information | Health Profile per Figma */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: General Information */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">General Information</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-[#0f172a]">Full Name</Label>
+                <Input id="name" value={form.name} onChange={(e) => setForm(s => ({ ...s, name: e.target.value }))} disabled={!editing} placeholder="Full name" className="border-[#e2e8f0]" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-[#0f172a]">Email</Label>
+                <Input id="email" value={form.email} onChange={(e) => setForm(s => ({ ...s, email: e.target.value }))} disabled={!editing} placeholder="email@example.com" className="border-[#e2e8f0]" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-[#0f172a]">Phone</Label>
+                <Input id="phone" value={form.phone ?? ""} onChange={(e) => setForm(s => ({ ...s, phone: e.target.value }))} disabled={!editing} placeholder="+1..." className="border-[#e2e8f0]" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tags" className="text-[#0f172a]">Tags (comma separated)</Label>
+                <Input id="tags" value={(form.tags || []).join(", ")} onChange={(e) => setForm(s => ({ ...s, tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }))} disabled={!editing} placeholder="vip, gluten-free" className="border-[#e2e8f0]" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              {!editing ? (
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10">
+                  <Pencil className="mr-2 h-4 w-4" />Edit
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                  <Button size="sm" onClick={onSave} disabled={!canSave || loading} className="bg-[#00438f] hover:bg-[#003366] text-white">
+                    <Save className="mr-2 h-4 w-4" />Save Changes
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" value={form.email} onChange={(e) => setForm(s => ({ ...s, email: e.target.value }))} disabled={!editing} placeholder="email@example.com" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input id="phone" value={form.phone ?? ""} onChange={(e) => setForm(s => ({ ...s, phone: e.target.value }))} disabled={!editing} placeholder="+1..." />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
-            <Input id="tags" value={(form.tags || []).join(", ")} onChange={(e) => setForm(s => ({ ...s, tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }))} disabled={!editing} placeholder="vip, gluten-free" />
+
+          {/* Right: Health Profile */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">Health Profile</h3>
+            <CustomerDetailView
+              customer={customer}
+              showMatches={false}
+              showRestrictions={false}
+              showNotes={false}
+              onHealthSaved={async () => {
+                if (!id) return
+                try {
+                  const updated = await getCustomer(String(id))
+                  setCustomer(updated)
+                  onSaved?.(updated)
+                } catch {
+                  // Refetch failed; health may still have saved
+                }
+              }}
+            />
           </div>
         </div>
-
-        {/* Health/Profile view (no matches, no dietary, no notes) */}
-        <CustomerDetailView
-          customer={customer}
-          showMatches={false}
-          showRestrictions={false}
-          showNotes={false}
-        />
       </div>
     )
   })()
@@ -178,7 +208,7 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
         <DialogPortal>
           <DialogOverlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
           <DialogContent
-            className="fixed left-1/2 top-1/2 z-50 w-[min(98vw,1200px)] sm:max-w-none max-h-[92vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border bg-background shadow-2xl p-0"
+            className="fixed left-1/2 top-1/2 z-50 w-[min(98vw,1200px)] sm:max-w-none max-h-[92vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-2xl p-0"
             style={{ maxWidth: "none" }}
           >
             {header}

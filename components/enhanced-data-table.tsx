@@ -19,6 +19,7 @@ export type EnhancedTableProps<TData, TValue> = {
   selectable?: boolean
   onSelectionChange?: (rows: TData[]) => void
   className?: string
+  headerRowClassName?: string
 }
 
 export default function EnhancedDataTable<TData, TValue>({
@@ -27,6 +28,7 @@ export default function EnhancedDataTable<TData, TValue>({
   selectable = false,
   onSelectionChange = () => { },
   className,
+  headerRowClassName,
 }: EnhancedTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [sorting, setSorting] = React.useState<SortingState>([{ id: (columns[1] as any)?.id ?? "", desc: false }])
@@ -51,7 +53,7 @@ export default function EnhancedDataTable<TData, TValue>({
   return (
     <div className={cn("rounded-md border overflow-hidden", className)}>
       <Table>
-        <TableHeader className="sticky top-0 bg-background z-10">
+        <TableHeader className={cn("sticky top-0 z-10", headerRowClassName ?? "bg-background")}>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id}>
               {hg.headers.map((header) => (

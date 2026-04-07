@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
+import { ChevronRight } from "lucide-react"
 
 function validEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -21,15 +22,12 @@ function strongPassword(pw: string) {
 async function createEmailPasswordSession(email: string, password: string) {
   const a: any = account
   if (typeof a.createEmailSession === "function") {
-    // v13+
     return a.createEmailSession(email, password)
   }
   if (typeof a.createEmailPasswordSession === "function") {
-    // some newer typings
     return a.createEmailPasswordSession(email, password)
   }
   if (typeof a.createSession === "function") {
-    // older SDKs
     return a.createSession(email, password)
   }
   throw new Error("This Appwrite SDK doesn't expose an email/password session method.")
@@ -69,23 +67,24 @@ export default function RegisterEmployeeForm() {
     try {
       setWorking(true)
 
-      // 1) Create user
       await account.create(ID.unique(), email, password, fullName)
-
-      // 2) Create a session (required for createVerification)
       await createEmailPasswordSession(email, password)
-
-      // 3) Send verification email
       await (account as any).createVerification(redirectUrl)
 
       toast({ title: "Verify your email", description: "We sent you a verification link." })
-
-      // 4) Go to /verify
       router.push(`/verify?email=${encodeURIComponent(email)}`)
     } catch (err: any) {
+      const code = err?.code ?? err?.response?.code ?? err?.response?.status
+      const msg = String(err?.message ?? "").toLowerCase()
+      const is409 =
+        code === 409 ||
+        msg.includes("user_already_exists") ||
+        /already exists|already registered/i.test(err?.message ?? "")
       toast({
-        title: "Signup failed",
-        description: err?.message ?? "Could not create account",
+        title: is409 ? "Email already registered" : "Signup failed",
+        description: is409
+          ? "An account with this email already exists. Please log in instead."
+          : err?.message ?? "Could not create account",
         variant: "destructive",
       })
     } finally {
@@ -96,53 +95,122 @@ export default function RegisterEmployeeForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="fullName">Full name</Label>
-        <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        <Label htmlFor="fullName" className="font-semibold text-[#0f172a] text-sm">
+          Full name
+        </Label>
+        <Input
+          id="fullName"
+          placeholder="Enter your full name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+          className="border-[#cbd5e1] rounded-lg h-12"
+        />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">Work email</Label>
-        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <Label htmlFor="email" className="font-semibold text-[#0f172a] text-sm">
+          Work email
+        </Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="name@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="border-[#cbd5e1] rounded-lg h-12"
+        />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <div className="flex gap-2">
-          <Input
-            id="password"
-            type={showPw ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            aria-describedby="pwHelp"
-          />
-          <Button type="button" variant="outline" onClick={() => setShowPw((s) => !s)}>
-            {showPw ? "Hide" : "Show"}
-          </Button>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password" className="font-semibold text-[#0f172a] text-sm">
+            Password
+          </Label>
+          <button
+            type="button"
+            onClick={() => setShowPw((s) => !s)}
+            className="text-[12px] font-bold text-[#0067a0] tracking-[0.6px] uppercase hover:underline"
+          >
+            {showPw ? "HIDE" : "SHOW"}
+          </button>
         </div>
-        <p id="pwHelp" className="text-xs text-muted-foreground">
-          12+ chars incl. upper, lower, number & symbol.
+        <Input
+          id="password"
+          type={showPw ? "text" : "password"}
+          placeholder="Create a strong password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          aria-describedby="pwHelp"
+          className="border-[#cbd5e1] rounded-lg h-12"
+        />
+        <p id="pwHelp" className="text-[12px] text-[#64748b] pt-1">
+          Must be at least 12 characters long.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Checkbox id="terms" checked={acceptTerms} onCheckedChange={(v) => setAcceptTerms(Boolean(v))} />
-          <Label htmlFor="terms">I agree to the <a className="underline" href="/terms" target="_blank">Terms</a></Label>
+      <div className="space-y-3 pt-2">
+        <div className="flex gap-3 items-start">
+          <Checkbox
+            id="terms"
+            checked={acceptTerms}
+            onCheckedChange={(v) => setAcceptTerms(Boolean(v))}
+            className="rounded border-[#cbd5e1] mt-1"
+          />
+          <Label htmlFor="terms" className="font-normal text-[14px] text-[#475569] cursor-pointer leading-[17.5px]">
+            I agree to the{" "}
+            <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+              Privacy Policy
+            </a>
+            .
+          </Label>
         </div>
-        <div className="flex items-center gap-2">
-          <Checkbox id="dpa" checked={acceptDpa} onCheckedChange={(v) => setAcceptDpa(Boolean(v))} />
-          <Label htmlFor="dpa">I agree to the <a className="underline" href="/dpa" target="_blank">DPA</a></Label>
+        <div className="flex gap-3 items-start">
+          <Checkbox
+            id="dpa"
+            checked={acceptDpa}
+            onCheckedChange={(v) => setAcceptDpa(Boolean(v))}
+            className="rounded border-[#cbd5e1] mt-1"
+          />
+          <Label htmlFor="dpa" className="font-normal text-[14px] text-[#475569] cursor-pointer leading-[17.5px]">
+            I agree to the{" "}
+            <a href="/dpa" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+              Data Processing Agreement (DPA)
+            </a>
+            .
+          </Label>
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={working}>
-        {working ? "Creating account…" : "Create account"}
+      <Button
+        type="submit"
+        className="w-full h-12 rounded-lg bg-[#00438f] hover:bg-[#003366] text-white font-bold text-base shadow-sm"
+        disabled={working}
+      >
+        {working ? (
+          "Creating account…"
+        ) : (
+          <span className="inline-flex items-center gap-2">
+            Create account
+            <ChevronRight className="h-4 w-4" />
+          </span>
+        )}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
-        Already have an account? <Link href="/login" className="underline underline-offset-4">Log in</Link>
-      </p>
+      <div className="border-t border-[#f1f5f9] pt-6">
+        <p className="text-center text-sm text-[#475569]">
+          Already have an account?{" "}
+          <Link href="/login" className="font-bold text-[#0067a0] hover:underline">
+            Log in
+          </Link>
+        </p>
+      </div>
     </form>
   )
 }

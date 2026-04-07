@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import { apiFetch } from "@/lib/backend"
+import { formatDistanceToNow } from "date-fns"
 
 interface NotificationPanelProps {
   children: React.ReactNode
@@ -14,57 +17,79 @@ interface NotificationPanelProps {
   onOpenChange: (open: boolean) => void
 }
 
-const mockNotifications = [
-  {
-    id: "1",
-    title: "Import job completed",
-    description: "Product import finished with 245 items processed",
-    timestamp: "2 minutes ago",
-    type: "success",
-    unread: true,
-    icon: CheckCircle,
-  },
-  {
-    id: "2",
-    title: "New customer match",
-    description: "Found 12 new product matches for Jane Smith",
-    timestamp: "15 minutes ago",
-    type: "info",
-    unread: true,
-    icon: Users,
-  },
-  {
-    id: "3",
-    title: "Compliance alert",
-    description: "Product ABC123 missing allergen information",
-    timestamp: "1 hour ago",
-    type: "warning",
-    unread: false,
-    icon: AlertTriangle,
-  },
-  {
-    id: "4",
-    title: "Inventory update",
-    description: "15 products updated from supplier feed",
-    timestamp: "3 hours ago",
-    type: "info",
-    unread: false,
-    icon: Package,
-  },
-]
+interface Alert {
+  id: string
+  type: "quality" | "compliance" | "ingestion" | "match" | "system"
+  priority: "high" | "medium" | "low"
+  title: string
+  description: string | null
+  status: "unread" | "read" | "dismissed"
+  created_at: string
+}
+
+interface DisplayNotification {
+  id: string
+  title: string
+  description: string
+  timestamp: string
+  type: string
+  unread: boolean
+  icon: React.ElementType
+}
+
+function alertToNotification(a: Alert): DisplayNotification {
+  let icon: React.ElementType = Bell
+  let type = "info"
+
+  if (a.type === "compliance" || a.type === "quality") {
+    icon = AlertTriangle
+    type = "warning"
+  } else if (a.type === "ingestion") {
+    icon = Package
+  } else if (a.type === "match") {
+    icon = Users
+    type = "success"
+  }
+  if (a.priority === "high") type = "warning"
+
+  return {
+    id: a.id,
+    title: a.title,
+    description: a.description ?? "",
+    timestamp: formatDistanceToNow(new Date(a.created_at), { addSuffix: true }),
+    type,
+    unread: a.status === "unread",
+    icon,
+  }
+}
 
 export default function NotificationPanel({ children, open, onOpenChange }: NotificationPanelProps) {
-  const [notifications, setNotifications] = React.useState(mockNotifications)
+  const [notifications, setNotifications] = React.useState<DisplayNotification[]>([])
+  const [loading, setLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    apiFetch("/api/alerts?limit=20")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.data) setNotifications((d.data as Alert[]).map(alertToNotification))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [open])
 
   const unreadCount = notifications.filter((n) => n.unread).length
   const unreadNotifications = notifications.filter((n) => n.unread)
 
   const markAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+    apiFetch(`/api/alerts/${id}`, { method: "PATCH", body: JSON.stringify({ status: "read" }) }).catch(() => {})
   }
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))
+    apiFetch("/api/alerts/mark-all-read", { method: "POST" }).catch(() => {})
   }
 
   return (
@@ -95,7 +120,13 @@ export default function NotificationPanel({ children, open, onOpenChange }: Noti
 
           <TabsContent value="unread" className="mt-0">
             <ScrollArea className="h-80">
-              {unreadNotifications.length === 0 ? (
+              {loading ? (
+                <div className="space-y-2 p-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : unreadNotifications.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>No unread notifications</p>
@@ -112,11 +143,24 @@ export default function NotificationPanel({ children, open, onOpenChange }: Noti
 
           <TabsContent value="all" className="mt-0">
             <ScrollArea className="h-80">
-              <div className="space-y-1 p-2">
-                {notifications.map((notification) => (
-                  <NotificationItem key={notification.id} notification={notification} onMarkRead={markAsRead} />
-                ))}
-              </div>
+              {loading ? (
+                <div className="space-y-2 p-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No notifications</p>
+                </div>
+              ) : (
+                <div className="space-y-1 p-2">
+                  {notifications.map((notification) => (
+                    <NotificationItem key={notification.id} notification={notification} onMarkRead={markAsRead} />
+                  ))}
+                </div>
+              )}
             </ScrollArea>
           </TabsContent>
         </Tabs>
@@ -129,7 +173,7 @@ function NotificationItem({
   notification,
   onMarkRead,
 }: {
-  notification: (typeof mockNotifications)[0]
+  notification: DisplayNotification
   onMarkRead: (id: string) => void
 }) {
   const Icon = notification.icon

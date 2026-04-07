@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import { apiFetch } from "@/lib/backend";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,8 +35,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useToast } from "@/components/ui/use-toast";
-import { Users, UserPlus, Shield, Mail, Crown, ChevronDown, ChevronUp, Pencil, Building2 } from "lucide-react";
+import { Users, UserPlus, Shield, Mail, Crown, ChevronDown, ChevronUp, Pencil, Building2, Search, Filter, Send } from "lucide-react";
 
 type VendorOption = {
     id: string;
@@ -68,6 +77,29 @@ const ROLE_VARIANT: Record<string, "default" | "secondary" | "outline" | "destru
     superadmin: "destructive",
 };
 
+function getInitials(user: UserLink): string {
+    if (user.displayName && user.displayName.trim()) {
+        const parts = user.displayName.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+    const email = user.email || "";
+    const local = email.split("@")[0] || "";
+    if (local.length >= 2) return local.slice(0, 2).toUpperCase();
+    return (local[0] || "?").toUpperCase();
+}
+
+function getRoleBadgeClassName(role: string): string {
+    switch (role) {
+        case "vendor_admin":
+            return "bg-[#dbeafe] border border-[#bfdbfe] text-[#1d4ed8]";
+        case "superadmin":
+            return "bg-amber-100 border border-amber-300 text-amber-800";
+        default:
+            return "bg-[#f1f5f9] border border-[#e2e8f0] text-[#475569]";
+    }
+}
+
 export default function UserManagementPage() {
     const { authContext } = useAuth();
     const isSuperadmin = authContext.role === "superadmin";
@@ -77,6 +109,7 @@ export default function UserManagementPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [actionLoading, setActionLoading] = React.useState<string | null>(null);
+    const [memberSearch, setMemberSearch] = React.useState("");
 
     // Invite dialog state
     const [inviteOpen, setInviteOpen] = React.useState(false);
@@ -300,51 +333,93 @@ export default function UserManagementPage() {
         }
     }
 
+    const filteredUsers = React.useMemo(() => {
+        const q = memberSearch.trim().toLowerCase();
+        if (!q) return users;
+        return users.filter(
+            (u) =>
+                (u.displayName || "").toLowerCase().includes(q) ||
+                (u.email || "").toLowerCase().includes(q)
+        );
+    }, [users, memberSearch]);
+
     return (
         <AppShell title="User Management">
-            <div className="p-6 space-y-6">
+            <div className="p-10 space-y-8 bg-[#f8fafc] min-h-screen">
+                <Breadcrumb>
+                    <BreadcrumbList className="text-[#64748b]">
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Link href="/dashboard">Portal</Link>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Link href="/user-management">User Management</Link>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        {inviteOpen && (
+                            <>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <BreadcrumbPage>Invite User</BreadcrumbPage>
+                                </BreadcrumbItem>
+                            </>
+                        )}
+                    </BreadcrumbList>
+                </Breadcrumb>
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-                        <p className="text-muted-foreground">Manage team members, roles, and permissions</p>
+                        <h1 className="text-[24px] font-bold text-[#0f172a]">User Management</h1>
+                        <p className="text-[16px] text-[#475569]">Manage team members, roles, and permissions</p>
                     </div>
-                    <Button className="gap-2" onClick={openInviteDialog}>
+                    <Button
+                        className="gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold rounded-[8px] px-5 py-[10px]"
+                        onClick={openInviteDialog}
+                    >
                         <UserPlus className="h-4 w-4" />
                         Invite User
                     </Button>
                 </div>
 
                 {/* Summary cards */}
-                <div className="grid gap-4 md:grid-cols-3">
-                    <Card>
+                <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-[14px] font-medium text-[#64748b]">Total Users</CardTitle>
+                            <div className="flex size-[40px] items-center justify-center rounded-[8px] bg-[rgba(0,67,143,0.1)]">
+                                <Users className="h-4 w-4 text-[#00438f]" />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{users.length}</div>
+                            <div className="text-[30px] font-bold text-[#0f172a]">{users.length}</div>
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Admins</CardTitle>
-                            <Shield className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-[14px] font-medium text-[#64748b]">Admins</CardTitle>
+                            <div className="flex size-[40px] items-center justify-center rounded-[8px] bg-[#e0e7ff]">
+                                <Shield className="h-4 w-4 text-[#4f46e5]" />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
+                            <div className="text-[30px] font-bold text-[#0f172a]">
                                 {users.filter((u) => u.role === "vendor_admin" || u.role === "superadmin").length}
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Active</CardTitle>
-                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-[14px] font-medium text-[#64748b]">Active</CardTitle>
+                            <div className="flex size-[40px] items-center justify-center rounded-[8px] bg-[#d1fae5]">
+                                <Mail className="h-4 w-4 text-[#059669]" />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
+                            <div className="text-[30px] font-bold text-[#0f172a]">
                                 {users.filter((u) => u.status === "active").length}
                             </div>
                         </CardContent>
@@ -352,12 +427,31 @@ export default function UserManagementPage() {
                 </div>
 
                 {/* Users table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Team Members</CardTitle>
-                        <CardDescription>
-                            All users associated with your vendor account
-                        </CardDescription>
+                <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                    <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Team Members</CardTitle>
+                                <CardDescription className="text-[14px] text-[#64748b]">
+                                    All users associated with your vendor account
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="relative w-[256px] max-w-full">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748b]" />
+                                    <Input
+                                        placeholder="Search members..."
+                                        value={memberSearch}
+                                        onChange={(e) => setMemberSearch(e.target.value)}
+                                        className="h-[42px] w-full max-w-[256px] rounded-[8px] border-[#e2e8f0] bg-[#f8fafc] pl-9"
+                                    />
+                                </div>
+                                <Button variant="outline" className="border-[#e2e8f0] rounded-[8px]">
+                                    <Filter className="h-4 w-4 mr-2" />
+                                    Filter
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {loading && (
@@ -382,22 +476,30 @@ export default function UserManagementPage() {
                         {!loading && !error && users.length > 0 && (
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>User</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Joined</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                    <TableRow className="bg-[#f8fafc] hover:bg-[#f8fafc]">
+                                        <TableHead className="text-[10px] uppercase text-[#64748b] font-semibold">User</TableHead>
+                                        <TableHead className="text-[10px] uppercase text-[#64748b] font-semibold">Role</TableHead>
+                                        <TableHead className="text-[10px] uppercase text-[#64748b] font-semibold">Status</TableHead>
+                                        <TableHead className="text-[10px] uppercase text-[#64748b] font-semibold">Joined</TableHead>
+                                        <TableHead className="text-right text-[10px] uppercase text-[#64748b] font-semibold">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {users.map((user) => (
-                                        <TableRow key={user.userId}>
+                                    {filteredUsers.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                                                No members match your search
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        <>
+                                            {filteredUsers.map((user) => (
+                                                <TableRow key={user.userId}>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    {user.role === "superadmin" && (
-                                                        <Crown className="h-4 w-4 text-amber-500 shrink-0" />
-                                                    )}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex size-[40px] shrink-0 items-center justify-center rounded-full bg-[#f1f5f9] text-sm font-medium text-[#475569]">
+                                                        {getInitials(user)}
+                                                    </div>
                                                     <div>
                                                         <p className="font-medium">{user.displayName || user.email}</p>
                                                         <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -405,18 +507,25 @@ export default function UserManagementPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={ROLE_VARIANT[user.role] ?? "outline"}>
+                                                <Badge className={getRoleBadgeClassName(user.role)} variant="outline">
                                                     {ROLE_LABELS[user.role] ?? user.role}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge
-                                                    variant={user.status === "active" ? "default" : "secondary"}
-                                                    className={user.status === "invited" ? "bg-amber-100 text-amber-700 border-amber-300" : ""}
-                                                >
-                                                    {user.status === "invited" && <Mail className="h-3 w-3 mr-1" />}
-                                                    {user.status}
-                                                </Badge>
+                                                {user.status === "active" ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="size-2 rounded-full bg-[#10b981]" />
+                                                        <span className="text-[#059669] capitalize">{user.status}</span>
+                                                    </div>
+                                                ) : (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={user.status === "invited" ? "bg-amber-100 text-amber-700 border-amber-300" : ""}
+                                                    >
+                                                        {user.status === "invited" && <Mail className="h-3 w-3 mr-1" />}
+                                                        {user.status}
+                                                    </Badge>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {user.linkedAt
@@ -465,7 +574,9 @@ export default function UserManagementPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                            ))}
+                                        </>
+                                    )}
                                 </TableBody>
                             </Table>
                         )}
@@ -519,18 +630,26 @@ export default function UserManagementPage() {
 
             {/* ── Invite User Dialog ────────────────────────────── */}
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Invite User</DialogTitle>
-                        <DialogDescription>
-                            Send an invitation to a new team member. They will receive an email with a link to join.
+                <DialogContent
+                    className="sm:max-w-[520px] p-0 gap-0 overflow-hidden"
+                    overlayClassName="backdrop-blur-[2px] bg-[rgba(15,23,42,0.6)]"
+                >
+                    <DialogHeader className="px-8 pt-8 pb-4">
+                        <DialogTitle className="text-[24px] font-bold text-[#0f172a] leading-8 tracking-[-0.6px]">
+                            Invite User
+                        </DialogTitle>
+                        <DialogDescription className="text-[14px] text-[#64748b] leading-[22.75px]">
+                            Send an invitation to a new team member. They will receive an email
+                            with a link to join.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
+                    <div className="space-y-5 px-8 py-4">
                         {/* Email */}
-                        <div className="space-y-2">
-                            <Label htmlFor="inv-email">Email address</Label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="inv-email" className="text-[14px] font-semibold text-[#334155]">
+                                Email Address
+                            </Label>
                             <Input
                                 id="inv-email"
                                 type="email"
@@ -539,14 +658,17 @@ export default function UserManagementPage() {
                                 onChange={(e) => setInvEmail(e.target.value)}
                                 disabled={invSubmitting}
                                 autoFocus
+                                className="bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] h-[46px] px-4 py-3"
                             />
                         </div>
 
                         {/* Role */}
-                        <div className="space-y-2">
-                            <Label htmlFor="inv-role">Role</Label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="inv-role" className="text-[14px] font-semibold text-[#334155]">
+                                Role
+                            </Label>
                             <Select value={invRole} onValueChange={setInvRole} disabled={invSubmitting}>
-                                <SelectTrigger id="inv-role">
+                                <SelectTrigger id="inv-role" className="w-full bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] h-[46px]">
                                     <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -559,12 +681,14 @@ export default function UserManagementPage() {
 
                         {/* Vendor (superadmin only) */}
                         {isSuperadmin && (
-                            <div className="space-y-2">
-                                <Label htmlFor="inv-vendor">Vendor</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="inv-vendor" className="text-[14px] font-semibold text-[#334155]">
+                                    Vendor (optional)
+                                </Label>
                                 <Select value={invVendorId} onValueChange={setInvVendorId} disabled={invSubmitting || vendorsLoading}>
-                                    <SelectTrigger id="inv-vendor">
+                                    <SelectTrigger id="inv-vendor" className="w-full bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] h-[46px]">
                                         <div className="flex items-center gap-2">
-                                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                                            <Building2 className="h-4 w-4 text-[#64748b]" />
                                             <SelectValue placeholder={vendorsLoading ? "Loading vendors…" : "Select a vendor (optional)"} />
                                         </div>
                                     </SelectTrigger>
@@ -576,23 +700,24 @@ export default function UserManagementPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-[#64748b]">
                                     Leave empty to invite to your current vendor.
                                 </p>
                             </div>
                         )}
                         {/* Message (optional) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="inv-message">
-                                Message <span className="text-muted-foreground font-normal">(optional)</span>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="inv-message" className="text-[14px] font-semibold text-[#334155]">
+                                Message (optional)
                             </Label>
                             <Textarea
                                 id="inv-message"
-                                placeholder="Hey, join our vendor team…"
+                                placeholder="Hey, join our vendor team..."
                                 value={invMessage}
                                 onChange={(e) => setInvMessage(e.target.value)}
                                 disabled={invSubmitting}
                                 rows={3}
+                                className="bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] resize-none"
                             />
                         </div>
 
@@ -602,12 +727,12 @@ export default function UserManagementPage() {
                         )}
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={invSubmitting}>
+                    <DialogFooter className="bg-[#f8fafc] px-8 py-6 gap-3 border-t border-[#e2e8f0]">
+                        <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={invSubmitting} className="font-bold text-[#475569]">
                             Cancel
                         </Button>
-                        <Button onClick={handleInvite} disabled={invSubmitting} className="gap-2">
-                            <Mail className="h-4 w-4" />
+                        <Button onClick={handleInvite} disabled={invSubmitting} className="gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold shadow-[0px_10px_15px_-3px_rgba(0,67,143,0.2),0px_4px_6px_-4px_rgba(0,67,143,0.2)]">
+                            <Send className="h-4 w-4" />
                             {invSubmitting ? "Sending…" : "Send Invitation"}
                         </Button>
                     </DialogFooter>

@@ -107,7 +107,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
   const FiltersContent = () => (
     <div className="space-y-6">
       <div>
-        <Label className="text-sm font-medium">Status</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Status</Label>
         <Select value={filters.status} onValueChange={(value) => updateFilter("status", value)}>
           <SelectTrigger className="mt-1">
             <SelectValue />
@@ -121,7 +121,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       </div>
 
       <div>
-        <Label className="text-sm font-medium">Categories</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Categories</Label>
         <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
           {categories.map((category) => (
             <div key={category} className="flex items-center space-x-2">
@@ -130,7 +130,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
                 checked={filters.categories.includes(category)}
                 onCheckedChange={() => toggleArrayFilter("categories", category)}
               />
-              <Label htmlFor={`category-${category}`} className="text-sm">
+              <Label htmlFor={`category-${category}`} className="text-sm text-[#0f172a]">
                 {category}
               </Label>
             </div>
@@ -139,7 +139,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       </div>
 
       <div>
-        <Label className="text-sm font-medium">Brands</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Brands</Label>
         <div className="mt-2 space-y-2 max-h-32 overflow-y-auto">
           {brands.slice(0, 10).map((brand) => (
             <div key={brand} className="flex items-center space-x-2">
@@ -148,7 +148,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
                 checked={filters.brands.includes(brand)}
                 onCheckedChange={() => toggleArrayFilter("brands", brand)}
               />
-              <Label htmlFor={`brand-${brand}`} className="text-sm">
+              <Label htmlFor={`brand-${brand}`} className="text-sm text-[#0f172a]">
                 {brand}
               </Label>
             </div>
@@ -157,7 +157,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       </div>
 
       <div>
-        <Label className="text-sm font-medium">Diets</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Diets</Label>
         <div className="mt-2 space-y-2">
           {diets.map((diet) => (
             <div key={diet} className="flex items-center space-x-2">
@@ -166,7 +166,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
                 checked={filters.diets.includes(diet)}
                 onCheckedChange={() => toggleArrayFilter("diets", diet)}
               />
-              <Label htmlFor={`diet-${diet}`} className="text-sm">
+              <Label htmlFor={`diet-${diet}`} className="text-sm text-[#0f172a]">
                 {diet}
               </Label>
             </div>
@@ -177,7 +177,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       <Separator />
 
       <div>
-        <Label className="text-sm font-medium">Missing Data</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Missing Data</Label>
         <div className="mt-2 space-y-2">
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -185,7 +185,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
               checked={filters.missingImage}
               onCheckedChange={(checked) => updateFilter("missingImage", checked)}
             />
-            <Label htmlFor="missing-image" className="text-sm">
+            <Label htmlFor="missing-image" className="text-sm text-[#0f172a]">
               Missing Image
             </Label>
           </div>
@@ -195,7 +195,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
               checked={filters.missingNutrition}
               onCheckedChange={(checked) => updateFilter("missingNutrition", checked)}
             />
-            <Label htmlFor="missing-nutrition" className="text-sm">
+            <Label htmlFor="missing-nutrition" className="text-sm text-[#0f172a]">
               Missing Nutrition
             </Label>
           </div>
@@ -205,7 +205,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
               checked={filters.missingBarcode}
               onCheckedChange={(checked) => updateFilter("missingBarcode", checked)}
             />
-            <Label htmlFor="missing-barcode" className="text-sm">
+            <Label htmlFor="missing-barcode" className="text-sm text-[#0f172a]">
               Missing Barcode
             </Label>
           </div>
@@ -213,7 +213,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       </div>
 
       <div>
-        <Label className="text-sm font-medium">Nutrition Bounds</Label>
+        <Label className="text-sm font-medium text-[#0f172a]">Nutrition Bounds</Label>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
             <Label htmlFor="protein-min" className="text-xs text-muted-foreground">
@@ -271,7 +271,11 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
       </div>
 
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onClear} className="flex-1 bg-transparent">
+        <Button
+          variant="outline"
+          onClick={onClear}
+          className="flex-1 bg-transparent border-[#e2e8f0] text-[#0f172a] hover:bg-[#f8fafc]"
+        >
           Clear All
         </Button>
       </div>
@@ -284,20 +288,23 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
     return (
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline" className="relative bg-transparent">
+          <Button
+            variant="outline"
+            className="relative bg-white border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc]"
+          >
             <Filter className="h-4 w-4 mr-2" />
             Filters
             {activeCount > 0 && (
               <Badge
                 variant="secondary"
-                className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#00438f] text-white"
               >
                 {activeCount}
               </Badge>
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto border-[#e2e8f0]">
           <SheetHeader>
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
@@ -312,20 +319,26 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="relative bg-transparent">
+        <Button
+          variant="outline"
+          className="relative bg-white border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc]"
+        >
           <Filter className="h-4 w-4 mr-2" />
           Filters
           {activeCount > 0 && (
             <Badge
               variant="secondary"
-              className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#00438f] text-white"
             >
               {activeCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 max-h-96 overflow-y-auto" align="start">
+      <PopoverContent
+        className="w-80 max-h-96 overflow-y-auto rounded-xl border-[#e2e8f0]"
+        align="start"
+      >
         <FiltersContent />
       </PopoverContent>
     </Popover>

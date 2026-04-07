@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
@@ -8,11 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Package, Users, Briefcase, Filter, X } from "lucide-react"
+import { Search, Package, Users, Briefcase, X, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/backend"
+// TODO: Uncomment when db:push is run to create user_searches table
+// import { saveRecentSearch } from "@/lib/api-search"
+import SearchLandingView from "@/components/search/SearchLandingView"
 
 type Product = {
   id: string
@@ -327,6 +334,27 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false)
   const debouncedQ = useDebounced(query, 350);
 
+  // RAG search suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const debouncedSuggestQ = useDebounced(query, 400)
+  useEffect(() => {
+    if (debouncedSuggestQ.length < 3 || activeTab !== "products") {
+      setSuggestions([])
+      return
+    }
+    let cancelled = false
+    apiFetch(`/api/v1/search/suggestions?q=${encodeURIComponent(debouncedSuggestQ)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) {
+          const s = data?.suggestions ?? data?.entities_found ?? []
+          setSuggestions(Array.isArray(s) ? s.slice(0, 5) : [])
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [debouncedSuggestQ, activeTab])
+
   // Filters state
   const [productFilters, setProductFilters] = useState({
     status: "all",
@@ -344,6 +372,9 @@ export default function SearchPage() {
     status: "all",
     type: "all",
   })
+
+  const PAGE_SIZE = 20
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Data state with safe defaults
   const [products, setProducts] = useState<Product[]>([])
@@ -376,11 +407,13 @@ export default function SearchPage() {
   load();
 }, []);
 
-  // Update URL when query changes
+  // Update URL when query changes; save non-empty queries to search history
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
     if (query) {
       params.set("q", query)
+      // TODO: Uncomment when db:push is run to create user_searches table
+      // saveRecentSearch(query) // fire-and-forget
     } else {
       params.delete("q")
     }
@@ -528,6 +561,32 @@ export default function SearchPage() {
     })
   }, [jobs, query, jobFilters])
 
+  // Paginated results (client-side)
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredProducts.slice(start, start + PAGE_SIZE)
+  }, [filteredProducts, currentPage])
+
+  const paginatedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredCustomers.slice(start, start + PAGE_SIZE)
+  }, [filteredCustomers, currentPage])
+
+  const paginatedJobs = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredJobs.slice(start, start + PAGE_SIZE)
+  }, [filteredJobs, currentPage])
+
+  const totalPages = useMemo(() => {
+    const total = activeTab === "products" ? filteredProducts.length : activeTab === "customers" ? filteredCustomers.length : filteredJobs.length
+    return Math.max(1, Math.ceil(total / PAGE_SIZE))
+  }, [activeTab, filteredProducts, filteredCustomers, filteredJobs])
+
+  // Reset to page 1 when filters or tab change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, productFilters, customerFilters, jobFilters, query])
+
   // Get unique values for filters with safe array operations
   const getUniqueCategories = () => {
     if (!Array.isArray(products)) return []
@@ -581,38 +640,72 @@ export default function SearchPage() {
     }))
   }
 
+  // Landing state: no query typed — show discovery page
+  const isLanding = !query.trim()
+  if (isLanding) {
+    return (
+      <AppShell title="Search" subtitle="Discover products, customers & vendors">
+        <SearchLandingView
+          onSearch={(q) => {
+            setQuery(q)
+            router.push(`/search?q=${encodeURIComponent(q)}`)
+          }}
+        />
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell title="Search">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-2">
-          <Search className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Search</h1>
+      <div className="container mx-auto px-8 md:px-[32px] pt-6 pb-10 space-y-4 bg-[#f5f7f8] min-h-screen">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-[12px]">
+          <Link href="/dashboard" className="font-medium text-[#64748b] hover:text-[#0f172a]">
+            Portal
+          </Link>
+          <span className="text-[#64748b]">/</span>
+          <span className="font-medium text-[#0f172a]">Search</span>
+        </nav>
+
+        {/* Page Title */}
+        <h1 className="text-[36px] font-extrabold text-[#0f172a] leading-10">Search</h1>
+
+        {/* Search Input - Figma: pt-16 pb-24 around input */}
+        <div className="relative pt-4 pb-2">
+          <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#6b7280]" />
+          <Input
+            id="search-input"
+            placeholder="Search products, customers, jobs... (Press '/' to focus)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-[56px] pl-12 bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] text-[18px] placeholder:text-[#6b7280]"
+          />
         </div>
 
-        {/* Search Input */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="search-input"
-                placeholder="Search products, customers, jobs... (Press '/' to focus)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* RAG Search Suggestions */}
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2 pb-4">
+            <span className="text-xs text-[#94a3b8] self-center">Try:</span>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => setQuery(typeof s === "string" ? s : (s as any).text ?? String(s))}
+                className="px-3 py-1 rounded-full text-xs font-medium bg-[#f1f5f9] text-[#00438f] border border-[#e2e8f0] hover:bg-[#00438f]/10 transition-colors"
+              >
+                {typeof s === "string" ? s : (s as any).text ?? String(s)}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Active Filters */}
         {hasActiveFilters() && (
-          <Card>
+          <Card className="bg-white border-[#e2e8f0] rounded-[12px]">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex flex-wrap gap-2">
                   {productFilters.status !== "all" && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
+                    <Badge variant="secondary" className="flex items-center gap-1 bg-[#f1f5f9] text-[#334155] border-[#e2e8f0]">
                       Status: {productFilters.status}
                       <button
                         onClick={() => setProductFilters((prev) => ({ ...prev, status: "all" }))}
@@ -717,86 +810,104 @@ export default function SearchPage() {
         )}
 
         {/* Results Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="products" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Products ({filteredProducts.length})
-            </TabsTrigger>
-            <TabsTrigger value="customers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Customers ({filteredCustomers.length})
-            </TabsTrigger>
-            <TabsTrigger value="jobs" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Jobs ({filteredJobs.length})
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setCurrentPage(1) }}>
+          <div className="border-b border-[#e2e8f0]">
+            <TabsList className="h-auto p-0 bg-transparent border-0 flex gap-0">
+              <TabsTrigger
+                value="products"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+              >
+                Products
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "products" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                  {filteredProducts.length.toLocaleString()}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="customers"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+              >
+                Customers
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "customers" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                  {filteredCustomers.length.toLocaleString()}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="jobs"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+              >
+                Jobs
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "jobs" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                  {filteredJobs.length.toLocaleString()}
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Products Tab */}
-          <TabsContent value="products" className="space-y-4">
-            {/* Product Filters */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Filter className="h-4 w-4" />
-                  <span className="font-medium">Product Filters</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Select
-                    value={productFilters.status}
-                    onValueChange={(value) => setProductFilters((prev) => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={productFilters.category}
-                    onValueChange={(value) => setProductFilters((prev) => ({ ...prev, category: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {getUniqueCategories().map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value=""
-                    onValueChange={(value) => {
-                      if (value && !productFilters.tags.includes(value)) {
-                        setProductFilters((prev) => ({ ...prev, tags: [...prev.tags, value] }))
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Add Tag Filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getUniqueProductTags().map((tag) => (
-                        <SelectItem key={tag} value={tag}>
-                          {tag}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="products" className="space-y-4 mt-0">
+            {/* Product Filters - Inline */}
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
+              <Select
+                value={productFilters.status}
+                onValueChange={(value) => setProductFilters((prev) => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[123px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={productFilters.category}
+                onValueChange={(value) => setProductFilters((prev) => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[151px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {getUniqueCategories().map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] hover:bg-[#e2e8f0]">
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    Add Tag Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-2">
+                  {(() => {
+                    const tags = getUniqueProductTags()
+                    const unadded = tags.filter((t) => !productFilters.tags.includes(t))
+                    if (tags.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">No tags in current results</p>
+                    if (unadded.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">All tags added</p>
+                    return (
+                      <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
+                        {unadded.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="text-left text-[14px] px-3 py-2 rounded-[6px] hover:bg-[#f1f5f9] text-[#0f172a]"
+                            onClick={() => setProductFilters((prev) => ({ ...prev, tags: [...prev.tags, tag] }))}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </PopoverContent>
+              </Popover>
+            </div>
 
             {/* Products Results */}
             {isLoading ? (
@@ -817,7 +928,7 @@ export default function SearchPage() {
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
-              <Card>
+              <Card className="bg-white border-[#e2e8f0] rounded-[12px]">
                 <CardContent className="p-8 text-center">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No products found</h3>
@@ -828,171 +939,131 @@ export default function SearchPage() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredProducts.map((product) => (
-                  <Card key={product.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={product.image || "/placeholder.svg?height=64&width=64&query=product"}
-                          alt={product.name || "Product"}
-                          className="h-16 w-16 rounded object-cover"
-                        />
-                        <div className="flex-1 space-y-2">
-                          <h3 className="font-semibold text-lg">{product.name || "Unnamed Product"}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>SKU: {product.sku || "No SKU"}</span>
-                            <span>•</span>
-                            <span>{product.brand || "No Brand"}</span>
-                            <span>•</span>
-                            <span>{product.category || "No Category"}</span>
+                {paginatedProducts.map((product) => (
+                  <Link key={product.id} href={`/products/${product.id}`}>
+                    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[25px] hover:shadow-md transition-shadow cursor-pointer">
+                      <CardContent className="p-0">
+                        <div className="flex gap-6">
+                          <div className="size-[128px] rounded-[8px] bg-[#f1f5f9] border border-[#e2e8f0] shrink-0 overflow-hidden flex items-center justify-center">
+                            <img
+                              src={product.image || "/placeholder.svg?height=128&width=128&query=product"}
+                              alt={product.name || "Product"}
+                              className="size-full object-cover"
+                            />
                           </div>
-                          {/* Package / Serving meta */}
-                          {(product.packageWeight || product.servingSize) && (
-                            <div className="text-sm text-muted-foreground">
-                              {product.packageWeight && <span>Package: {product.packageWeight}</span>}
-                              {product.packageWeight && product.servingSize && <span> • </span>}
-                              {product.servingSize && (
-                                <span>
-                                  Serving: {product.servingSize}
-                                  {product.servingsPerContainer ? ` × ${product.servingsPerContainer}/pkg` : ""}
-                                </span>
-                              )}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h3 className="text-[20px] font-bold text-[#0f172a] leading-7">{product.name || "Unnamed Product"}</h3>
+                                <div className="text-[14px] text-[#64748b]">
+                                  SKU: {product.sku || "No SKU"} • {product.brand || "No Brand"} • {product.category || "No Category"}
+                                </div>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${product.status === "Active" ? "bg-[#d1fae5] text-[#065f46]" : "bg-gray-100 text-gray-700"}`}>
+                                {product.status}
+                              </span>
                             </div>
-                          )}
-
-                          {/* Description */}
-                          {product.description && (
-                            <div className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                              {product.description}
-                            </div>
-                          )}
-
-                          {/* Ingredients */}
-                          {product.ingredients && (
-                            <div className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                              <span className="font-medium text-foreground">Ingredients: </span>
-                              {product.ingredients}
-                            </div>
-                          )}
-
-                          {/* Dietary tags (chips) */}
-                          {product.dietaryTags?.length ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {product.dietaryTags.map((t) => (
-                                <span
-                                  key={t}
-                                  className="rounded-full border px-2 py-0.5 text-xs"
-                                  aria-label={`dietary tag ${t}`}
-                                >
-                                  {t}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-
-                          {/* Nutrition grid */}
-                          {product.nutrition && (
-                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                              {NUT_ORDER.map(({ key, label, unit }) => {
-                                const v = (product.nutrition as any)?.[key]
-                                if (v == null) return null
-                                return (
-                                  <div key={key} className="rounded-md border p-2">
-                                    <div className="text-xs text-muted-foreground">{label}</div>
-                                    <div className="text-sm font-medium">
-                                      {v} {unit}
+                            {product.description && (
+                              <p className="text-[14px] text-[#475569] line-clamp-2">{product.description}</p>
+                            )}
+                            {(product.dietaryTags?.length || product.tags?.length) ? (
+                              <div className="flex flex-wrap gap-2 pt-2 pb-5">
+                                {(product.dietaryTags || product.tags || []).slice(0, 5).map((t) => (
+                                  <span key={t} className="bg-[#f1f5f9] rounded-full px-3 py-1 text-[12px] font-medium text-[#475569]">
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            {product.nutrition && (
+                              <div className="flex flex-wrap gap-4 pt-[17px] border-t border-[#f1f5f9]">
+                                {NUT_ORDER.map(({ key, label, unit }) => {
+                                  const v = (product.nutrition as any)?.[key]
+                                  if (v == null) return null
+                                  return (
+                                    <div key={key} className="min-w-[80px]">
+                                      <div className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">{label}</div>
+                                      <div className="text-[14px] font-semibold text-[#0f172a]">
+                                        {v} {unit}
+                                      </div>
                                     </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                          {Array.isArray(product.tags) && product.tags.length > 0 && (
-                            <div className="flex gap-1 flex-wrap">
-                              {product.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <Badge
-                          variant={product.status === "Active" ? "default" : "secondary"}
-                          className={product.status === "Active" ? "bg-black text-white" : "bg-gray-100 text-gray-700"}
-                        >
-                          {product.status}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             )}
           </TabsContent>
 
           {/* Customers Tab */}
-          <TabsContent value="customers" className="space-y-4">
-            {/* Customer Filters */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Filter className="h-4 w-4" />
-                  <span className="font-medium">Customer Filters</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Select
-                    value={customerFilters.status}
-                    onValueChange={(value) => setCustomerFilters((prev) => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={customerFilters.type}
-                    onValueChange={(value) => setCustomerFilters((prev) => ({ ...prev, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="Retailer">Retailer</SelectItem>
-                      <SelectItem value="Distributor">Distributor</SelectItem>
-                      <SelectItem value="Restaurant">Restaurant</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value=""
-                    onValueChange={(value) => {
-                      if (value && !customerFilters.tags.includes(value)) {
-                        setCustomerFilters((prev) => ({ ...prev, tags: [...prev.tags, value] }))
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Add Tag Filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getUniqueCustomerTags().map((tag) => (
-                        <SelectItem key={tag} value={tag}>
-                          {tag}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="customers" className="space-y-4 mt-0">
+            {/* Customer Filters - Inline */}
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
+              <Select
+                value={customerFilters.status}
+                onValueChange={(value) => setCustomerFilters((prev) => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[123px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={customerFilters.type}
+                onValueChange={(value) => setCustomerFilters((prev) => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[151px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Retailer">Retailer</SelectItem>
+                  <SelectItem value="Distributor">Distributor</SelectItem>
+                  <SelectItem value="Restaurant">Restaurant</SelectItem>
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-[38px] rounded-[8px] border-[#e2e8f0] bg-[#f1f5f9] gap-2 font-medium text-[#334155] text-[14px] hover:bg-[#e2e8f0]">
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    Add Tag Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[200px] p-2">
+                  {(() => {
+                    const tags = getUniqueCustomerTags()
+                    const unadded = tags.filter((t) => !customerFilters.tags.includes(t))
+                    if (tags.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">No tags in current results</p>
+                    if (unadded.length === 0) return <p className="text-[14px] text-[#64748b] py-2 px-3">All tags added</p>
+                    return (
+                      <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
+                        {unadded.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="text-left text-[14px] px-3 py-2 rounded-[6px] hover:bg-[#f1f5f9] text-[#0f172a]"
+                            onClick={() => setCustomerFilters((prev) => ({ ...prev, tags: [...prev.tags, tag] }))}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </PopoverContent>
+              </Popover>
+            </div>
 
             {/* Customers Results */}
             {isLoading ? (
@@ -1013,7 +1084,7 @@ export default function SearchPage() {
                 ))}
               </div>
             ) : filteredCustomers.length === 0 ? (
-              <Card>
+              <Card className="bg-white border-[#e2e8f0] rounded-[12px]">
                 <CardContent className="p-8 text-center">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No customers found</h3>
@@ -1024,100 +1095,87 @@ export default function SearchPage() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredCustomers.map((customer) => (
-                  <Card key={customer.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <h3 className="font-semibold">{customer.name || "Unnamed Customer"}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{customer.type || "No Type"}</span>
-                            <span>•</span>
-                            <span>{customer.matchCount || 0} matches</span>
+                {paginatedCustomers.map((customer) => (
+                  <Link key={customer.id} href={`/customers/${customer.id}`}>
+                    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-6 hover:shadow-md transition-shadow cursor-pointer">
+                      <CardContent className="p-0">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-full bg-[#e6ecf4] flex items-center justify-center shrink-0">
+                            <Users className="h-5 w-5 text-[#00438f]" />
                           </div>
-                          {(customer.email || customer.location?.city || customer.location?.state) && (
-                          <div className="text-sm text-muted-foreground">
-                            {customer.email && <span>{customer.email}</span>}
-                            {customer.email && (customer.location?.city || customer.location?.state) && <span> • </span>}
-                            {(customer.location?.city || customer.location?.state) && (
-                              <span>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-[#0f172a]">{customer.name || "Unnamed Customer"}</h3>
+                            <div className="text-sm text-[#64748b]">
+                              {customer.type || "No Type"} • {customer.matchCount || 0} matches
+                            </div>
+                            {(customer.email || customer.location?.city || customer.location?.state) && (
+                              <div className="text-sm text-[#64748b] mt-1">
+                                {customer.email}
+                                {(customer.email && (customer.location?.city || customer.location?.state)) && " • "}
                                 {[customer.location?.city, customer.location?.state].filter(Boolean).join(", ")}
-                              </span>
+                              </div>
+                            )}
+                            {Array.isArray(customer.tags) && customer.tags.length > 0 && (
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                {customer.tags.slice(0, 3).map((tag) => (
+                                  <span key={tag} className="bg-[#f1f5f9] rounded-full px-2 py-0.5 text-xs text-[#475569]">
+                                    {tag}
+                                  </span>
+                                ))}
+                                {customer.tags.length > 3 && (
+                                  <span className="bg-[#f1f5f9] rounded-full px-2 py-0.5 text-xs text-[#475569]">
+                                    +{customer.tags.length - 3} more
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
-                          )}
-                          {Array.isArray(customer.tags) && customer.tags.length > 0 && (
-                            <div className="flex gap-1">
-                              {customer.tags.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {customer.tags.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{customer.tags.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${customer.status === "Active" ? "bg-[#d1fae5] text-[#065f46]" : "bg-gray-100 text-gray-700"}`}>
+                            {customer.status}
+                          </span>
                         </div>
-                        <Badge variant={customer.status === "Active" ? "default" : "secondary"}>
-                          {customer.status}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             )}
           </TabsContent>
 
           {/* Jobs Tab */}
-          <TabsContent value="jobs" className="space-y-4">
-            {/* Job Filters */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Filter className="h-4 w-4" />
-                  <span className="font-medium">Job Filters</span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Select
-                    value={jobFilters.status}
-                    onValueChange={(value) => setJobFilters((prev) => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="Running">Running</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Failed">Failed</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={jobFilters.type}
-                    onValueChange={(value) => setJobFilters((prev) => ({ ...prev, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="Import">Import</SelectItem>
-                      <SelectItem value="Export">Export</SelectItem>
-                      <SelectItem value="Match">Match</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="jobs" className="space-y-4 mt-0">
+            {/* Job Filters - Inline */}
+            <div className="flex flex-wrap gap-[12px] items-center py-[29px]">
+              <Select
+                value={jobFilters.status}
+                onValueChange={(value) => setJobFilters((prev) => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[123px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Running">Running</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Failed">Failed</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={jobFilters.type}
+                onValueChange={(value) => setJobFilters((prev) => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger className="h-[38px] w-[151px] rounded-[8px] border-[#e2e8f0] bg-white">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Import">Import</SelectItem>
+                  <SelectItem value="Export">Export</SelectItem>
+                  <SelectItem value="Match">Match</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Jobs Results */}
             {isLoading ? (
@@ -1138,7 +1196,7 @@ export default function SearchPage() {
                 ))}
               </div>
             ) : filteredJobs.length === 0 ? (
-              <Card>
+              <Card className="bg-white border-[#e2e8f0] rounded-[12px]">
                 <CardContent className="p-8 text-center">
                   <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
@@ -1149,48 +1207,129 @@ export default function SearchPage() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredJobs.map((job) => (
-                  <Card key={job.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded bg-green-100 flex items-center justify-center">
-                          <Briefcase className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <h3 className="font-semibold">{job.name || "Unnamed Job"}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{job.type || "No Type"}</span>
-                            <span>•</span>
-                            <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString() : "No Date"}</span>
-                            {job.progress !== undefined && (
-                              <>
-                                <span>•</span>
-                                <span>{job.progress}% complete</span>
-                              </>
-                            )}
+                {paginatedJobs.map((job) => (
+                  <Link key={job.id} href={`/jobs?job=${job.id}`}>
+                    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-6 hover:shadow-md transition-shadow cursor-pointer">
+                      <CardContent className="p-0">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-[8px] bg-[#d1fae5] flex items-center justify-center shrink-0">
+                            <Briefcase className="h-5 w-5 text-[#065f46]" />
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-[#0f172a]">{job.name || "Unnamed Job"}</h3>
+                            <div className="text-sm text-[#64748b]">
+                              {job.type || "No Type"} • {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : "No Date"}
+                              {job.progress !== undefined && ` • ${job.progress}% complete`}
+                            </div>
+                          </div>
+                          <Badge
+                            variant={
+                              job.status === "Completed"
+                                ? "default"
+                                : job.status === "Running"
+                                  ? "secondary"
+                                  : job.status === "Failed"
+                                    ? "destructive"
+                                    : "outline"
+                            }
+                            className={job.status === "Completed" ? "bg-[#d1fae5] text-[#065f46] border-0" : ""}
+                          >
+                            {job.status}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={
-                            job.status === "Completed"
-                              ? "default"
-                              : job.status === "Running"
-                                ? "secondary"
-                                : job.status === "Failed"
-                                  ? "destructive"
-                                  : "outline"
-                          }
-                        >
-                          {job.status}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Pagination */}
+        {((activeTab === "products" && filteredProducts.length > 0) ||
+          (activeTab === "customers" && filteredCustomers.length > 0) ||
+          (activeTab === "jobs" && filteredJobs.length > 0)) && totalPages > 1 && (
+          <div className="flex justify-center items-center pt-10 gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-[8px]"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {totalPages <= 5 ? (
+              Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <Button
+                  key={pageNum}
+                  variant="ghost"
+                  size="icon"
+                  className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
+                    currentPage === pageNum ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                  }`}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              ))
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
+                    currentPage === 1 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                  }`}
+                  onClick={() => setCurrentPage(1)}
+                >
+                  1
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
+                    currentPage === 2 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                  }`}
+                  onClick={() => setCurrentPage(2)}
+                >
+                  2
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
+                    currentPage === 3 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                  }`}
+                  onClick={() => setCurrentPage(3)}
+                >
+                  3
+                </Button>
+                <span className="px-2 text-[16px] text-[#94a3b8]">...</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
+                    currentPage === totalPages ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                  }`}
+                  onClick={() => setCurrentPage(totalPages)}
+                >
+                  {totalPages}
+                </Button>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-[8px]"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </AppShell>
   )

@@ -1,0 +1,4 @@
+external_id,name,brand,price,currency
+SKU-001,Sample Product A,Acme Corp,29.99,USD
+SKU-002,Sample Product B,Brand Co,15.50,USD
+SKU-003,Sample Product C,Food Inc,9.99,USD

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,13 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Eye, FileText, Grid, List, X } from "lucide-react"
+import { Eye, FileText, Grid, List, Plus, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-import DietaryRestrictionSelector, {
-  type DietarySelection,
-} from "@/components/dietary-restriction-selector"
-import ProductDetailsDrawer from "@/components/product-details-drawer"
 import ProductNotesDialog from "@/components/product-notes-dialog"
 import { getProductNotes, setProductNotes } from "@/lib/api-products"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -24,6 +21,7 @@ import type { UICustomer } from "@/types/customer"
 import { updateCustomerHealth } from "@/lib/api-customers"
 import { getMatches } from "@/lib/api-matching"
 import { apiFetch } from "@/lib/backend"
+import { listDiets, listAllergens, listConditions, listHealthGoals } from "@/lib/api-taxonomy"
 
 const MATCHING_ENABLED = process.env.NEXT_PUBLIC_B2B_ENABLE_MATCHING === "1"
 
@@ -66,6 +64,7 @@ const normalizeHealth = (r: any | null | undefined) => ({
   age: r?.age ?? undefined,
   gender: r?.gender ?? undefined,
   activityLevel: r?.activityLevel ?? r?.activity_level ?? undefined,
+  healthGoal: r?.healthGoal ?? r?.health_goal ?? undefined,
   conditions: r?.conditions ?? [],
   dietGoals: r?.dietGoals ?? [],
   macroTargets:
@@ -93,6 +92,7 @@ export default function CustomerDetailView({
   showNotes = true,
   onHealthSaved,
 }: CustomerDetailViewProps) {
+  const router = useRouter()
   const { toast } = useToast()
 
   // ------------ Health draft (init ONLY when customer id changes) ------------
@@ -107,49 +107,80 @@ export default function CustomerDetailView({
   const handleHealthChange = (key: string, value: any) =>
     setHealth((prev: any) => ({ ...prev, [key]: value }))
 
-  const handleArrayCSV = (key: string, csv: string) => {
-    const arr = csv
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-    setHealth((prev: any) => ({ ...prev, [key]: arr }))
-  }
+  // ------------ Taxonomy options for dropdowns ------------
+  type DietOpt = { code: string; label: string }
+  type AllergenOpt = { code: string; label: string }
+  type ConditionOpt = { conditionCode: string; label: string }
+  const [dietOptions, setDietOptions] = React.useState<DietOpt[]>([])
+  const [allergenOptions, setAllergenOptions] = React.useState<AllergenOpt[]>([])
+  const [conditionOptions, setConditionOptions] = React.useState<ConditionOpt[]>([])
+  const [dietSelect, setDietSelect] = React.useState("")
+  const [allergenSelect, setAllergenSelect] = React.useState("")
+  const [conditionSelect, setConditionSelect] = React.useState("")
+  const [conditionCustomInput, setConditionCustomInput] = React.useState("")
 
-  // ------------ Dietary mirror for the selector ------------
-  const [dietary, setDietary] = React.useState<DietarySelection>(() => {
-    const hp = customer.healthProfile
-    return {
-      required: (hp?.avoidAllergens ?? []).map((a: string) => `No ${a}`),
-      preferred: hp?.dietGoals ?? [],
-      allergens: hp?.avoidAllergens ?? [],
-      conditions: hp?.conditions ?? [],
-    }
-  })
   React.useEffect(() => {
-    const hp = customer.healthProfile
-    setDietary({
-      required: (hp?.avoidAllergens ?? []).map((a: string) => `No ${a}`),
-      preferred: hp?.dietGoals ?? [],
-      allergens: hp?.avoidAllergens ?? [],
-      conditions: hp?.conditions ?? [],
-    })
-  }, [customer.id])
+    Promise.all([
+      listDiets(5000, true),
+      listAllergens(5000, true),
+      listConditions(5000, true),
+    ]).then(([diets, allergens, conditions]) => {
+      setDietOptions((diets as any[]) ?? [])
+      setAllergenOptions((allergens as any[]) ?? [])
+      setConditionOptions((conditions as any[]) ?? [])
+    }).catch(() => {})
+  }, [])
+
+  const addDietGoal = () => {
+    const v = dietSelect.trim()
+    if (!v) return
+    setHealth((prev: any) => ({
+      ...prev,
+      dietGoals: Array.from(new Set([...(prev.dietGoals ?? []), v])),
+    }))
+    setDietSelect("")
+  }
+  const addAllergen = () => {
+    const v = allergenSelect.trim()
+    if (!v) return
+    setHealth((prev: any) => ({
+      ...prev,
+      avoidAllergens: Array.from(new Set([...(prev.avoidAllergens ?? []), v])),
+    }))
+    setAllergenSelect("")
+  }
+  const addCondition = () => {
+    const v = (conditionSelect.trim() || conditionCustomInput.trim())
+    if (!v) return
+    setHealth((prev: any) => ({
+      ...prev,
+      conditions: Array.from(new Set([...(prev.conditions ?? []), v])),
+    }))
+    setConditionSelect("")
+    setConditionCustomInput("")
+  }
+  const removeFromArray = (key: "dietGoals" | "avoidAllergens" | "conditions", item: string) => {
+    setHealth((prev: any) => ({
+      ...prev,
+      [key]: (prev[key] ?? []).filter((x: string) => x !== item),
+    }))
+  }
+  const getDietLabel = (codeOrLabel: string) =>
+    dietOptions.find((o) => o.code === codeOrLabel || o.label === codeOrLabel)?.label ?? codeOrLabel
+  const getAllergenLabel = (codeOrLabel: string) =>
+    allergenOptions.find((o) => o.code === codeOrLabel || o.label === codeOrLabel)?.label ?? codeOrLabel
+  const getConditionLabel = (codeOrLabel: string) =>
+    conditionOptions.find((o) => o.conditionCode === codeOrLabel || o.label === codeOrLabel)?.label ?? codeOrLabel
 
   // ------------ Save to backend ------------
   const handleSaveHealth = async () => {
-    const fromRequired = (dietary.required ?? []).map((s) =>
-      s.replace(/^No\s+/i, ""),
-    )
-    const mergedAllergens = Array.from(
-      new Set([...(dietary.allergens ?? []), ...fromRequired]),
-    )
-
     const payload = {
       heightCm: num(health.heightCm),
       weightKg: num(health.weightKg),
       age: num(health.age),
       gender: health.gender,
       activityLevel: health.activityLevel,
+      healthGoal: health.healthGoal ?? undefined,
       conditions: health.conditions ?? [],
       dietGoals: health.dietGoals ?? [],
       macroTargets: {
@@ -158,7 +189,7 @@ export default function CustomerDetailView({
         fat_g: num(health.macroTargets?.fat_g),
         calories: num(health.macroTargets?.calories),
       },
-      avoidAllergens: mergedAllergens,
+      avoidAllergens: health.avoidAllergens ?? [],
       bmi: num(health.bmi),
       bmr: num(health.bmr),
       tdeeCached: num(health.tdeeCached),
@@ -188,13 +219,14 @@ export default function CustomerDetailView({
   const [matching, setMatching] = React.useState(false)
   const [limit, setLimit] = React.useState<number>(25)
 
-  const [detailsOpen, setDetailsOpen] = React.useState(false)
-  const [detailsProduct, setDetailsProduct] = React.useState<Product | null>(null)
-
   const [notesOpen, setNotesOpen] = React.useState(false)
   const [activeNotesId, setActiveNotesId] = React.useState<string | null>(null)
   const [notesMap, setNotesMap] = React.useState<Record<string, string>>({})
   const [excluded, setExcluded] = React.useState<Set<string>>(new Set())
+  const [healthGoalOptions, setHealthGoalOptions] = React.useState<{ code: string; label: string }[]>([])
+  React.useEffect(() => {
+    listHealthGoals().then((g) => setHealthGoalOptions((g as any[]) ?? [])).catch(() => {})
+  }, [])
 
   const runMatch = React.useCallback(async () => {
     if (!MATCHING_ENABLED) {
@@ -277,13 +309,11 @@ export default function CustomerDetailView({
   if (!customer?.id) return
   setMatching(true)
   try {
-    // build preview body from your local dietary UI state (adjust names if needed)
-    const fromRequired = (dietary.required ?? []).map((s) => s.replace(/^No\s+/i, ""))
     const body = {
-      required: dietary.required,
-      preferred: dietary.preferred,
-      allergens: Array.from(new Set([...(dietary.allergens ?? []), ...fromRequired])),
-      conditions: dietary.conditions,
+      required: [] as string[],
+      preferred: health.dietGoals ?? [],
+      allergens: health.avoidAllergens ?? [],
+      conditions: health.conditions ?? [],
       limit,
     }
 
@@ -343,7 +373,7 @@ export default function CustomerDetailView({
   } finally {
     setMatching(false)
   }
-}, [customer?.id, dietary, limit, toast])
+}, [customer?.id, health.dietGoals, health.avoidAllergens, health.conditions, limit, toast])
 
   React.useEffect(() => {
     if (MATCHING_ENABLED && showMatches && customer?.id) runMatch()
@@ -423,6 +453,27 @@ export default function CustomerDetailView({
                     readOnly={!editing}
                   />
                 </div>
+                <div>
+                  <Label>Dietary Goal (Health Goal)</Label>
+                  {!editing ? (
+                    <div className="text-sm py-2">{health.healthGoal ?? "—"}</div>
+                  ) : (
+                    <Select
+                      value={health.healthGoal?.trim() ? health.healthGoal : "__none__"}
+                      onValueChange={(v) => handleHealthChange("healthGoal", v === "__none__" ? undefined : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {healthGoalOptions.map((g) => (
+                          <SelectItem key={g.code} value={g.label}>{g.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
                 <div>
                   <Label>Height (cm)</Label>
@@ -485,7 +536,7 @@ export default function CustomerDetailView({
                     <div className="flex flex-wrap gap-2">
                       {(health.dietGoals ?? []).map((g: string) => (
                         <Badge key={g} variant="secondary">
-                          {g}
+                          {getDietLabel(g)}
                         </Badge>
                       ))}
                       {(health.dietGoals ?? []).length === 0 && (
@@ -493,11 +544,36 @@ export default function CustomerDetailView({
                       )}
                     </div>
                   ) : (
-                    <Textarea
-                      value={(health.dietGoals ?? []).join(", ")}
-                      onChange={(e) => handleArrayCSV("dietGoals", e.target.value)}
-                      placeholder="comma, separated"
-                    />
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <select
+                          className="border rounded px-2 h-9 flex-1 min-w-0"
+                          value={dietSelect}
+                          onChange={(e) => setDietSelect(e.target.value)}
+                        >
+                          <option value="">Choose a preference…</option>
+                          {dietOptions.map((d) => (
+                            <option key={d.code} value={d.code}>{d.label}</option>
+                          ))}
+                        </select>
+                        <Button type="button" onClick={addDietGoal} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(health.dietGoals ?? []).map((g: string) => (
+                          <Badge key={g} variant="secondary" className="gap-1">
+                            {getDietLabel(g)}
+                            <button
+                              type="button"
+                              onClick={() => removeFromArray("dietGoals", g)}
+                              className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                              aria-label={`Remove ${g}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -507,7 +583,7 @@ export default function CustomerDetailView({
                     <div className="flex flex-wrap gap-2">
                       {(health.avoidAllergens ?? []).map((a: string) => (
                         <Badge key={a} variant="secondary">
-                          {a}
+                          {getAllergenLabel(a)}
                         </Badge>
                       ))}
                       {(health.avoidAllergens ?? []).length === 0 && (
@@ -515,11 +591,36 @@ export default function CustomerDetailView({
                       )}
                     </div>
                   ) : (
-                    <Textarea
-                      value={(health.avoidAllergens ?? []).join(", ")}
-                      onChange={(e) => handleArrayCSV("avoidAllergens", e.target.value)}
-                      placeholder="comma, separated"
-                    />
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <select
+                          className="border rounded px-2 h-9 flex-1 min-w-0"
+                          value={allergenSelect}
+                          onChange={(e) => setAllergenSelect(e.target.value)}
+                        >
+                          <option value="">Choose allergen to avoid…</option>
+                          {allergenOptions.map((a) => (
+                            <option key={a.code} value={a.code}>{a.label}</option>
+                          ))}
+                        </select>
+                        <Button type="button" onClick={addAllergen} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(health.avoidAllergens ?? []).map((a: string) => (
+                          <Badge key={a} variant="destructive" className="gap-1">
+                            {getAllergenLabel(a)}
+                            <button
+                              type="button"
+                              onClick={() => removeFromArray("avoidAllergens", a)}
+                              className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                              aria-label={`Remove ${a}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -529,7 +630,7 @@ export default function CustomerDetailView({
                     <div className="flex flex-wrap gap-2">
                       {(health.conditions ?? []).map((c: string) => (
                         <Badge key={c} variant="secondary">
-                          {c}
+                          {getConditionLabel(c)}
                         </Badge>
                       ))}
                       {(health.conditions ?? []).length === 0 && (
@@ -537,11 +638,42 @@ export default function CustomerDetailView({
                       )}
                     </div>
                   ) : (
-                    <Textarea
-                      value={(health.conditions ?? []).join(", ")}
-                      onChange={(e) => handleArrayCSV("conditions", e.target.value)}
-                      placeholder="comma, separated"
-                    />
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <select
+                          className="border rounded px-2 h-9 flex-1 min-w-[140px]"
+                          value={conditionSelect}
+                          onChange={(e) => setConditionSelect(e.target.value)}
+                        >
+                          <option value="">Choose condition…</option>
+                          {conditionOptions.map((c) => (
+                            <option key={c.conditionCode} value={c.conditionCode}>{c.label}</option>
+                          ))}
+                        </select>
+                        <Input
+                          className="flex-1 min-w-[120px]"
+                          placeholder="Or type custom"
+                          value={conditionCustomInput}
+                          onChange={(e) => setConditionCustomInput(e.target.value)}
+                        />
+                        <Button type="button" onClick={addCondition} size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(health.conditions ?? []).map((c: string) => (
+                          <Badge key={c} variant="secondary" className="gap-1">
+                            {getConditionLabel(c)}
+                            <button
+                              type="button"
+                              onClick={() => removeFromArray("conditions", c)}
+                              className="inline-flex items-center justify-center rounded-sm hover:bg-muted/50"
+                              aria-label={`Remove ${c}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -612,7 +744,11 @@ export default function CustomerDetailView({
               {/* Actions */}
               <div className="flex justify-end gap-2">
                 {!editing ? (
-                  <Button variant="outline" onClick={() => setEditing(true)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditing(true)}
+                    className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+                  >
                     Edit
                   </Button>
                 ) : (
@@ -621,35 +757,17 @@ export default function CustomerDetailView({
                       variant="ghost"
                       onClick={() => {
                         setHealth(normalizeHealth(customer.healthProfile))
-                        // reset dietary mirror too
-                        const hp = customer.healthProfile
-                        setDietary({
-                          required: (hp?.avoidAllergens ?? []).map((a: string) => `No ${a}`),
-                          preferred: hp?.dietGoals ?? [],
-                          allergens: hp?.avoidAllergens ?? [],
-                          conditions: hp?.conditions ?? [],
-                        })
                         setEditing(false)
                       }}
                     >
                       Cancel
                     </Button>
-                    <Button onClick={handleSaveHealth}>Save</Button>
+                    <Button onClick={handleSaveHealth} className="bg-[#00438f] hover:bg-[#003366] text-white">Save</Button>
                   </>
                 )}
               </div>
             </Card>
           </div>
-
-          {/* Dietary Restrictions (optional) */}
-          {showRestrictions && (
-            <div>
-              <h3 className="font-semibold mb-4">Dietary Restrictions</h3>
-              <Card className="p-6">
-                <DietaryRestrictionSelector value={dietary} onChange={setDietary} />
-              </Card>
-            </div>
-          )}
 
           {/* Notes (placeholder only; real Notes opens as its own dialog from the card list) */}
           {showNotes && (
@@ -720,7 +838,7 @@ export default function CustomerDetailView({
                 <Button
                   onClick={runMatch}
                   disabled={!MATCHING_ENABLED || matching}
-                  className="bg-black text-white hover:bg-gray-800 whitespace-nowrap"
+                  className="bg-[#00438f] hover:bg-[#003366] text-white whitespace-nowrap"
                 >
                   {matching ? "Running..." : "Run New Match"}
                 </Button>
@@ -768,18 +886,7 @@ export default function CustomerDetailView({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          setDetailsProduct(product)
-                          setDetailsOpen(true)
-                          // fetch full product to include notes and other fields for the drawer
-                          ;(async () => {
-                            try {
-                              const res = await apiFetch(`/products/${product.id}`)
-                              const full = await res.json().catch(() => ({}))
-                              setDetailsProduct((prev) => ({ ...(prev || product), ...(full || {}) }))
-                            } catch {}
-                          })()
-                        }}
+                        onClick={() => router.push(`/products/${product.id}?customerId=${customer.id}&from=/customers/${customer.id}`)}
                         className="flex items-center gap-1"
                       >
                         <Eye className="h-4 w-4" />
@@ -824,12 +931,6 @@ export default function CustomerDetailView({
       </div>
 
       {/* Drawers/Dialogs */}
-      <ProductDetailsDrawer
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        product={detailsProduct}
-      />
-
       <ProductNotesDialog
         open={notesOpen}
         onOpenChange={setNotesOpen}

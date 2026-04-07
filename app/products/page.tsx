@@ -7,17 +7,24 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import EnhancedDataTable from "@/components/enhanced-data-table"
-import ProductDetailsDrawer from "@/components/product-details-drawer"
 import ProductFilters, { defaultFilters } from "@/components/product-filters"
 import ActiveFiltersChips from "@/components/active-filters-chips"
 import type { ColumnDef } from "@tanstack/react-table"
@@ -27,7 +34,7 @@ import { normalizeListResponse } from "@/lib/api-helpers"
 import ProductForm from "@/components/product-form"
 import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
-import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal, Plus } from "lucide-react";
+import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal, Plus, Grid3X3, List as ListIcon, Package } from "lucide-react";
 
 
 type Product = {
@@ -42,9 +49,6 @@ type Product = {
   price?: string | number
   currency?: string
   categoryId?: string
-  subCategoryId?: string
-  cuisineId?: string
-  marketId?: string
   description?: string
   servingSize?: string
   packageWeight?: string
@@ -72,34 +76,6 @@ type Product = {
   country?: string
 }
 
-// type Product = {
-//   id: string
-//   name: string
-//   sku: string
-//   status: "active" | "inactive"
-//   category: string
-//   brand?: string
-//   barcode?: string
-//   servingSize?: string
-//   packageWeight?: string
-//   imageUrl?: string
-//   diets?: string[]
-//   certifications?: string[]
-//   allergens?: string[]
-//   nutrition?: {
-//     calories?: number
-//     protein?: number
-//     carbs?: number
-//     fat?: number
-//     sugar?: number
-//     sodium?: number
-//   }
-//   ingredients?: string[]      // ← make this an array
-//   tags: string[]
-//   updatedAt: string
-//   country?: string
-// }
-
 
 function productToFormValues(p: any) {
   if (!p) return undefined
@@ -118,9 +94,9 @@ function productToFormValues(p: any) {
     // enums/ids
     status: (p.status === "inactive" ? "inactive" : "active"),
     category: toStr(p.categoryId ?? p.category ?? ""),
-    sub_category_id: toStr(p.subCategoryId ?? ""),
-    cuisine_id: toStr(p.cuisineId ?? ""),
-    market_id: toStr(p.marketId ?? ""),
+    sub_category_id: toStr(p.subCategoryId ?? p.sub_category_id ?? ""),
+    cuisine_id: toStr(p.cuisineId ?? p.cuisine_id ?? ""),
+    market_id: toStr(p.marketId ?? p.market_id ?? ""),
 
     // misc fields
     description: toStr(p.description ?? ""),
@@ -286,8 +262,17 @@ function useUrlState() {
 
 export default function ProductsPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { get, set } = useUrlState()
   const url = get()
+  const importOpen = searchParams.get("import") === "1"
+  const clearImportParam = React.useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("import")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [router, pathname, searchParams])
   const { toast } = useToast()
 
   const handleSearch = (value: string) => set({ q: value || null })
@@ -299,9 +284,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [filters, setFilters] = React.useState(defaultFilters)
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
-  const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
+  React.useEffect(() => {
+    if (searchParams.get("add") === "1") setCreateOpen(true)
+  }, [searchParams])
   const [editOpen, setEditOpen] = React.useState(false)
   const [editItem, setEditItem] = React.useState<Product | null>(null)
   const [editInit, setEditInit] = React.useState<any | null>(null) // initialValues for the form
@@ -320,48 +306,6 @@ export default function ProductsPage() {
     } catch (e) {
       console.error("Failed to load product for edit", e)
     }
-  }
-
-  async function openDetails(p: Product) {
-    try {
-      const res = await apiFetch(`/products/${p.id}`)
-      const full = await res.json()
-
-      // keep your normalized shape, then augment with extra fields
-      const normalized = toProduct(full)
-      const merged: Product = {
-        ...normalized,
-        // add-through fields not included in toProduct normalization
-        gtinType: full?.gtinType ?? full?.gtin_type,
-        price: full?.price,
-        currency: full?.currency,
-        categoryId: full?.categoryId ?? full?.category_id,
-        subCategoryId: full?.subCategoryId ?? full?.sub_category_id,
-        cuisineId: full?.cuisineId ?? full?.cuisine_id,
-        marketId: full?.marketId ?? full?.market_id,
-        description: full?.description,
-        // include product-level notes for display in drawer
-        // @ts-ignore allow passing through untyped field
-        notes: full?.notes,
-        sourceUrl: full?.sourceUrl ?? full?.source_url,
-        regulatoryCodes: Array.isArray(full?.regulatoryCodes) ? full.regulatoryCodes : normalized.regulatoryCodes,
-        certifications: Array.isArray(full?.certifications) ? full.certifications : normalized.certifications,
-        allergens: Array.isArray(full?.allergens) ? full.allergens : normalized.allergens,
-        ingredients: Array.isArray(full?.ingredients) ? full.ingredients : normalized.ingredients,
-        // prefer backend nutrition if present; fallback to normalized
-        nutrition: full?.nutrition ?? normalized.nutrition,
-        // prefer dietaryTags / tags from backend if present
-        tags: Array.isArray(full?.dietaryTags)
-          ? full.dietaryTags
-          : (Array.isArray(full?.tags) ? full.tags : normalized.tags),
-      }
-
-      setSelectedProduct(merged)
-    } catch {
-      // fallback to whatever we had in the row/card
-      setSelectedProduct(p)
-    }
-    setDetailsOpen(true)
   }
 
   // Column visibility
@@ -480,7 +424,7 @@ export default function ProductsPage() {
   const filtered = applyFilters(data)
 
   const handleRowClick = (product: Product) => {
-    void openDetails(product)
+    router.push(`/products/${product.id}?from=/products`)
   }
 
   const handleFilterChange = (newFilters: any) => {
@@ -546,10 +490,11 @@ export default function ProductsPage() {
     }
   }
 
+  const headerClass = "text-[10px] font-bold uppercase tracking-wider text-[#64748b]"
   const columns: ColumnDef<Product>[] = [
     {
       id: "image",
-      header: "Image",
+      header: () => <span className={headerClass}>Image</span>,
       cell: ({ row }) => (
         <Image
           src={row.original.imageUrl || "/placeholder.svg?height=64&width=64&query=product"}
@@ -563,7 +508,7 @@ export default function ProductsPage() {
     },
     {
       accessorKey: "name",
-      header: "Name",
+      header: () => <span className={headerClass}>Product</span>,
       cell: ({ row }) => (
         <div className="cursor-pointer" onClick={() => handleRowClick(row.original)}>
           <div className="font-medium">{row.original.name}</div>
@@ -573,11 +518,13 @@ export default function ProductsPage() {
     },
     {
       accessorKey: "status",
-      header: "Status",
+      header: () => <span className={headerClass}>Status</span>,
       cell: ({ row }) => (
         <Badge
           className={
-            row.original.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+            row.original.status === "active"
+              ? "bg-[#ecfdf5] text-[#047857] border border-[#d1fae5]"
+              : "bg-slate-100 text-slate-700"
           }
         >
           {row.original.status === "active" ? "Active" : "Inactive"}
@@ -586,22 +533,22 @@ export default function ProductsPage() {
     },
     {
       accessorKey: "category",
-      header: "Category",
+      header: () => <span className={headerClass}>Category</span>,
     },
     {
       accessorKey: "brand",
-      header: "Brand",
+      header: () => <span className={headerClass}>Brand</span>,
       cell: ({ row }) => row.original.brand || "—",
     },
     {
       accessorKey: "barcode",
-      header: "Barcode",
+      header: () => <span className={headerClass}>Barcode</span>,
       cell: ({ row }) =>
         row.original.barcode ? <span className="font-mono text-xs">{row.original.barcode}</span> : "—",
     },
     {
       id: "allergens",
-      header: "Allergens",
+      header: () => <span className={headerClass}>Allergens</span>,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
           {row.original.allergens?.slice(0, 2).map((allergen) => (
@@ -617,7 +564,7 @@ export default function ProductsPage() {
     },
     {
       id: "diets",
-      header: "Diets",
+      header: () => <span className={headerClass}>Diets</span>,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
           {row.original.diets?.slice(0, 2).map((diet) => (
@@ -633,7 +580,7 @@ export default function ProductsPage() {
     },
     {
       id: "certifications",
-      header: "Certifications",
+      header: () => <span className={headerClass}>Certifications</span>,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
           {row.original.certifications?.slice(0, 2).map((cert) => (
@@ -649,19 +596,22 @@ export default function ProductsPage() {
     },
     {
       id: "tags",
-      header: "Tags",
+      header: () => <span className={headerClass}>Tags</span>,
       cell: ({ row }) => {
-        const tags = row.original.tags ?? [] // already normalized, but guard anyway
+        const tags = row.original.tags ?? []
         if (!tags.length) return null
         return (
           <div className="flex flex-wrap gap-1">
             {tags.slice(0, 3).map((t) => (
-              <Badge key={t} variant="secondary">
+              <span
+                key={t}
+                className="inline-flex items-center px-2 py-1 rounded-[4px] bg-[#f1f5f9] text-[#475569] text-[10px] font-bold"
+              >
                 {t}
-              </Badge>
+              </span>
             ))}
             {tags.length > 3 && (
-              <span className="text-xs text-muted-foreground">{`+${tags.length - 3}`}</span>
+              <span className="text-xs text-[#64748b]">{`+${tags.length - 3}`}</span>
             )}
           </div>
         )
@@ -669,7 +619,7 @@ export default function ProductsPage() {
     },
     {
       id: "quality",
-      header: "Quality",
+      header: () => <span className={headerClass}>Quality</span>,
       cell: ({ row }) => {
         const q = qualityMap[row.original.id]
         if (!q) return <span className="text-xs text-muted-foreground">—</span>
@@ -689,7 +639,7 @@ export default function ProductsPage() {
     },
     {
       accessorKey: "updatedAt",
-      header: "Last Updated",
+      header: () => <span className={headerClass}>Last Updated</span>,
       cell: ({ row }) => <span className="text-sm">{new Date(row.original.updatedAt).toLocaleString()}</span>,
     },
     {
@@ -745,73 +695,102 @@ export default function ProductsPage() {
 
   return (
     <AppShell title="Products">
-      <div className="space-y-4">
-        {/* Header row (match Customers page UX) */}
-        <div className="container mx-auto px-6 pt-6">
+      <div className="space-y-6">
+        {/* Breadcrumbs */}
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#64748b]">
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard">Portal</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="font-medium text-[#0f172a]">Products</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        {/* Header row */}
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
-            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-[#0f172a]">Products</h1>
+              <p className="mt-1 text-base text-[#64748b]">
+                Manage your product catalog. Import from CSV or add manually.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ImportWizard
+                onComplete={load}
+                initialOpen={importOpen}
+                onClose={importOpen ? clearImportParam : undefined}
+                triggerLabel="Import"
+                triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+              />
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="bg-[#00438f] hover:bg-[#003366] text-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your product catalog. Import from CSV or add manually.
-          </p>
           {error && (
-            <div className="mt-3 rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
+            <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
               {error}
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative" role="search">
-            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={url.q}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-64 pl-10"
-              aria-label="Search products"
-            />
+        <div className="flex flex-row flex-nowrap items-center gap-4 overflow-x-auto pb-2 md:flex-wrap">
+          <div className="flex items-center gap-3 flex-1 min-w-0 max-w-lg" role="search" aria-label="Search products">
+            <div className="relative flex-1 min-w-0">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748b]" />
+              <Input
+                placeholder="Search products, SKUs, or barcodes..."
+                value={url.q}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-[41px] bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] focus-visible:ring-2 focus-visible:ring-[#00438f]/30 placeholder:text-[#6b7280]"
+                aria-label="Search products"
+              />
+            </div>
           </div>
 
-          <ProductFilters filters={filters} onChange={handleFilterChange} onClear={handleFilterClear} data={data} />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-                <Columns className="h-4 w-4" />
-                Columns
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {Object.entries(columnVisibility).map(([key, visible]) => (
-                <DropdownMenuCheckboxItem
-                  key={key}
-                  checked={visible}
-                  onCheckedChange={(checked) => setColumnVisibility((prev) => ({ ...prev, [key]: checked }))}
-                >
-                  <div className="flex items-center gap-2">
-                    {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </div>
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="ml-auto flex items-center gap-2">
-            <div className="text-sm text-muted-foreground">
-              {filtered.length} of {data.length} products
-            </div>
-            <Tabs value={view} onValueChange={(v) => handleViewChange(v as "table" | "cards")}>
-              <TabsList>
-                <TabsTrigger value="table">{"Table"}</TabsTrigger>
-                <TabsTrigger value="cards">{"Cards"}</TabsTrigger>
+          <div className="flex items-center gap-3 flex-wrap shrink-0">
+            <ProductFilters filters={filters} onChange={handleFilterChange} onClear={handleFilterClear} data={data} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2 bg-white border-[#e2e8f0] rounded-lg">
+                  <Columns className="h-4 w-4" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {Object.entries(columnVisibility).map(([key, visible]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={visible}
+                    onCheckedChange={(checked) => setColumnVisibility((prev) => ({ ...prev, [key]: checked }))}
+                  >
+                    <div className="flex items-center gap-2">
+                      {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Tabs value={view} onValueChange={(v) => handleViewChange(v as "table" | "cards")} className="shrink-0">
+              <TabsList className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg p-1">
+                <TabsTrigger value="table" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-md">
+                  <ListIcon className="h-4 w-4" />
+                  Table
+                </TabsTrigger>
+                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-md">
+                  <Grid3X3 className="h-4 w-4" />
+                  Cards
+                </TabsTrigger>
               </TabsList>
             </Tabs>
-            <ImportWizard onComplete={load} />
             <ProductForm
               mode="edit"
               productId={editItem?.id}
@@ -824,33 +803,55 @@ export default function ProductsPage() {
           </div>
         </div>
 
+        {/* Results count */}
+        <div className="text-[14px] text-[#64748b] leading-[20px]">
+          {loading
+            ? "Loading…"
+            : (
+                <>
+                  Showing <span className="font-bold text-[#0f172a]">{filtered.length}</span> of <span className="font-bold text-[#0f172a]">{data.length}</span> products
+                </>
+              )}
+        </div>
+
         <ActiveFiltersChips filters={filters} onRemove={handleFilterRemove} onClear={handleFilterClear} />
 
+        <div className="mt-6">
         {filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
-              <SearchIcon className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No products found</h3>
-            <p className="text-muted-foreground mb-4">
-              {query ||
-                Object.values(filters).some(
-                  (f) => f !== "all" && f !== false && f !== null && (Array.isArray(f) ? f.length > 0 : f !== ""),
-                )
-                ? "Try adjusting your search or filters"
-                : "Get started by importing products or adding them manually"}
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <ImportWizard onComplete={load} />
-              <ProductForm mode="create" onSaved={load} />
-            </div>
-          </div>
+          <Card className="border-dashed border-2 border-[#e2e8f0] rounded-xl bg-[#f8fafc]">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="rounded-full bg-[#00438f]/10 p-5 mb-6">
+                <Package className="h-10 w-10 text-[#00438f]" />
+              </div>
+              <h3 className="text-xl font-semibold text-[#0f172a] mb-2">No products found</h3>
+              <p className="text-muted-foreground mb-8 max-w-md">
+                {query ||
+                  Object.values(filters).some(
+                    (f) => f !== "all" && f !== false && f !== null && (Array.isArray(f) ? f.length > 0 : f !== ""),
+                  )
+                  ? "Try adjusting your search or filters."
+                  : "Get started by importing products or adding them manually."}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <ImportWizard
+                  onComplete={load}
+                  initialOpen={importOpen}
+                  onClose={importOpen ? clearImportParam : undefined}
+                  triggerLabel="Import"
+                  triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+                />
+                <ProductForm mode="create" onSaved={load} />
+              </div>
+            </CardContent>
+          </Card>
         ) : view === "table" ? (
           <EnhancedDataTable
             data={filtered}
             columns={visibleColumns}
             selectable
             onSelectionChange={(rows) => setSelected(rows as Product[])}
+            className="rounded-xl border-[#e2e8f0] shadow-sm overflow-hidden"
+            headerRowClassName="bg-[#f8fafc]"
             {...({ onRowClick: handleRowClick } as any)}
           />
         ) : (
@@ -858,7 +859,7 @@ export default function ProductsPage() {
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                className="p-3 cursor-pointer border-[#e2e8f0] rounded-xl hover:shadow-lg hover:border-[#00438f]/30 transition-all"
                 onClick={() => handleRowClick(p)}
               >
                 <div className="flex items-center gap-3">
@@ -874,9 +875,12 @@ export default function ProductsPage() {
                     <div className="text-xs text-muted-foreground">{p.sku}</div>
                     <div className="mt-1 flex gap-1 flex-wrap">
                       {(p.tags ?? []).slice(0, 3).map((t) => (
-                        <Badge key={t} variant="secondary">
+                        <span
+                          key={t}
+                          className="inline-flex items-center px-2 py-0.5 rounded-[4px] bg-[#f1f5f9] text-[#475569] text-xs font-medium"
+                        >
                           {t}
-                        </Badge>
+                        </span>
                       ))}
                       {(p.tags ?? []).length > 3 && (
                         <Badge variant="outline">+{(p.tags ?? []).length - 3}</Badge>
@@ -886,7 +890,9 @@ export default function ProductsPage() {
                   <div className="ml-auto">
                     <Badge
                       className={
-                        p.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"
+                        p.status === "active"
+                          ? "bg-[#ecfdf5] text-[#047857] border border-[#d1fae5]"
+                          : "bg-slate-100 text-slate-700"
                       }
                     >
                       {p.status}
@@ -897,6 +903,7 @@ export default function ProductsPage() {
             ))}
           </div>
         )}
+        </div>
 
         {selected.length > 0 && (
           <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg">
@@ -923,7 +930,6 @@ export default function ProductsPage() {
         onSaved={() => { setCreateOpen(false); load(); }}
       />
 
-      <ProductDetailsDrawer open={detailsOpen} onOpenChange={setDetailsOpen} product={selectedProduct} />
     </AppShell>
   )
 }

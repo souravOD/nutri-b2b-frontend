@@ -18,8 +18,14 @@ export async function listCustomers(): Promise<UICustomer[]> {
   return normalizeListResponse(raw).map(toUICustomer);
 }
 
-export async function getCustomer(id: string) {
-  const res = await apiFetch(`/customers/${encodeURIComponent(id)}`); // <-- backend route, no /api
+export async function getCustomer(id: string, options?: { reasonForAccess?: string }) {
+  const extraHeaders: Record<string, string> = {}
+  if (options?.reasonForAccess) {
+    extraHeaders["X-Access-Reason"] = options.reasonForAccess
+  }
+  const res = await apiFetch(`/customers/${encodeURIComponent(id)}`, { // <-- backend route, no /api
+    headers: extraHeaders,
+  });
   if (!res.ok) throw new Error(`Customer ${id} failed: ${res.status}`);
 
   const json = await res.json().catch(() => null);
@@ -68,13 +74,14 @@ export async function createCustomer(payload: {
 
 export async function updateCustomer(
   id: string,
-  patch: { name?: string; email?: string; phone?: string; notes?: string; tags?: string[] | string; location?: CustomerLocation }
+  patch: { name?: string; email?: string; phone?: string; notes?: string; tags?: string[] | string; location?: CustomerLocation; status?: "active" | "archived" }
 ): Promise<UICustomer> {
   const body: any = {
     ...(patch.name ? { fullName: patch.name.trim() } : {}),
     ...(patch.email ? { email: patch.email.trim() } : {}),
     ...(patch.phone ? { phone: patch.phone.trim() } : {}),
     ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    ...(patch.status ? { status: patch.status } : {}),
   };
   const customTags = normalizeTags(patch.tags);
   if (customTags) body.customTags = customTags;
@@ -109,7 +116,8 @@ export async function updateCustomerHealth(
   id: string,
   body: {
     heightCm?: number; weightKg?: number; age?: number; gender?: string;
-    activityLevel?: string; conditions?: string[]; dietGoals?: string[];
+    activityLevel?: string; healthGoal?: string;
+    conditions?: string[]; dietGoals?: string[];
     macroTargets?: { protein_g?: number; carbs_g?: number; fat_g?: number; calories?: number };
     avoidAllergens?: string[];
     // do NOT send derived fields
@@ -134,12 +142,14 @@ export async function createCustomerWithHealth(input: {
   // 🔽 accept both; form sends customTags
   customTags?: string[] | string;
   tags?: string[] | string;
+  location?: CustomerLocation;
   health?: {
     age?: number;
     gender?: "male" | "female" | "other" | "unspecified";
     activityLevel?: "sedentary" | "light" | "moderate" | "very" | "extra";
     heightCm?: number;
     weightKg?: number;
+    healthGoal?: string;
     conditions?: string[];
     dietGoals?: string[];
     avoidAllergens?: string[];
@@ -156,6 +166,15 @@ export async function createCustomerWithHealth(input: {
     // 🔽 prefer customTags; fallback to legacy tags
     customTags: normalizeTags(input.customTags ?? input.tags),
   };
+
+  if (input.location) {
+    payload.location = {
+      city: input.location.city?.trim() || undefined,
+      state: input.location.state?.trim() || undefined,
+      postal: input.location.postal?.trim() || undefined,
+      country: input.location.country?.trim()?.toUpperCase() || undefined,
+    };
+  }
 
   if (input.health) {
     const { bmi, bmr, tdeeCached, derivedLimits, ...safeHealth } = input.health;
@@ -175,7 +194,12 @@ export async function createCustomerWithHealth(input: {
     const msg = (data && (data.detail || data.message || data.error)) || `Create failed (${res.status})`;
     throw new Error(String(msg));
   }
-  return (data as any)?.data ?? data;
+  const raw = (data as any)?.data ?? data;
+  // Backend returns { customer, health }; merge for toUICustomer
+  if (raw?.customer && typeof raw.customer === "object") {
+    return { ...raw.customer, healthProfile: raw.health ?? raw.customer.healthProfile };
+  }
+  return raw;
 }
 
 // Customer-product notes

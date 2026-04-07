@@ -5,17 +5,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Eye, Play, StickyNote } from "lucide-react"
-import type { Customer } from "@/app/api/_store"
+import { UserCheck, UserX, Mail, Phone } from "lucide-react"
+import type { UICustomer } from "@/types/customer"
 
 type Props = {
-  customer: Customer
+  customer: UICustomer
   onOpen?: (id: string) => void
   onRunMatch?: (id: string) => void
-  onOpenNotes?: (id: string) => void
 }
 
-export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes }: Props) {
+export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -28,56 +27,75 @@ export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-emerald-50 text-emerald-700 border-emerald-200"
       case "archived":
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-slate-100 text-slate-600 border-slate-200"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-slate-100 text-slate-600 border-slate-200"
     }
   }
 
+  const restrictions = customer.restrictions ?? { required: [], preferred: [], allergens: [], conditions: [] }
   const healthChips = [
-    ...customer.restrictions.required.slice(0, 2),
-    ...customer.restrictions.allergens.slice(0, 2),
-    ...customer.restrictions.conditions.slice(0, 2),
+    ...(restrictions.required ?? []).slice(0, 2),
+    ...(restrictions.allergens ?? []).slice(0, 2),
+    ...(restrictions.conditions ?? []).slice(0, 2),
   ].slice(0, 4)
 
   const remainingHealthCount =
-    customer.restrictions.required.length +
-    customer.restrictions.allergens.length +
-    customer.restrictions.conditions.length -
+    (restrictions.required?.length ?? 0) +
+    (restrictions.allergens?.length ?? 0) +
+    (restrictions.conditions?.length ?? 0) -
     healthChips.length
 
-  const visibleTags = customer.tags.slice(0, 3)
-  const remainingTagsCount = customer.tags.length - visibleTags.length
+  const tags = customer.tags ?? []
+  const visibleTags = tags.slice(0, 3)
+  const remainingTagsCount = tags.length - visibleTags.length
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onOpen?.(customer.id)}>
+    <Card
+      className="hover:shadow-lg hover:border-[#00438f]/30 transition-all cursor-pointer border-[#e2e8f0] rounded-xl"
+      onClick={() => onOpen?.(customer.id)}
+    >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Avatar className="h-11 w-11 shrink-0 ring-2 ring-[#f0f4f8]">
               <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
-              <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+              <AvatarFallback className="bg-[#00438f]/10 text-[#00438f] font-medium text-sm">
+                {getInitials(customer.name)}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-sm truncate">{customer.name}</h3>
-              <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
-              {customer.phone && <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>}
+              <h3 className="font-semibold text-[#0f172a] truncate">{customer.name}</h3>
+              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                <Mail className="h-3 w-3 shrink-0" />
+                {customer.email}
+              </p>
+              {customer.phone && (
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                  <Phone className="h-3 w-3 shrink-0" />
+                  {customer.phone}
+                </p>
+              )}
             </div>
           </div>
-          <Badge className={`text-xs ${getStatusColor(customer.status)}`}>{customer.status}</Badge>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge className={`text-xs ${getStatusColor(customer.status)}`}>{customer.status}</Badge>
+            {customer.healthProfile
+              ? <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><UserCheck className="h-3 w-3" />Profile</span>
+              : <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400"><UserX className="h-3 w-3" />No profile</span>
+            }
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0 space-y-3">
         {/* Health Snapshot */}
         {healthChips.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Health Restrictions</p>
-            <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
               {healthChips.map((chip, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
+                <Badge key={index} variant="outline" className="text-xs border-[#e2e8f0]">
                   {chip}
                 </Badge>
               ))}
@@ -85,91 +103,75 @@ export default function CustomerCard({ customer, onOpen, onRunMatch, onOpenNotes
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs border-[#e2e8f0]">
                         +{remainingHealthCount}
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent>
                       <div className="space-y-1">
-                        {customer.restrictions.required.slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">
-                            {item}
-                          </div>
+                        {(restrictions.required ?? []).slice(2).map((item, i) => (
+                          <div key={i} className="text-xs">{item}</div>
                         ))}
-                        {customer.restrictions.allergens.slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">
-                            {item}
-                          </div>
+                        {(restrictions.allergens ?? []).slice(2).map((item, i) => (
+                          <div key={i} className="text-xs">{item}</div>
                         ))}
-                        {customer.restrictions.conditions.slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">
-                            {item}
-                          </div>
+                        {(restrictions.conditions ?? []).slice(2).map((item, i) => (
+                          <div key={i} className="text-xs">{item}</div>
                         ))}
                       </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
-            </div>
           </div>
         )}
 
         {/* Tags */}
-        {customer.tags.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Tags</p>
-            <div className="flex flex-wrap gap-1">
-              {visibleTags.map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {remainingTagsCount > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs">
-                        +{remainingTagsCount}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="space-y-1">
-                        {customer.tags.slice(3).map((tag, i) => (
-                          <div key={i} className="text-xs">
-                            {tag}
-                          </div>
-                        ))}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {visibleTags.map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs bg-[#f1f5f9] text-[#00438f]">
+                {tag}
+              </Badge>
+            ))}
+            {remainingTagsCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="text-xs bg-[#f0f4f8]">
+                      +{remainingTagsCount}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      {tags.slice(3).map((tag, i) => (
+                        <div key={i} className="text-xs">{tag}</div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="flex gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+        {/* Quick Actions: View Profile and Match Products only per Figma */}
+        <div className="flex gap-2 pt-2 border-t border-[#e2e8f0]" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onOpen?.(customer.id) }}
+            className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
           >
-            View
+            View Profile
           </Button>
-
           <Button
             variant="ghost"
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onRunMatch?.(customer.id) }}
+            className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
           >
-            Match
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onOpenNotes?.(customer.id) }}
-          >
-            Notes
+            Match Products
           </Button>
         </div>
       </CardContent>

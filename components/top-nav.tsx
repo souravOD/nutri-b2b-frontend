@@ -20,6 +20,7 @@ import {
 import OfflineIndicator from "./offline-indicator";
 import NotificationPanel from "./notification-panel";
 import { useAuth } from "@/hooks/useAuth";
+import { apiFetch } from "@/lib/backend";
 
 type TopNavProps = {
   title?: string;
@@ -28,9 +29,21 @@ type TopNavProps = {
 export default function TopNav({ title = "Odyssey Nutrition" }: TopNavProps) {
   const [query, setQuery] = React.useState("");
   const [notificationsOpen, setNotificationsOpen] = React.useState(false);
+  const [unreadAlerts, setUnreadAlerts] = React.useState(0);
   const router = useRouter();
 
-  const { user, signOut } = useAuth();
+  const { user, authContext, signOut } = useAuth();
+
+  React.useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/alerts/summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && typeof d.unread === "number") setUnreadAlerts(d.unread);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,12 +71,12 @@ export default function TopNav({ title = "Odyssey Nutrition" }: TopNavProps) {
 
         <div className="flex-1">
           <form onSubmit={handleSearch} className="relative max-w-lg">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search across products, customers, jobs..."
-              className="pl-8"
+              placeholder="Search products, SKUs, or orders..."
+              className="pl-9 bg-[#f0f4f8] rounded-[16px] border-0 focus-visible:ring-2"
               aria-label="Global search"
             />
           </form>
@@ -75,9 +88,11 @@ export default function TopNav({ title = "Odyssey Nutrition" }: TopNavProps) {
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
             <span className="sr-only">Notifications</span>
-            <span className="absolute -right-1 -top-1 bg-emerald-600 text-white text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
-              3
-            </span>
+            {unreadAlerts > 0 && (
+              <span className="absolute -right-1 -top-1 bg-[#0067a0] text-white text-[10px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center" aria-label={`${unreadAlerts} unread`}>
+                {unreadAlerts > 99 ? "99+" : unreadAlerts}
+              </span>
+            )}
           </Button>
         </NotificationPanel>
 
@@ -94,6 +109,11 @@ export default function TopNav({ title = "Odyssey Nutrition" }: TopNavProps) {
                   className="rounded-full"
                 />
                 <span className="hidden sm:inline">{displayName}</span>
+                {authContext?.role && (
+                  <span className="hidden sm:inline text-xs text-muted-foreground capitalize bg-muted px-1.5 py-0.5 rounded">
+                    {authContext.role.replace(/_/g, " ")}
+                  </span>
+                )}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

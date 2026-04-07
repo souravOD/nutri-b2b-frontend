@@ -44,13 +44,29 @@ async function doFetch(path: string, init?: RequestInit, forceFresh = false) {
   });
 }
 
+const RETRYABLE_5XX = new Set([500, 502, 503, 504]);
+const SAFE_METHODS  = new Set(["GET", "HEAD", "OPTIONS"]);
+
 /** Authenticated fetch that reuses a cached Appwrite JWT.
- *  If the backend returns 401, refresh the JWT once and retry.
+ *  - Retries transient 5xx errors (GET only) with exponential backoff: 300ms → 900ms.
+ *  - If the backend returns 401, refreshes the JWT once and retries.
  */
 export async function apiFetch(path: string, init?: RequestInit) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const maxRetries = SAFE_METHODS.has(method) ? 2 : 0;
+
   let res = await doFetch(path, init, false);
+
+  // Exponential backoff for transient 5xx on safe methods
+  for (let attempt = 0; attempt < maxRetries && RETRYABLE_5XX.has(res.status); attempt++) {
+    await new Promise((r) => setTimeout(r, 300 * Math.pow(3, attempt)));
+    res = await doFetch(path, init, false);
+  }
+
+  // Single JWT refresh on 401
   if (res.status === 401) {
     res = await doFetch(path, init, true);
   }
+
   return res; // caller handles non-2xx
 }

@@ -1,22 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   Tabs,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   Table,
   TableHeader,
@@ -27,125 +30,33 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Grid3X3, List as ListIcon } from "lucide-react";
+import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX, Download, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { apiFetch } from "@/lib/backend";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-import { toUICustomer, type UICustomer } from "@/types/customer";
+import type { UICustomer } from "@/types/customer";
 import { listCustomers } from "@/lib/api-customers";
 
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerFilters from "@/components/customers/CustomerFilters";
-import CustomerForm from "@/components/customers/CustomerForm";
-import CustomerDetailsDialog from "@/components/customers/CustomerDetailsDialog";
-import CustomerProfileDialog from "@/components/customers/CustomerProfileDialog"
-import CustomerNotesDialog from "@/components/customers/CustomerNotesDialog"
 import CustomerListEmpty from "@/components/customers/CustomerListEmpty";
-import { apiFetch } from "@/lib/backend"
-
-type CustomerDetails = {
-  id: string
-  fullName: string
-  email?: string
-  phone?: string
-  type?: "Retailer" | "Distributor" | "Restaurant" | string
-  status?: "Active" | "Inactive" | "Pending" | string
-  gender?: string
-  dob?: string
-  externalId?: string
-  vendorId?: string
-  createdAt?: string
-  updatedAt?: string
-  location?: { city?: string; state?: string; postal?: string; country?: string }
-  tags: string[]               // customTags/tags unified
-}
-
-/** Map backend → UI shape (robust to field name variants) */
-function toCustomerDetails(src: any): CustomerDetails {
-  const name =
-    src?.fullName ||
-    [src?.firstName, src?.lastName].filter(Boolean).join(" ") ||
-    src?.name ||
-    "Unnamed Customer"
-
-  const tags = Array.isArray(src?.customTags)
-    ? src.customTags
-    : Array.isArray(src?.tags)
-      ? src.tags
-      : []
-
-  const location =
-    src?.location ?? {
-      city: src?.city,
-      state: src?.state,
-      postal: src?.postal,
-      country: src?.country,
-    }
-
-  return {
-    id: String(src?.id ?? src?.customer_id ?? ""),
-    fullName: name,
-    email: src?.email ?? undefined,
-    phone: src?.phone ?? undefined,
-    type: src?.type ?? src?.customer_type ?? undefined,
-    status: src?.status ?? undefined,
-    gender: src?.gender ?? undefined,
-    dob: src?.dob ?? undefined,
-    externalId: src?.externalId ?? undefined,
-    vendorId: src?.vendorId ?? undefined,
-    createdAt: src?.createdAt ?? undefined,
-    updatedAt: src?.updatedAt ?? undefined,
-    location,
-    tags,
-  }
-}
-
-/** Fetch details from backend; IMPORTANT: uses apiFetch so we don’t hit the Next page */
-function useCustomerDetails(id: string | null) {
-  const [data, setData] = React.useState<CustomerDetails | null>(null)
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-
-
-
-
-  React.useEffect(() => {
-    if (!id) { setData(null); setError(null); return }
-    let cancelled = false
-    setLoading(true); setError(null)
-
-      ; (async () => {
-        try {
-          // Prefer REST /customers/:id; fall back to /customers?id=...
-          const res = await apiFetch(`/customers/${id}`)
-          // if your backend doesn’t support /:id, swap to:
-          // const res = await apiFetch(`/customers?id=${encodeURIComponent(id)}`)
-
-          const json = await res.json().catch(() => null)
-          // Handle {data:[...]} | {items:[...]} | {...} | [...]
-          const raw = Array.isArray(json)
-            ? json[0]
-            : (json?.data?.[0] ?? json?.items?.[0] ?? json)
-
-          if (!cancelled) setData(toCustomerDetails(raw || {}))
-        } catch (e: any) {
-          if (!cancelled) setError(e?.message || "Failed to load customer")
-        } finally {
-          if (!cancelled) setLoading(false)
-        }
-      })()
-
-    return () => { cancelled = true }
-  }, [id])
-
-  return { data, loading, error }
-}
+import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
 
 /** URL param helpers */
+type SegmentFilter = "all" | "with_profile" | "no_profile";
+
 type ParamState = {
   q?: string | null;
   status?: "all" | "active" | "archived" | null;
   tags?: string[] | null; // stored as CSV in URL
   view?: "cards" | "list" | null;
-  id?: string | null;
+  segment?: SegmentFilter | null;
 };
 
 function useUrlState() {
@@ -153,14 +64,14 @@ function useUrlState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; id: string } => {
+  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; segment: SegmentFilter } => {
     const q = searchParams.get("q") ?? "";
     const status = (searchParams.get("status") as "all" | "active" | "archived") || "all";
     const tagsCsv = searchParams.get("tags") || "";
     const tags = tagsCsv ? tagsCsv.split(",").filter(Boolean) : [];
     const view = (searchParams.get("view") as "cards" | "list") || "cards";
-    const id = searchParams.get("id") || "";
-    return { q, status, tags, view, id };
+    const segment = (searchParams.get("segment") as SegmentFilter) || "all";
+    return { q, status, tags, view, segment };
   }, [searchParams]);
 
   const set = React.useCallback(
@@ -187,26 +98,86 @@ function useUrlState() {
 }
 
 export default function CustomersIndexPage() {
-  const { toast } = useToast();
+  useToast();
+  const router = useRouter();
   const { get, set } = useUrlState();
 
   // data
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [customers, setCustomers] = React.useState<UICustomer[]>([]);
-  const [viewOpen, setViewOpen] = React.useState(false)
-  const [viewId, setViewId] = React.useState<string | undefined>()
-  const [notesOpen, setNotesOpen] = React.useState(false)
-  const [notesId, setNotesId] = React.useState<string | undefined>()
-  const [notesName, setNotesName] = React.useState<string | undefined>()
-
   // UI state
+  const [addOpen, setAddOpen] = React.useState(false);
   const url = get();
-  const [createOpen, setCreateOpen] = React.useState(false);
 
-  function openView(id: string) { setViewId(id); setViewOpen(true) }
-  function openNotes(id: string, name: string) { setNotesId(id); setNotesName(name); setNotesOpen(true) }
+  // CSV import state
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importRows, setImportRows] = React.useState<Record<string, string>[]>([]);
+  const [importFileName, setImportFileName] = React.useState("");
+  const [importError, setImportError] = React.useState<string | null>(null);
+  const [importing, setImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<{ inserted: number; updated: number; errors: any[] } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  function navigateToDetail(id: string) { router.push(`/customers/${id}`) }
+
+  function parseCsv(text: string): Record<string, string>[] {
+    const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    return lines.slice(1).map((line) => {
+      const vals = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+      return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? ""]));
+    });
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    setImportResult(null);
+    setImportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCsv(text);
+      if (rows.length === 0) {
+        setImportError("No data rows found. Check the file has a header row and at least one data row.");
+        setImportRows([]);
+      } else {
+        setImportRows(rows);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleImportConfirm() {
+    if (importRows.length === 0) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await apiFetch("/api/v1/customers/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customers: importRows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || data?.message || "Import failed");
+      setImportResult({ inserted: data.inserted ?? 0, updated: data.updated ?? 0, errors: data.errors ?? [] });
+    } catch (err: any) {
+      setImportError(err?.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function resetImportDialog() {
+    setImportRows([]);
+    setImportFileName("");
+    setImportError(null);
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   // load customers once
   React.useEffect(() => {
@@ -239,9 +210,13 @@ export default function CustomersIndexPage() {
     const q = url.q.trim().toLowerCase();
     const status = url.status;
     const tags = new Set(url.tags);
+    const segment = url.segment;
 
     return customers.filter((c) => {
       if (status !== "all" && c.status !== status) return false;
+
+      if (segment === "with_profile" && !c.healthProfile) return false;
+      if (segment === "no_profile" && c.healthProfile) return false;
 
       if (tags.size) {
         const hasAll = Array.from(tags).every((t) => c.tags?.includes(t));
@@ -273,55 +248,91 @@ export default function CustomersIndexPage() {
   const handleViewChange = (view: "cards" | "list") => set({ view });
   const handleFiltersChange = (next: { status: "all" | "active" | "archived"; tags: string[] }) =>
     set({ status: next.status, tags: next.tags });
-  const handleOpenDetails = (id: string | number) => set({ id: String(id) });
-  const handleCloseDetails = () => set({ id: null });
 
   // rendering
   return (
     <AppShell title="Customers">
-      {/* Header row */}
-      <div className="container mx-auto px-6 pt-6">
+      {/* Header row - Figma aligned: Breadcrumbs, Title, Subtitle, Add Customer */}
+      <div className="space-y-6">
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#64748b]">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/dashboard">Portal</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Customers</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Customer
-          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-[#0f172a]">Customers</h1>
+            <p className="mt-1 text-sm text-[#64748b]">
+              {loading ? "Loading…" : `${filtered.length} total records found in database`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/v1/customers/export";
+                a.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
+              onClick={() => { resetImportDialog(); setImportOpen(true); }}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button
+              onClick={() => setAddOpen(true)}
+              className="bg-[#00438f] hover:bg-[#003366] text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your customers and their dietary preferences.
-        </p>
-      </div>
 
-      {/* Toolbar */}
-      <div className="container mx-auto px-6 mt-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 w-full md:max-w-lg" role="search" aria-label="Search customers">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Controls Bar: Search + status toggle + Quick Filters (horizontal per Figma) */}
+        <div className="flex flex-row flex-nowrap items-center gap-4 overflow-x-auto pb-2">
+          <div className="flex items-center gap-3 min-w-0 flex-1 max-w-md shrink-0" role="search" aria-label="Search customers">
+            <div className="relative w-full min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748b]" />
               <Input
-                className="pl-9"
-                placeholder="Search customers..."
+                className="pl-9 bg-[#f8fafc] rounded-lg border-[#e2e8f0] focus-visible:ring-2 focus-visible:ring-[#00438f]/30"
+                placeholder="Search by name, email or ID..."
                 value={url.q}
                 onChange={(e) => handleSearch(e.target.value)}
               />
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-nowrap shrink-0">
             <CustomerFilters
               status={url.status}
               tags={url.tags}
               allTags={allTags}
               onChange={handleFiltersChange}
             />
-            <Tabs value={url.view} onValueChange={(v) => handleViewChange(v as any)}>
-              <TabsList>
-                <TabsTrigger value="cards" className="flex items-center gap-2">
+            <Tabs value={url.view} onValueChange={(v) => handleViewChange(v as any)} className="shrink-0">
+              <TabsList className="bg-[#f1f5f9] inline-flex">
+                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f]">
                   <Grid3X3 className="h-4 w-4" />
                   Cards
                 </TabsTrigger>
-                <TabsTrigger value="list" className="flex items-center gap-2">
+                <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f]">
                   <ListIcon className="h-4 w-4" />
                   List
                 </TabsTrigger>
@@ -330,14 +341,35 @@ export default function CustomersIndexPage() {
           </div>
         </div>
 
-        {/* Results count */}
-        <div className="mt-3 text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${filtered.length} customer${filtered.length === 1 ? "" : "s"} found`}
+        {/* Segment filter row */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#64748b]">Segment:</span>
+          {(["all", "with_profile", "no_profile"] as SegmentFilter[]).map((seg) => {
+            const labels: Record<SegmentFilter, { label: string; icon: React.ReactNode }> = {
+              all: { label: "All", icon: null },
+              with_profile: { label: "With Health Profile", icon: <UserCheck className="h-3.5 w-3.5" /> },
+              no_profile: { label: "No Profile", icon: <UserX className="h-3.5 w-3.5" /> },
+            };
+            const isActive = url.segment === seg;
+            return (
+              <Button
+                key={seg}
+                size="sm"
+                variant={isActive ? "default" : "outline"}
+                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
+                onClick={() => set({ segment: seg })}
+              >
+                {labels[seg].icon}
+                {labels[seg].label}
+              </Button>
+            );
+          })}
         </div>
+
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-6 py-6">
+      <div className="mt-6">
         {/* Loading skeletons */}
         {loading && (
           <>
@@ -356,7 +388,7 @@ export default function CustomersIndexPage() {
 
         {/* Empty state */}
         {!loading && !error && filtered.length === 0 && (
-          <CustomerListEmpty onAddCustomer={() => setCreateOpen(true)} />
+          <CustomerListEmpty onAddCustomer={() => setAddOpen(true)} />
         )}
 
         {/* Cards view */}
@@ -366,10 +398,8 @@ export default function CustomersIndexPage() {
               <CustomerCard
                 key={c.id}
                 customer={c}
-                onOpen={(id) => openView(String(id))}
-                // onRunMatch, onOpenNotes can be passed if you already wired them
-                onRunMatch={(id) => handleOpenDetails(id)}
-                onOpenNotes={(id) => openNotes(String(id), c.name)}
+                onOpen={(id) => navigateToDetail(String(id))}
+                onRunMatch={(id) => navigateToDetail(String(id))}
               />
             ))}
           </div>
@@ -377,7 +407,7 @@ export default function CustomersIndexPage() {
 
         {/* List view */}
         {!loading && !error && filtered.length > 0 && url.view === "list" && (
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-xl border border-[#e2e8f0] bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -393,7 +423,7 @@ export default function CustomersIndexPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer" onClick={() => handleOpenDetails(c.id)}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => navigateToDetail(c.id)}>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>{c.email}</TableCell>
                     <TableCell>{c.phone || "-"}</TableCell>
@@ -411,7 +441,12 @@ export default function CustomersIndexPage() {
                       {(c.tags || []).length > 3 ? "…" : ""}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => set({ id: String(c.id) })}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); navigateToDetail(c.id); }}
+                        className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
+                      >
                         View
                       </Button>
                     </TableCell>
@@ -423,51 +458,107 @@ export default function CustomersIndexPage() {
         )}
       </div>
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-xl">
+      <AddCustomerDialog open={addOpen} onOpenChange={setAddOpen} />
+
+      {/* CSV Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) resetImportDialog(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add customer</DialogTitle>
-            <DialogDescription>Enter basic info and (optionally) diet & allergens.</DialogDescription>
+            <DialogTitle>Import Customers from CSV</DialogTitle>
           </DialogHeader>
-          <CustomerForm
-            onClose={() => setCreateOpen(false)}
-            onCreated={(result) => {
-              const created = toUICustomer(result);
-              setCustomers((prev) => [created, ...prev]);
-              setCreateOpen(false);
-              toast({ title: "Customer created", description: created.name || created.email });
-              set({ id: created.id });
-            }}
-          />
+
+          <div className="space-y-4">
+            {/* Column guide */}
+            <div className="rounded-lg bg-[#f8fafc] border border-[#e2e8f0] p-3 text-xs text-[#64748b]">
+              <p className="font-semibold text-[#475569] mb-1">Expected columns (first row must be header):</p>
+              <p className="font-mono">external_id, full_name, email, dob, age, gender, phone</p>
+              <p className="mt-1">Only <strong>external_id</strong> is required. All other columns are optional.</p>
+            </div>
+
+            {/* File picker */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <Button
+                variant="outline"
+                className="border-[#e2e8f0] text-[#475569]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {importFileName || "Choose CSV file…"}
+              </Button>
+            </div>
+
+            {/* Error */}
+            {importError && (
+              <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                {importError}
+              </div>
+            )}
+
+            {/* Import result */}
+            {importResult && (
+              <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <p>Import complete — <strong>{importResult.inserted}</strong> inserted, <strong>{importResult.updated}</strong> updated.</p>
+                  {importResult.errors.length > 0 && (
+                    <p className="mt-1 text-amber-700">{importResult.errors.length} row(s) had errors.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            {importRows.length > 0 && !importResult && (
+              <div>
+                <p className="text-sm text-[#64748b] mb-2">
+                  Preview — showing first 5 of <strong>{importRows.length}</strong> rows
+                </p>
+                <div className="overflow-x-auto rounded-lg border border-[#e2e8f0]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(importRows[0]).map((h) => (
+                          <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importRows.slice(0, 5).map((row, i) => (
+                        <TableRow key={i}>
+                          {Object.values(row).map((v, j) => (
+                            <TableCell key={j} className="text-xs max-w-[120px] truncate">{v}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+            {!importResult && (
+              <Button
+                disabled={importRows.length === 0 || importing}
+                onClick={handleImportConfirm}
+                className="bg-[#00438f] hover:bg-[#003366] text-white"
+              >
+                {importing ? "Importing…" : `Confirm Import (${importRows.length} rows)`}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Details modal */}
-      <CustomerDetailsDialog
-        open={!!url.id}
-        id={url.id || undefined}
-        onOpenChange={(open) => (!open ? handleCloseDetails() : null)}
-      />
-
-      <CustomerProfileDialog
-        open={viewOpen}
-        id={viewId}
-        onOpenChange={setViewOpen}
-        onDeleted={(id) => {
-          setCustomers(prev => prev.filter(c => c.id !== id))
-        }}
-        onSaved={(updated) => {
-          setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c))
-        }}
-      />
-
-      <CustomerNotesDialog
-        open={notesOpen}
-        customerId={notesId}
-        customerName={notesName}
-        onOpenChange={setNotesOpen}
-      />
     </AppShell>
   );
 }
