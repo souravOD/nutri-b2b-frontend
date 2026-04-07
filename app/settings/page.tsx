@@ -49,6 +49,7 @@ const SETTINGS_KEYS = {
   cloudStorage: "pref.cloud_storage",
   require2fa: "pref.require_2fa",
   sessionTimeoutEnabled: "pref.session_timeout_enabled",
+  sessionTimeoutMinutes: "pref.session_timeout_minutes",
   ipRestrictions: "pref.ip_restrictions",
   auditLogging: "pref.audit_logging",
   brandingLogoUrl: "branding.logo_url",
@@ -178,6 +179,7 @@ export default function SettingsPage() {
   const [cloudStorage, setCloudStorage] = useState(true)
   const [require2fa, setRequire2fa] = useState(false)
   const [sessionTimeoutEnabled, setSessionTimeoutEnabled] = useState(true)
+  const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState("60")
   const [ipRestrictions, setIpRestrictions] = useState(false)
   const [auditLogging, setAuditLogging] = useState(true)
   const [graceDays, setGraceDays] = useState("0")
@@ -504,6 +506,7 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.cloudStorage)) setCloudStorage(map.get(SETTINGS_KEYS.cloudStorage) === "true")
         if (map.has(SETTINGS_KEYS.require2fa)) setRequire2fa(map.get(SETTINGS_KEYS.require2fa) === "true")
         if (map.has(SETTINGS_KEYS.sessionTimeoutEnabled)) setSessionTimeoutEnabled(map.get(SETTINGS_KEYS.sessionTimeoutEnabled) === "true")
+        if (map.has(SETTINGS_KEYS.sessionTimeoutMinutes)) setSessionTimeoutMinutes(map.get(SETTINGS_KEYS.sessionTimeoutMinutes) ?? "60")
         if (map.has(SETTINGS_KEYS.ipRestrictions)) setIpRestrictions(map.get(SETTINGS_KEYS.ipRestrictions) === "true")
         if (map.has(SETTINGS_KEYS.auditLogging)) setAuditLogging(map.get(SETTINGS_KEYS.auditLogging) === "true")
         if (map.has(SETTINGS_KEYS.accessRevocationGraceDays)) setGraceDays(map.get(SETTINGS_KEYS.accessRevocationGraceDays) ?? "0")
@@ -719,6 +722,7 @@ export default function SettingsPage() {
       await Promise.all([
         saveSetting(SETTINGS_KEYS.require2fa, String(require2fa)),
         saveSetting(SETTINGS_KEYS.sessionTimeoutEnabled, String(sessionTimeoutEnabled)),
+        saveSetting(SETTINGS_KEYS.sessionTimeoutMinutes, String(Math.max(1, parseInt(sessionTimeoutMinutes, 10) || 60))),
         saveSetting(SETTINGS_KEYS.ipRestrictions, String(ipRestrictions)),
         saveSetting(SETTINGS_KEYS.auditLogging, String(auditLogging)),
         saveSetting(SETTINGS_KEYS.accessRevocationGraceDays, String(Math.max(0, parseInt(graceDays, 10) || 0))),
@@ -1651,12 +1655,25 @@ export default function SettingsPage() {
                   </div>
                   <Switch checked={require2fa} onCheckedChange={setRequire2fa} className="data-[state=checked]:bg-[#00438f]" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-0.5 flex-1">
                     <Label className="text-[14px] font-bold text-[#0f172a]">Session Timeout</Label>
-                    <p className="text-[12px] text-[#64748b]">Auto-logout after 30 minutes of inactivity.</p>
+                    <p className="text-[12px] text-[#64748b]">Auto-logout after a period of inactivity.</p>
+                    {sessionTimeoutEnabled && (
+                      <div className="flex items-center gap-2 pt-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={480}
+                          value={sessionTimeoutMinutes}
+                          onChange={(e) => setSessionTimeoutMinutes(e.target.value)}
+                          className="w-20 h-8 text-sm border-[#cbd5e1]"
+                        />
+                        <span className="text-[13px] text-[#64748b]">minutes</span>
+                      </div>
+                    )}
                   </div>
-                  <Switch checked={sessionTimeoutEnabled} onCheckedChange={setSessionTimeoutEnabled} className="data-[state=checked]:bg-[#00438f]" />
+                  <Switch checked={sessionTimeoutEnabled} onCheckedChange={setSessionTimeoutEnabled} className="data-[state=checked]:bg-[#00438f] mt-0.5" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">

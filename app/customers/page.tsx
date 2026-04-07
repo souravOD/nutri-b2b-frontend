@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX, Download, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX, Download, Upload, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { apiFetch } from "@/lib/backend";
 import {
   Dialog,
@@ -39,6 +39,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import type { UICustomer } from "@/types/customer";
 import { listCustomers } from "@/lib/api-customers";
@@ -275,19 +281,33 @@ export default function CustomersIndexPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
-              onClick={() => {
-                const a = document.createElement("a");
-                a.href = "/api/v1/customers/export";
-                a.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                  <ChevronDown className="ml-1.5 h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = "/api/v1/customers/export";
+                  a.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                }}>
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = "/api/v1/customers/export?format=xlsx";
+                  a.download = `members-${new Date().toISOString().slice(0, 10)}.xlsx`;
+                  a.click();
+                }}>
+                  Export XLSX
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"

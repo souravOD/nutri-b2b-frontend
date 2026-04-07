@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Megaphone, Plus, Trash2 } from "lucide-react"
+import { Loader2, Megaphone, Plus, Trash2, Users } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Campaign = {
@@ -27,6 +27,7 @@ type Campaign = {
   status: "draft" | "active" | "sent"
   sent_at: string | null
   created_at: string
+  recipient_count: number | null
 }
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -64,6 +65,8 @@ export default function CampaignsPage() {
   const [creating, setCreating] = React.useState(false)
   const [updatingId, setUpdatingId] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [segmentCount, setSegmentCount] = React.useState<number | null>(null)
+  const [segmentLoading, setSegmentLoading] = React.useState(false)
 
   // New campaign form
   const [form, setForm] = React.useState({
@@ -72,6 +75,25 @@ export default function CampaignsPage() {
     subject: "",
     message: "",
   })
+
+  // Debounced segment preview fetch
+  React.useEffect(() => {
+    if (!createOpen) return
+    setSegmentCount(null)
+    setSegmentLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/v1/campaigns/segment-preview?segment=${form.target_segment}`)
+        if (res.ok) {
+          const json = await res.json()
+          setSegmentCount(json.count ?? null)
+        }
+      } catch { /* non-critical */ } finally {
+        setSegmentLoading(false)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [form.target_segment, createOpen])
 
   async function load() {
     setLoading(true)
@@ -207,7 +229,12 @@ export default function CampaignsPage() {
                           <p className="text-[11px] text-[#64748b] truncate max-w-[200px]">{c.subject}</p>
                         </td>
                         <td className="py-3.5 px-4 text-[#334155]">
-                          {SEGMENT_LABELS[c.target_segment] ?? c.target_segment}
+                          <span>{SEGMENT_LABELS[c.target_segment] ?? c.target_segment}</span>
+                          {c.recipient_count !== null && c.recipient_count !== undefined && (
+                            <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] text-[#64748b]">
+                              <Users className="h-3 w-3" />{c.recipient_count.toLocaleString()}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4">
                           <StatusBadge status={c.status} />
@@ -262,7 +289,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Create Campaign Dialog */}
-      <Dialog open={createOpen} onOpenChange={(v) => { if (!v) setCreateOpen(false) }}>
+      <Dialog open={createOpen} onOpenChange={(v) => { if (!v) { setCreateOpen(false); setSegmentCount(null) } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>New Campaign</DialogTitle>
@@ -289,6 +316,14 @@ export default function CampaignsPage() {
                 <option value="with_profile">With Health Profile</option>
                 <option value="inactive">Inactive Members</option>
               </select>
+              <p className="text-[12px] text-[#64748b] flex items-center gap-1.5 mt-1 min-h-[18px]">
+                {segmentLoading ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> Counting members…</>
+                ) : segmentCount !== null ? (
+                  <><Users className="h-3 w-3 text-[#00438f]" />
+                    <span className="text-[#00438f] font-semibold">{segmentCount.toLocaleString()}</span> members will be targeted</>
+                ) : null}
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-[14px] font-semibold text-[#334155]">Subject Line <span className="text-red-500">*</span></Label>

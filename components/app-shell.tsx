@@ -61,6 +61,7 @@ import {
 } from "lucide-react"
 import TopNav from "./top-nav"
 import { NpsSurvey, useNpsTrigger } from "@/components/nps-survey"
+import { useSessionTimeout } from "@/hooks/useSessionTimeout"
 
 // ── Nav item type with optional role / permission gating ───────────
 type NavItem = {
@@ -133,6 +134,7 @@ export default function AppShell({ children, title }: { children: React.ReactNod
   const companyName = getNameFromEmail(user?.email) ?? vendorName
   const navTitle = title ?? `${companyName} Vendor Portal`
   const { show: showNps, dismiss: dismissNps } = useNpsTrigger()
+  useSessionTimeout()
 
   const [banners, setBanners] = useState<Banner[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
