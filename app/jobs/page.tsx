@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/backend"
+import { trackEvent } from "@/lib/analytics"
 
 function triggerDownload(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime })
@@ -175,6 +176,7 @@ export default function JobsPage() {
     }
   }, [])
 
+  React.useEffect(() => { trackEvent("page_view", { page: "jobs" }) }, [])
   React.useEffect(() => {
     load()
     const t = setInterval(load, 5000)

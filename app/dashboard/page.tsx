@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/backend";
 import { useBrandingConfig } from "@/hooks/useBrandingConfig";
@@ -19,7 +21,9 @@ import {
   ArrowUpRight,
   Zap,
   X,
+  Clock,
 } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type OverviewTotals = { products: number; customers: number; completedJobs: number };
@@ -30,6 +34,8 @@ type IngestRun     = { status: string; totalRecordsWritten?: number; total_recor
 
 type GoalMetric = { metric: string; achieved_pct: number };
 type RoiData = { budgetAdherence: string | null; foodWasteReduction: string | null; healthCostSavings: string | null };
+
+type NpsBreakdown = { promoters: number; passives: number; detractors: number; total: number };
 
 type DashboardData = {
   totals: OverviewTotals;
@@ -42,6 +48,7 @@ type DashboardData = {
   goalAchievement: GoalMetric[];
   roi: RoiData;
   npsScore: number | null;
+  npsBreakdown: NpsBreakdown | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -116,6 +123,172 @@ function StarRating({ n }: { n: number }) {
   );
 }
 
+// ── Avg Session Duration Card (reads localStorage history + detail dialog) ────
+type SessionRecord = { start: number; end: number; durationMs: number };
+
+function AvgSessionCard() {
+  const [stats, setStats] = React.useState<{ avgMs: number | null; lastMs: number | null; count: number }>({
+    avgMs: null, lastMs: null, count: 0,
+  });
+  const [history, setHistory] = React.useState<SessionRecord[]>([]);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    import("@/hooks/useSessionTimeout")
+      .then(({ getSessionStats, getSessionHistory }) => {
+        const s = getSessionStats();
+        const h = getSessionHistory() as SessionRecord[];
+        setStats({ avgMs: s.avgMs, lastMs: s.lastMs, count: h.length });
+        setHistory(h);
+      })
+      .catch(() => {});
+  }, []);
+
+  function fmt(ms: number | null): string {
+    if (ms === null) return "—";
+    if (ms < 60_000) return "<1m";
+    return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
+  }
+
+  function fmtDate(ts: number): string {
+    return new Date(ts).toLocaleString("en-GB", {
+      day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+    });
+  }
+
+  return (
+    <>
+      <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+        <CardContent className="pt-5 pb-4 px-5">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.6px] text-[#64748b]">Avg Session</p>
+              <p className="text-[28px] font-bold text-[#0f172a] mt-1 leading-9">{fmt(stats.avgMs)}</p>
+              <p className="text-xs text-[#94a3b8] mt-1">
+                {stats.count > 0 ? `Based on ${stats.count} session${stats.count === 1 ? "" : "s"}` : "No history yet"}
+              </p>
+              {stats.count > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(true)}
+                  className="mt-1.5 text-[11px] text-[#0284c7] hover:underline font-medium"
+                >
+                  View history →
+                </button>
+              )}
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f0f9ff]">
+              <Clock className="h-5 w-5 text-[#0284c7]" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Session History (last {history.length})</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto">
+            {history.length === 0 ? (
+              <p className="text-sm text-[#94a3b8] py-4 text-center">No session history yet.</p>
+            ) : (
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#f1f5f9] text-[#64748b]">
+                    <th className="text-left py-2 px-3 font-semibold">#</th>
+                    <th className="text-left py-2 px-3 font-semibold">Started</th>
+                    <th className="text-right py-2 px-3 font-semibold">Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...history].reverse().map((r, i) => (
+                    <tr key={r.start} className="border-b border-[#f8fafc] hover:bg-[#f8fafc]">
+                      <td className="py-2 px-3 text-[#94a3b8]">{history.length - i}</td>
+                      <td className="py-2 px-3 text-[#334155]">{fmtDate(r.start)}</td>
+                      <td className="py-2 px-3 text-right font-medium text-[#0284c7]">{fmt(r.durationMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ── NPS Card with Detractors toggle ──────────────────────────────────────────
+function NpsCard({ npsScore, breakdown }: { npsScore: number | null; breakdown: NpsBreakdown | null }) {
+  const [detractorsOnly, setDetractorsOnly] = React.useState(false)
+
+  const scoreLabel = npsScore !== null ? (npsScore >= 0 ? `+${Math.round(npsScore)}` : String(Math.round(npsScore))) : "—"
+  const detractorPct = breakdown ? Math.round((breakdown.detractors / breakdown.total) * 100) : null
+
+  return (
+    <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+      <CardContent className="pt-5 pb-4 px-5">
+        <div className="flex items-start justify-between mb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.6px] text-[#64748b]">NPS Score</p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[#64748b] font-medium">Detractors</span>
+            <button
+              type="button"
+              onClick={() => setDetractorsOnly((v) => !v)}
+              title="Toggle detractors view"
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors focus:outline-none ${detractorsOnly ? "bg-[#ef4444]" : "bg-[#cbd5e1]"}`}
+            >
+              <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${detractorsOnly ? "translate-x-[14px]" : "translate-x-[2px]"}`} />
+            </button>
+          </div>
+        </div>
+
+        {detractorsOnly && breakdown ? (
+          <>
+            <p className="text-[28px] font-bold text-[#ef4444] leading-9">{breakdown.detractors}</p>
+            <p className="text-xs text-[#94a3b8] mt-1">
+              {detractorPct}% of {breakdown.total} respondents
+            </p>
+            <div className="mt-2 h-1.5 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-[#ef4444] transition-all" style={{ width: `${detractorPct}%` }} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-start justify-between">
+              <p className="text-[28px] font-bold text-[#0f172a] leading-9">{scoreLabel}</p>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#fef3c7]">
+                <Star className="h-5 w-5 text-[#d97706]" />
+              </div>
+            </div>
+            <p className="text-xs text-[#94a3b8] mt-1">
+              {npsScore !== null ? "Net Promoter Score" : "No responses yet"}
+            </p>
+            {breakdown && (
+              <div className="flex gap-2 mt-2">
+                {[
+                  { label: "P", count: breakdown.promoters, color: "#10b981" },
+                  { label: "N", count: breakdown.passives, color: "#f59e0b" },
+                  { label: "D", count: breakdown.detractors, color: "#ef4444" },
+                ].map(({ label, count, color }) => (
+                  <div key={label} className="flex items-center gap-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="text-[10px] text-[#64748b]">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { vendorName } = useBrandingConfig();
@@ -133,7 +306,12 @@ export default function DashboardPage() {
     goalAchievement: [],
     roi: { budgetAdherence: null, foodWasteReduction: null, healthCostSavings: null },
     npsScore: null,
+    npsBreakdown: null,
   });
+
+  React.useEffect(() => {
+    trackEvent("page_view", { page: "dashboard" });
+  }, []);
 
   React.useEffect(() => {
     let alive = true;
@@ -224,13 +402,23 @@ export default function DashboardPage() {
         }
 
         let npsScore: number | null = null;
+        let npsBreakdown: NpsBreakdown | null = null;
         if (npsRes.status === "fulfilled" && npsRes.value.ok) {
           const j = await npsRes.value.json().catch(() => ({}));
           if (typeof j.nps_score === "number") npsScore = j.nps_score;
+          const total = j.total_responses ?? 0;
+          if (total > 0) {
+            npsBreakdown = {
+              promoters: j.promoters ?? 0,
+              passives: j.passives ?? 0,
+              detractors: j.detractors ?? 0,
+              total,
+            };
+          }
         }
 
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi, npsScore });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi, npsScore, npsBreakdown });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -313,14 +501,7 @@ export default function DashboardPage() {
                 iconBg="bg-[rgba(0,67,143,0.1)]"
                 iconColor="text-[#00438f]"
               />
-              <KpiCard
-                label="DAU / MAU Ratio"
-                value="—"
-                icon={Activity}
-                sub="Not yet tracked"
-                iconBg="bg-[#f1f5f9]"
-                iconColor="text-[#64748b]"
-              />
+              <AvgSessionCard />
               <KpiCard
                 label="Retention Rate"
                 value={data.activationRate !== null ? `${data.activationRate.toFixed(1)}%` : "—"}
@@ -329,14 +510,7 @@ export default function DashboardPage() {
                 iconBg="bg-[#dcfce7]"
                 iconColor="text-[#059669]"
               />
-              <KpiCard
-                label="NPS Score"
-                value={data.npsScore !== null ? (data.npsScore >= 0 ? `+${data.npsScore}` : String(data.npsScore)) : "—"}
-                icon={Star}
-                sub={data.npsScore !== null ? "Net Promoter Score" : "No responses yet"}
-                iconBg="bg-[#fef3c7]"
-                iconColor="text-[#d97706]"
-              />
+              <NpsCard npsScore={data.npsScore} breakdown={data.npsBreakdown} />
             </div>
           </section>
 

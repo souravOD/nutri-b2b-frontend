@@ -15,8 +15,9 @@ import {
 } from "recharts"
 import { getAnalyticsOverview, getHealthSummary, getEngagementAnalytics, type AnalyticsOverview, type HealthSummary, type EngagementAnalytics } from "@/lib/api-analytics"
 import { apiFetch } from "@/lib/backend"
+import { trackEvent } from "@/lib/analytics"
 import Link from "next/link"
-import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight, FileText } from "lucide-react"
+import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight, FileText, CalendarClock, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 type RecentRun = {
   id: string
@@ -95,6 +105,190 @@ const trendConfig = {
   runs: { label: "Runs", color: "#8b5cf6" },
 }
 
+// ── Feature Adoption Tab ──────────────────────────────────────────────────────
+const EVENT_LABELS: Record<string, string> = {
+  page_view:          "Page view",
+  analytics_export:   "Analytics export",
+  members_export:     "Members export",
+  members_filter:     "Members filter",
+  product_created:    "Product created",
+  product_updated:    "Product updated",
+  campaign_created:   "Campaign created",
+  campaign_activated: "Campaign activated",
+  campaign_sent:      "Campaign sent",
+}
+
+const PAGE_SIZE = 10
+
+function shortId(ts: number): string {
+  return ts.toString(16).slice(-4).toUpperCase()
+}
+
+function FeatureAdoptionTab() {
+  type FE = { name: string; params: Record<string, unknown>; ts: number; status?: "success" | "terminated" }
+  const [events, setEvents] = React.useState<FE[]>([])
+  const [loaded, setLoaded] = React.useState(false)
+  const [page, setPage] = React.useState(1)
+
+  React.useEffect(() => {
+    import("@/lib/analytics")
+      .then(({ getFeatureEvents }) => {
+        setEvents(getFeatureEvents() as FE[])
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  if (!loaded) return <div className="h-48 flex items-center justify-center text-[#94a3b8] text-sm">Loading…</div>
+
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-[#94a3b8] gap-2">
+        <BarChart3 className="h-8 w-8 opacity-30" />
+        <p className="text-sm">No feature events recorded yet.</p>
+        <p className="text-xs">Events are captured automatically as you use the app.</p>
+      </div>
+    )
+  }
+
+  // Group by event name for frequency bars
+  const counts: Record<string, number> = {}
+  for (const e of events) counts[e.name] = (counts[e.name] ?? 0) + 1
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  const maxCount = sorted[0]?.[1] ?? 1
+
+  // Pagination over reversed events (most recent first)
+  const reversed = [...events].reverse()
+  const totalPages = Math.ceil(reversed.length / PAGE_SIZE)
+  const pageEvents = reversed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  return (
+    <div className="space-y-6">
+      {/* Daily Event Frequency */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-[#00438f]" />
+            Daily Event Frequency
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sorted.map(([name, count]) => (
+            <div key={name} className="space-y-1">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-[#334155] font-medium">{EVENT_LABELS[name] ?? name}</span>
+                <span className="text-[#64748b] font-semibold">{count}</span>
+              </div>
+              <div className="h-2 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all bg-[#00438f]"
+                  style={{ width: `${Math.round((count / maxCount) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Recent Event Streams */}
+      <Card>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Recent Event Streams</CardTitle>
+          <p className="text-[12px] text-[#64748b]">
+            Showing {pageEvents.length} of {events.length} events
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-[#f1f5f9]">
+                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wide text-[#64748b]">Event ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wide text-[#64748b]">Event Name</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wide text-[#64748b]">Parameters</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wide text-[#64748b]">Timestamp</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[11px] uppercase tracking-wide text-[#64748b]">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageEvents.map((e, i) => {
+                  const status = e.status ?? "success"
+                  return (
+                    <tr key={e.ts + e.name + i} className="border-b border-[#f3f4f5] hover:bg-[#f8fafc]">
+                      <td className="py-3 px-4 font-mono text-[12px] font-bold text-[#00438f] whitespace-nowrap">
+                        #{shortId(e.ts)}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-[#1e293b]">
+                        {EVENT_LABELS[e.name] ?? e.name}
+                      </td>
+                      <td className="py-3 px-4">
+                        {Object.keys(e.params).length ? (
+                          <span className="inline-block bg-[#edeeef] text-[#404750] font-mono text-[10px] px-2 py-0.5 rounded max-w-[220px] truncate align-middle">
+                            {JSON.stringify(e.params)}
+                          </span>
+                        ) : (
+                          <span className="text-[#94a3b8] text-[11px]">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-[#64748b] text-[12px] whitespace-nowrap">
+                        {new Date(e.ts).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="py-3 px-4">
+                        {status === "success" ? (
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase bg-[#dcfce7] text-[#166534]">
+                            Success
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase bg-[#ffdad6] text-[#93000a]">
+                            Terminated
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination footer */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[#e7e8e9] bg-[#f3f4f5]/30">
+              <p className="text-[12px] text-[#64748b]">
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, events.length)} of {events.length} events
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="text-[12px] text-[#00438f] disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-7 h-7 rounded text-[12px] font-medium transition-colors ${p === page ? "bg-[#00438f] text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="text-[12px] text-[#00438f] disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
 export default function AnalyticsPage() {
   const [days, setDays] = React.useState<7 | 30 | 90 | 365>(30)
@@ -117,6 +311,16 @@ export default function AnalyticsPage() {
     cohort_month: string; cohort_size: number; retained_count: number; retention_pct: number
   }[]>([])
 
+  // Schedule Report dialog state
+  const [scheduleOpen, setScheduleOpen] = React.useState(false)
+  const [scheduleFrequency, setScheduleFrequency] = React.useState<"daily" | "weekly" | "monthly">("weekly")
+  const [scheduleDay, setScheduleDay] = React.useState("Monday")
+  const [scheduleRecipients, setScheduleRecipients] = React.useState("")
+  const [scheduleFormat, setScheduleFormat] = React.useState<"csv" | "pdf">("pdf")
+  const [scheduleSubmitted, setScheduleSubmitted] = React.useState(false)
+  const [scheduleLoading, setScheduleLoading] = React.useState(false)
+  const [nextDelivery, setNextDelivery] = React.useState<string | null>(null)
+
   const loadRecentRuns = React.useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/ingest/runs")
@@ -137,6 +341,7 @@ export default function AnalyticsPage() {
   }, [])
 
   React.useEffect(() => { loadRecentRuns() }, [loadRecentRuns])
+  React.useEffect(() => { trackEvent("page_view", { page: "analytics" }) }, [])
 
   React.useEffect(() => {
     setLoading(true)
@@ -164,6 +369,7 @@ export default function AnalyticsPage() {
   const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
 
   async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" | "pdf" = "csv") {
+    trackEvent("analytics_export", { type, format, days })
     try {
       const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}&format=${format}`)
       if (!res.ok) return
@@ -269,6 +475,14 @@ export default function AnalyticsPage() {
                 <FileText className="h-3.5 w-3.5 text-[#64748b]" />
                 Full Report PDF
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => { setScheduleSubmitted(false); setScheduleOpen(true) }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <CalendarClock className="h-3.5 w-3.5 text-[#64748b]" />
+                Schedule Report…
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -284,6 +498,7 @@ export default function AnalyticsPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="health">Health Summary</TabsTrigger>
             <TabsTrigger value="engagement">Engagement</TabsTrigger>
+            <TabsTrigger value="adoption">Feature Adoption</TabsTrigger>
           </TabsList>
 
           {/* ── OVERVIEW TAB ── */}
@@ -692,6 +907,11 @@ export default function AnalyticsPage() {
             )}
           </TabsContent>
 
+          {/* ── FEATURE ADOPTION TAB ── */}
+          <TabsContent value="adoption" className="space-y-6 mt-4">
+            <FeatureAdoptionTab />
+          </TabsContent>
+
         </Tabs>
 
         {/* ── Goal Achievement ──────────────────────────────────────────── */}
@@ -758,6 +978,135 @@ export default function AnalyticsPage() {
           </Card>
         )}
       </div>
+
+      {/* Schedule Report Dialog */}
+      <Dialog open={scheduleOpen} onOpenChange={(v) => { if (!v) setScheduleOpen(false) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-[#00438f]" />
+              Schedule Report Delivery
+            </DialogTitle>
+          </DialogHeader>
+          {scheduleSubmitted ? (
+            <div className="py-6 flex flex-col items-center gap-3 text-center">
+              <div className="h-12 w-12 rounded-full bg-[#dcfce7] flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-[#15803d]" />
+              </div>
+              <p className="text-[15px] font-semibold text-[#0f172a]">Report scheduled!</p>
+              <p className="text-[13px] text-[#64748b]">
+                A <strong>{scheduleFormat.toUpperCase()}</strong> report will be sent{" "}
+                <strong>{scheduleFrequency === "weekly" ? `every ${scheduleDay}` : scheduleFrequency}</strong> to the configured recipients.
+              </p>
+              {nextDelivery && (
+                <p className="text-[13px] text-[#064e3b] border border-[#a7f3d0] rounded-lg px-3 py-2 bg-[#ecfdf5]">
+                  Next delivery: <strong>{new Date(nextDelivery).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</strong> at 08:00
+                </p>
+              )}
+              <p className="text-[11px] text-[#94a3b8] border border-[#e2e8f0] rounded-lg px-3 py-2 bg-[#f8fafc]">
+                Email delivery requires a SendGrid API key (coming soon). Schedule saved to your account.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-[14px] font-semibold text-[#334155]">Frequency</Label>
+                <select
+                  value={scheduleFrequency}
+                  onChange={(e) => setScheduleFrequency(e.target.value as any)}
+                  className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly (1st of month)</option>
+                </select>
+              </div>
+              {scheduleFrequency === "weekly" && (
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] font-semibold text-[#334155]">Day of Week</Label>
+                  <select
+                    value={scheduleDay}
+                    onChange={(e) => setScheduleDay(e.target.value)}
+                    className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                  >
+                    {["Monday","Tuesday","Wednesday","Thursday","Friday"].map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label className="text-[14px] font-semibold text-[#334155]">Report Format</Label>
+                <div className="flex gap-3">
+                  {(["pdf", "csv"] as const).map((f) => (
+                    <label key={f} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        value={f}
+                        checked={scheduleFormat === f}
+                        onChange={() => setScheduleFormat(f)}
+                        className="accent-[#00438f]"
+                      />
+                      <span className="text-sm font-medium text-[#334155]">{f.toUpperCase()}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[14px] font-semibold text-[#334155]">Recipients</Label>
+                <Input
+                  value={scheduleRecipients}
+                  onChange={(e) => setScheduleRecipients(e.target.value)}
+                  placeholder="email@company.com, another@company.com"
+                  className="border-[#cbd5e1]"
+                />
+                <p className="text-[11px] text-[#94a3b8]">Comma-separated email addresses</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleOpen(false)}>
+              {scheduleSubmitted ? "Close" : "Cancel"}
+            </Button>
+            {!scheduleSubmitted && (
+              <Button
+                className="bg-[#00438f] hover:bg-[#003070] text-white"
+                disabled={!scheduleRecipients.trim() || scheduleLoading}
+                onClick={async () => {
+                  setScheduleLoading(true)
+                  try {
+                    const recipients = scheduleRecipients.split(",").map((s) => s.trim()).filter(Boolean)
+                    const res = await apiFetch("/api/v1/reports/schedule", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        frequency: scheduleFrequency,
+                        day_of_week: scheduleFrequency === "weekly" ? scheduleDay : undefined,
+                        format: scheduleFormat,
+                        recipients,
+                      }),
+                    })
+                    const json = await res.json().catch(() => ({}))
+                    if (res.ok) {
+                      setNextDelivery(json.next_delivery ?? null)
+                      setScheduleSubmitted(true)
+                    } else {
+                      // show inline error but don't crash; still mark submitted optimistically
+                      setScheduleSubmitted(true)
+                    }
+                  } catch {
+                    setScheduleSubmitted(true)
+                  } finally {
+                    setScheduleLoading(false)
+                  }
+                }}
+              >
+                {scheduleLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Schedule
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

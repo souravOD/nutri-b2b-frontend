@@ -36,6 +36,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { apiFetch } from "@/lib/backend"
+import { trackEvent } from "@/lib/analytics"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ComplianceCheck {
@@ -306,6 +307,7 @@ export default function CompliancePage() {
     }
   }, [page, activeTab, search, severity, fromDate, toDate])
 
+  useEffect(() => { trackEvent("page_view", { page: "compliance" }) }, [])
   useEffect(() => { fetchChecks() }, [fetchChecks])
 
   const runComplianceCheck = async () => {

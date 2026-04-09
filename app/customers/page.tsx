@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Grid3X3, List as ListIcon, UserCheck, UserX, Download, Upload, AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import { apiFetch } from "@/lib/backend";
+import { trackEvent } from "@/lib/analytics";
 import {
   Dialog,
   DialogContent,
@@ -53,9 +54,11 @@ import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerFilters from "@/components/customers/CustomerFilters";
 import CustomerListEmpty from "@/components/customers/CustomerListEmpty";
 import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
+import { PermissionGate } from "@/components/PermissionGate";
 
 /** URL param helpers */
 type SegmentFilter = "all" | "with_profile" | "no_profile";
+type EngagementFilter = "all" | "high" | "medium" | "low";
 
 type ParamState = {
   q?: string | null;
@@ -63,6 +66,7 @@ type ParamState = {
   tags?: string[] | null; // stored as CSV in URL
   view?: "cards" | "list" | null;
   segment?: SegmentFilter | null;
+  engagement?: EngagementFilter | null;
 };
 
 function useUrlState() {
@@ -70,14 +74,15 @@ function useUrlState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; segment: SegmentFilter } => {
+  const get = React.useCallback((): { q: string; status: "all" | "active" | "archived"; tags: string[]; view: "cards" | "list"; segment: SegmentFilter; engagement: EngagementFilter } => {
     const q = searchParams.get("q") ?? "";
     const status = (searchParams.get("status") as "all" | "active" | "archived") || "all";
     const tagsCsv = searchParams.get("tags") || "";
     const tags = tagsCsv ? tagsCsv.split(",").filter(Boolean) : [];
     const view = (searchParams.get("view") as "cards" | "list") || "cards";
     const segment = (searchParams.get("segment") as SegmentFilter) || "all";
-    return { q, status, tags, view, segment };
+    const engagement = (searchParams.get("engagement") as EngagementFilter) || "all";
+    return { q, status, tags, view, segment, engagement };
   }, [searchParams]);
 
   const set = React.useCallback(
@@ -185,11 +190,19 @@ export default function CustomersIndexPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  // load customers once
+  React.useEffect(() => { trackEvent("page_view", { page: "customers" }); }, []);
+
+  // load customers — re-fetches when segment/engagement filters change (server-side)
+  const { segment, engagement, status } = url;
   React.useEffect(() => {
     let alive = true;
     setLoading(true);
-    listCustomers()
+    listCustomers({
+      segment: segment !== "all" ? segment : undefined,
+      engagement: engagement !== "all" ? engagement : undefined,
+      status: status !== "all" ? status : undefined,
+      limit: 200,
+    })
       .then((items) => {
         if (!alive) return;
         setCustomers(items);
@@ -202,7 +215,7 @@ export default function CustomersIndexPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [segment, engagement, status]);
 
   // derived: all tags present in the list
   const allTags = React.useMemo(() => {
@@ -211,19 +224,12 @@ export default function CustomersIndexPage() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [customers]);
 
-  // filtering (client-side; mirrors Products)
+  // filtering (client-side for q/tags; segment/engagement/status handled by backend)
   const filtered = React.useMemo(() => {
     const q = url.q.trim().toLowerCase();
-    const status = url.status;
     const tags = new Set(url.tags);
-    const segment = url.segment;
 
     return customers.filter((c) => {
-      if (status !== "all" && c.status !== status) return false;
-
-      if (segment === "with_profile" && !c.healthProfile) return false;
-      if (segment === "no_profile" && c.healthProfile) return false;
-
       if (tags.size) {
         const hasAll = Array.from(tags).every((t) => c.tags?.includes(t));
         if (!hasAll) return false;
@@ -291,6 +297,7 @@ export default function CustomersIndexPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => {
+                  trackEvent("members_export", { format: "csv" });
                   const a = document.createElement("a");
                   a.href = "/api/v1/customers/export";
                   a.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -299,6 +306,7 @@ export default function CustomersIndexPage() {
                   Export CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
+                  trackEvent("members_export", { format: "xlsx" });
                   const a = document.createElement("a");
                   a.href = "/api/v1/customers/export?format=xlsx";
                   a.download = `members-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -308,21 +316,25 @@ export default function CustomersIndexPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="outline"
-              className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
-              onClick={() => { resetImportDialog(); setImportOpen(true); }}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Import CSV
-            </Button>
-            <Button
-              onClick={() => setAddOpen(true)}
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Customer
-            </Button>
+            <PermissionGate permission="write:customers">
+              <Button
+                variant="outline"
+                className="border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]"
+                onClick={() => { resetImportDialog(); setImportOpen(true); }}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
+            </PermissionGate>
+            <PermissionGate permission="write:customers">
+              <Button
+                onClick={() => setAddOpen(true)}
+                className="bg-[#00438f] hover:bg-[#003366] text-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Customer
+              </Button>
+            </PermissionGate>
           </div>
         </div>
 
@@ -377,10 +389,36 @@ export default function CustomersIndexPage() {
                 size="sm"
                 variant={isActive ? "default" : "outline"}
                 className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
-                onClick={() => set({ segment: seg })}
+                onClick={() => { set({ segment: seg }); trackEvent("members_filter", { filter_type: "segment", value: seg }); }}
               >
                 {labels[seg].icon}
                 {labels[seg].label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Engagement filter row */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#64748b]">Engagement:</span>
+          {(["all", "high", "medium", "low"] as EngagementFilter[]).map((eng) => {
+            const meta: Record<EngagementFilter, { label: string; dot: string }> = {
+              all:    { label: "All",    dot: "" },
+              high:   { label: "High",   dot: "bg-[#10b981]" },
+              medium: { label: "Medium", dot: "bg-[#f59e0b]" },
+              low:    { label: "Low",    dot: "bg-[#94a3b8]" },
+            };
+            const isActive = url.engagement === eng;
+            return (
+              <Button
+                key={eng}
+                size="sm"
+                variant={isActive ? "default" : "outline"}
+                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
+                onClick={() => { set({ engagement: eng }); trackEvent("members_filter", { filter_type: "engagement", value: eng }); }}
+              >
+                {meta[eng].dot && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${meta[eng].dot}`} />}
+                {meta[eng].label}
               </Button>
             );
           })}

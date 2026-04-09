@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Megaphone, Plus, Trash2, Users } from "lucide-react"
+import { trackEvent } from "@/lib/analytics"
+import { FlaskConical, GitBranch, Loader2, Megaphone, Plus, Trash2, Users } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Campaign = {
@@ -28,6 +30,9 @@ type Campaign = {
   sent_at: string | null
   created_at: string
   recipient_count: number | null
+  ab_test_enabled: boolean
+  subject_b: string | null
+  message_b: string | null
 }
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -75,6 +80,9 @@ export default function CampaignsPage() {
     subject: "",
     message: "",
   })
+  const [abEnabled, setAbEnabled] = React.useState(false)
+  const [subjectB, setSubjectB] = React.useState("")
+  const [messageB, setMessageB] = React.useState("")
 
   // Debounced segment preview fetch
   React.useEffect(() => {
@@ -109,6 +117,7 @@ export default function CampaignsPage() {
   }
 
   React.useEffect(() => { load() }, [])
+  React.useEffect(() => { trackEvent("page_view", { page: "campaigns" }) }, [])
 
   async function handleCreate() {
     if (!form.name.trim() || !form.subject.trim() || !form.message.trim()) return
@@ -117,14 +126,23 @@ export default function CampaignsPage() {
       const res = await apiFetch("/api/v1/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          ab_test_enabled: abEnabled,
+          subject_b: abEnabled ? subjectB.trim() || null : null,
+          message_b: abEnabled ? messageB.trim() || null : null,
+        }),
       })
       if (res.ok) {
         const json = await res.json()
         setCampaigns((prev) => [json.campaign, ...prev])
         setCreateOpen(false)
         setForm({ name: "", target_segment: "all", subject: "", message: "" })
+        setAbEnabled(false)
+        setSubjectB("")
+        setMessageB("")
         toast({ title: "Campaign created" })
+        trackEvent("campaign_created", { segment: form.target_segment, ab_test: abEnabled })
       } else {
         const json = await res.json().catch(() => ({}))
         toast({ title: "Failed to create campaign", description: json.detail, variant: "destructive" })
@@ -146,6 +164,7 @@ export default function CampaignsPage() {
         const json = await res.json()
         setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, ...json.campaign } : c))
         toast({ title: status === "active" ? "Campaign activated" : "Campaign marked as sent" })
+        trackEvent(status === "active" ? "campaign_activated" : "campaign_sent")
       }
     } finally {
       setUpdatingId(null)
@@ -290,11 +309,11 @@ export default function CampaignsPage() {
 
       {/* Create Campaign Dialog */}
       <Dialog open={createOpen} onOpenChange={(v) => { if (!v) { setCreateOpen(false); setSegmentCount(null) } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>New Campaign</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="overflow-y-auto max-h-[80vh] space-y-4 py-2 pr-1">
             <div className="space-y-1.5">
               <Label className="text-[14px] font-semibold text-[#334155]">Campaign Name <span className="text-red-500">*</span></Label>
               <Input
@@ -344,13 +363,53 @@ export default function CampaignsPage() {
                 className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
               />
             </div>
+            {/* A/B Test Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4 text-[#00438f]" />
+                  <span className="text-[13px] font-semibold text-[#334155]">Enable A/B Test</span>
+                </div>
+                <Switch
+                  checked={abEnabled}
+                  onCheckedChange={setAbEnabled}
+                />
+              </div>
+              {abEnabled && (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-[#64748b] flex items-center gap-1.5">
+                    <GitBranch className="h-3 w-3" />
+                    50% / 50% audience split (auto)
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] font-semibold text-[#334155]">Subject B <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={subjectB}
+                      onChange={(e) => setSubjectB(e.target.value)}
+                      placeholder="Alternate subject line..."
+                      className="border-[#cbd5e1] text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] font-semibold text-[#334155]">Message B <span className="text-red-500">*</span></Label>
+                    <textarea
+                      value={messageB}
+                      onChange={(e) => setMessageB(e.target.value)}
+                      rows={3}
+                      placeholder="Alternate message body..."
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
             <Button
               className="bg-[#00438f] hover:bg-[#003070] text-white"
               onClick={handleCreate}
-              disabled={creating || !form.name.trim() || !form.subject.trim() || !form.message.trim()}
+              disabled={creating || !form.name.trim() || !form.subject.trim() || !form.message.trim() || (abEnabled && (!subjectB.trim() || !messageB.trim()))}
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Create Campaign

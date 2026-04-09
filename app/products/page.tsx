@@ -30,10 +30,12 @@ import ActiveFiltersChips from "@/components/active-filters-chips"
 import type { ColumnDef } from "@tanstack/react-table"
 import Image from "next/image"
 import { apiFetch } from "@/lib/backend"
+import { trackEvent } from "@/lib/analytics"
 import { normalizeListResponse } from "@/lib/api-helpers"
 import ProductForm from "@/components/product-form"
 import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
+import { PermissionGate } from "@/components/PermissionGate"
 import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal, Plus, Grid3X3, List as ListIcon, Package } from "lucide-react";
 
 
@@ -359,6 +361,7 @@ export default function ProductsPage() {
   React.useEffect(() => {
     load()
   }, [load])
+  React.useEffect(() => { trackEvent("page_view", { page: "products" }) }, [])
 
   // URL sync is handled via useUrlState().set(...) in handlers.
   // Avoid replacing the current route on every render, which can cancel in-flight API requests.
@@ -655,8 +658,12 @@ export default function ProductsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => handleRowClick(row.original)}>{"View Details"}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openEdit(row.original)}>{"Edit"}</DropdownMenuItem>
-            <DropdownMenuItem className="text-rose-600" onClick={() => handleDelete(row.original)}>{"Delete"}</DropdownMenuItem>
+            <PermissionGate permission="write:products">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>{"Edit"}</DropdownMenuItem>
+            </PermissionGate>
+            <PermissionGate permission="write:products">
+              <DropdownMenuItem className="text-rose-600" onClick={() => handleDelete(row.original)}>{"Delete"}</DropdownMenuItem>
+            </PermissionGate>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -719,20 +726,24 @@ export default function ProductsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <ImportWizard
-                onComplete={load}
-                initialOpen={importOpen}
-                onClose={importOpen ? clearImportParam : undefined}
-                triggerLabel="Import"
-                triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
-              />
-              <Button
-                onClick={() => setCreateOpen(true)}
-                className="bg-[#00438f] hover:bg-[#003366] text-white"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
+              <PermissionGate permission="write:products">
+                <ImportWizard
+                  onComplete={load}
+                  initialOpen={importOpen}
+                  onClose={importOpen ? clearImportParam : undefined}
+                  triggerLabel="Import"
+                  triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+                />
+              </PermissionGate>
+              <PermissionGate permission="write:products">
+                <Button
+                  onClick={() => setCreateOpen(true)}
+                  className="bg-[#00438f] hover:bg-[#003366] text-white"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Product
+                </Button>
+              </PermissionGate>
             </div>
           </div>
           {error && (
@@ -798,7 +809,7 @@ export default function ProductsPage() {
               open={editOpen}
               onOpenChange={setEditOpen}
               renderTrigger={false}
-              onSaved={() => { setEditOpen(false); load(); }}
+              onSaved={() => { setEditOpen(false); load(); trackEvent("product_updated"); }}
             />
           </div>
         </div>
@@ -833,14 +844,18 @@ export default function ProductsPage() {
                   : "Get started by importing products or adding them manually."}
               </p>
               <div className="flex items-center justify-center gap-2">
-                <ImportWizard
-                  onComplete={load}
-                  initialOpen={importOpen}
-                  onClose={importOpen ? clearImportParam : undefined}
-                  triggerLabel="Import"
-                  triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
-                />
-                <ProductForm mode="create" onSaved={load} />
+                <PermissionGate permission="write:products">
+                  <ImportWizard
+                    onComplete={load}
+                    initialOpen={importOpen}
+                    onClose={importOpen ? clearImportParam : undefined}
+                    triggerLabel="Import"
+                    triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+                  />
+                </PermissionGate>
+                <PermissionGate permission="write:products">
+                  <ProductForm mode="create" onSaved={() => { load(); trackEvent("product_created"); }} />
+                </PermissionGate>
               </div>
             </CardContent>
           </Card>
@@ -927,7 +942,7 @@ export default function ProductsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         renderTrigger={false}
-        onSaved={() => { setCreateOpen(false); load(); }}
+        onSaved={() => { setCreateOpen(false); load(); trackEvent("product_created"); }}
       />
 
     </AppShell>

@@ -3,14 +3,24 @@
 import * as React from "react"
 import Link from "next/link"
 import AppShell from "@/components/app-shell"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Button } from "@/components/ui/button"
 import { useBrandingConfig } from "@/hooks/useBrandingConfig"
+import { trackEvent } from "@/lib/analytics"
 import {
   Upload,
   Package,
@@ -18,7 +28,6 @@ import {
   ShieldCheck,
   ExternalLink,
   Mail,
-  BookOpen,
 } from "lucide-react"
 
 const QUICK_LINKS = [
@@ -65,84 +74,124 @@ const FAQS = [
 
 export default function HelpPage() {
   const branding = useBrandingConfig()
+  React.useEffect(() => { trackEvent("page_view", { page: "help" }) }, [])
 
   return (
     <AppShell>
-      <div className="p-6 space-y-8 max-w-3xl">
-        {/* Header */}
+      <div className="space-y-6">
+
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#64748b]">
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard">Portal</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="font-medium text-[#0f172a]">Help</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        {/* Page header */}
         <div>
-          <h1 className="text-2xl font-semibold text-[#1e293b]">Help Center</h1>
-          <p className="text-sm text-[#64748b] mt-1">
-            Documentation and support for the {branding.vendorName} Vendor Portal
+          <h1 className="text-3xl font-bold tracking-tight text-[#0f172a]">Help</h1>
+          <p className="mt-1 text-base text-[#64748b]">
+            Documentation and support for the {branding.vendorName} Vendor Portal.
           </p>
         </div>
 
-        {/* Quick links */}
-        <div>
-          <h2 className="text-base font-semibold text-[#1e293b] mb-3 flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-[#00438f]" />
-            Quick Links
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {QUICK_LINKS.map(({ label, description, href, icon: Icon }) => (
-              <Link key={href} href={href}>
-                <Card className="hover:border-[#00438f] hover:shadow-sm transition-all cursor-pointer h-full">
-                  <CardContent className="pt-4 pb-4 flex gap-3 items-start">
-                    <div className="p-2 bg-[#eff6ff] rounded-lg shrink-0">
-                      <Icon className="h-4 w-4 text-[#00438f]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-[#1e293b]">{label}</p>
-                      <p className="text-xs text-[#64748b] mt-0.5">{description}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+        {/* Quick Links — 4-column, vertical card layout */}
+        <div className="grid grid-cols-4 gap-4">
+          {QUICK_LINKS.map(({ label, description, href, icon: Icon }) => (
+            <Link key={href} href={href} className="group">
+              <Card className="h-full cursor-pointer border border-[#e2e8f0] hover:border-[#00438f] hover:shadow-md transition-all duration-150">
+                <CardContent className="pt-6 pb-6 flex flex-col gap-4">
+                  <div className="h-12 w-12 rounded-lg bg-[#eff6ff] flex items-center justify-center shrink-0">
+                    <Icon className="h-6 w-6 text-[#00438f]" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-[#1e293b] leading-snug">{label}</p>
+                    <p className="text-sm text-[#64748b] mt-1">{description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
 
         {/* FAQ */}
         <div>
-          <h2 className="text-base font-semibold text-[#1e293b] mb-3">Frequently Asked Questions</h2>
-          <Accordion type="single" collapsible className="space-y-1">
-            {FAQS.map((item, i) => (
-              <AccordionItem key={i} value={`faq-${i}`} className="border rounded-lg px-4">
-                <AccordionTrigger className="text-sm font-medium text-[#1e293b] hover:no-underline py-3">
-                  {item.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-[#475569] pb-3">
-                  {item.a}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          {/* Heading row with "View all articles" link */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-[#1e293b]">Frequently Asked Questions</h2>
+            <Link
+              href="/knowledge-base"
+              className="text-sm font-medium text-[#00438f] hover:underline"
+            >
+              View all articles
+            </Link>
+          </div>
+
+          {/* Flat rows in single bordered container, alternating row backgrounds */}
+          <div className="rounded-lg border border-[#e2e8f0] overflow-hidden">
+            <Accordion type="single" collapsible>
+              {FAQS.map((item, i) => (
+                <AccordionItem
+                  key={i}
+                  value={`faq-${i}`}
+                  className={`px-5 border-b border-[#e2e8f0] last:border-b-0 ${
+                    i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"
+                  }`}
+                >
+                  <AccordionTrigger className="text-sm font-medium text-[#1e293b] hover:no-underline py-5 min-h-[64px]">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-[#475569] pb-5">
+                    {item.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </div>
 
-        {/* Contact */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Need More Help?</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <a
-              href="mailto:support@odysseyts.com"
-              className="flex items-center gap-2 text-sm text-[#00438f] hover:underline"
+        {/* Need More Help — full-width dark navy card */}
+        <div className="rounded-xl bg-[#0C4A7F] px-10 py-10 flex items-center justify-between gap-8">
+          <div className="min-w-0">
+            <h2 className="text-[30px] font-bold text-white leading-tight">Need More Help?</h2>
+            <p className="mt-2 text-sm text-[#b0d0ed] max-w-lg">
+              Our support team and developer resources are available 24/7 to help you resolve any issues.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 shrink-0">
+            <Button
+              asChild
+              variant="outline"
+              className="bg-white text-[#0C4A7F] border-white hover:bg-[#eff6ff] hover:text-[#003366] justify-start"
             >
-              <Mail className="h-4 w-4" />
-              support@odysseyts.com
-            </a>
-            <a
-              href="https://github.com/souravOD/nutri-b2b-backend/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-[#00438f] hover:underline"
+              <a href="mailto:support@odysseyts.com">
+                <Mail className="h-4 w-4" />
+                support@odysseyts.com
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="bg-transparent text-white border-white hover:bg-white/10 hover:text-white justify-start"
             >
-              <ExternalLink className="h-4 w-4" />
-              Open a GitHub issue
-            </a>
-          </CardContent>
-        </Card>
+              <a
+                href="https://github.com/souravOD/nutri-b2b-backend/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open a GitHub issue
+              </a>
+            </Button>
+          </div>
+        </div>
+
       </div>
     </AppShell>
   )

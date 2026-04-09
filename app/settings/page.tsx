@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import Link from "next/link"
 import AppShell from "@/components/app-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +27,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { AlertTriangle, BarChart3, Copy, Database, Download, Globe, Info, Loader2, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Copy, Database, Download, Globe, HelpCircle, Info, Loader2, Megaphone, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
 import { Checkbox } from "@/components/ui/checkbox"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
@@ -116,7 +116,8 @@ const ROLE_CONFIG: {
   },
 ]
 
-function BrandingLivePreview({ color, logoUrl }: { color: string; logoUrl: string }) {
+// ── Partner Theme Studio ─────────────────────────────────────────────────────
+function AdminPortalPreview({ color, logoUrl }: { color: string; logoUrl: string }) {
   const safeColor = /^#[0-9a-fA-F]{3,6}$/.test(color) ? color : "#2073BD"
   return (
     <div className="rounded-[10px] border border-[#e2e8f0] shadow-md overflow-hidden bg-white">
@@ -164,6 +165,296 @@ function BrandingLivePreview({ color, logoUrl }: { color: string; logoUrl: strin
         </div>
       </div>
     </div>
+  )
+}
+
+function MemberAppPreview({ color, logoUrl }: { color: string; logoUrl: string }) {
+  const safeColor = /^#[0-9a-fA-F]{3,6}$/.test(color) ? color : "#2073BD"
+  return (
+    <div className="rounded-[18px] border-2 border-[#1e293b] shadow-lg overflow-hidden bg-white w-[140px] mx-auto" style={{ height: 220 }}>
+      {/* Phone notch */}
+      <div className="h-4 flex justify-center items-end pb-1 bg-[#1e293b]">
+        <div className="h-1.5 w-10 rounded-full bg-[#374151]" />
+      </div>
+      {/* App header */}
+      <div className="px-2 py-1.5 flex items-center justify-between" style={{ backgroundColor: safeColor }}>
+        <div className="flex items-center gap-1">
+          <div className="size-4 rounded bg-white/25 flex items-center justify-center overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="size-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+            ) : (
+              <div className="size-2 rounded-sm bg-white/60" />
+            )}
+          </div>
+          <div className="h-1.5 w-10 rounded bg-white/60" />
+        </div>
+        <div className="size-3 rounded-full bg-white/30" />
+      </div>
+      {/* Greeting */}
+      <div className="px-2 pt-1.5 pb-1">
+        <div className="h-1.5 w-16 rounded bg-[#1e293b]/70 mb-0.5" />
+        <div className="h-1 w-10 rounded bg-[#94a3b8]" />
+      </div>
+      {/* Today's Goals card */}
+      <div className="mx-2 mb-1.5 rounded-md border border-[#e2e8f0] bg-[#f8fafc] p-1.5 space-y-1">
+        <div className="h-1 w-12 rounded bg-[#94a3b8]" />
+        {[75, 50, 85].map((w, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <div className="h-1 w-6 rounded bg-[#e2e8f0]">
+              <div className="h-full rounded" style={{ width: `${w}%`, backgroundColor: safeColor }} />
+            </div>
+            <div className="h-1 w-4 rounded bg-[#e2e8f0]" />
+          </div>
+        ))}
+      </div>
+      {/* Recommended section */}
+      <div className="mx-2">
+        <div className="h-1 w-14 rounded bg-[#94a3b8] mb-1" />
+        <div className="flex gap-1">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex-1 rounded border border-[#e2e8f0] bg-white p-1">
+              <div className="h-4 rounded mb-0.5" style={{ backgroundColor: safeColor + "22" }} />
+              <div className="h-1 w-full rounded bg-[#e2e8f0]" />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Bottom nav */}
+      <div className="absolute-bottom flex justify-around mt-2 px-2 pt-1 border-t border-[#f1f5f9]">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className={`size-3 rounded ${i === 0 ? "opacity-100" : "opacity-30"}`} style={{ backgroundColor: safeColor }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BrandingLivePreview({ color, logoUrl }: { color: string; logoUrl: string }) {
+  const [mode, setMode] = React.useState<"admin" | "member">("admin")
+  return (
+    <div className="space-y-2">
+      {/* Mode toggle */}
+      <div className="flex rounded-lg border border-[#e2e8f0] overflow-hidden text-[11px] font-semibold w-fit">
+        {(["admin", "member"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`px-3 py-1.5 transition-colors ${mode === m ? "bg-[#00438f] text-white" : "bg-white text-[#64748b] hover:bg-[#f8fafc]"}`}
+          >
+            {m === "admin" ? "Admin Portal" : "Member App"}
+          </button>
+        ))}
+      </div>
+      {/* Preview */}
+      {mode === "admin"
+        ? <AdminPortalPreview color={color} logoUrl={logoUrl} />
+        : <MemberAppPreview color={color} logoUrl={logoUrl} />
+      }
+      <p className="text-[11px] text-[#94a3b8] text-center">
+        {mode === "admin" ? "Partner admin portal preview" : "Member-facing app preview"}
+      </p>
+    </div>
+  )
+}
+
+// ── Session Stats Card (reads localStorage session history) ──────────────────
+function SessionStatsCard() {
+  const [stats, setStats] = React.useState<{ avgMs: number | null; lastMs: number | null }>({ avgMs: null, lastMs: null })
+
+  React.useEffect(() => {
+    // Lazy import so SSR doesn't blow up
+    import("@/hooks/useSessionTimeout").then(({ getSessionStats }) => {
+      setStats(getSessionStats())
+    }).catch(() => {})
+  }, [])
+
+  function fmtMs(ms: number | null) {
+    if (ms === null) return "—"
+    const min = Math.floor(ms / 60_000)
+    if (min < 1) return "<1 min"
+    return `${min} min`
+  }
+
+  const emptyStats = stats.avgMs === null && stats.lastMs === null
+
+  return (
+    <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+      <CardContent className="p-[33px] flex flex-col gap-8">
+        <div className="space-y-1">
+          <CardTitle className="text-[24px] font-bold text-[#0f172a] tracking-[-0.6px] leading-8 p-0">
+            Session Stats
+          </CardTitle>
+          <p className="text-[16px] text-[#404750] leading-6">
+            Based on your recent session history (stored locally in your browser).
+          </p>
+        </div>
+        <div className="border-t border-[rgba(192,199,209,0.35)] pt-6 space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 max-w-xl">
+            <div className="space-y-2">
+              <p className="text-[12px] font-semibold text-[#64748b] uppercase tracking-[0.6px] leading-4">Avg session</p>
+              <p className="text-[24px] font-extrabold text-[#0f172a] leading-8">{fmtMs(stats.avgMs)}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[12px] font-semibold text-[#64748b] uppercase tracking-[0.6px] leading-4">Last session</p>
+              <p className="text-[24px] font-extrabold text-[#0f172a] leading-8">{fmtMs(stats.lastMs)}</p>
+            </div>
+          </div>
+          {emptyStats && (
+            <p className="text-[14px] italic text-[rgba(64,71,80,0.7)] leading-5">
+              No session history yet. Stats will appear after your first sign-out.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Custom Role Builder (wired to PUT /api/role-permissions) ─────────────────
+const ALL_PREVIEW_PERMS = [
+  { key: "read:products",    label: "View products" },
+  { key: "write:products",   label: "Edit products" },
+  { key: "read:customers",   label: "View customers" },
+  { key: "write:customers",  label: "Edit customers" },
+  { key: "read:ingest",      label: "View ingest jobs" },
+  { key: "read:matches",     label: "View product matches" },
+  { key: "manage:users",     label: "User management" },
+  { key: "manage:settings",  label: "System settings" },
+  { key: "read:audit",       label: "Data export / Audit" },
+]
+
+const EDITABLE_ROLES = [
+  { value: "vendor_viewer",     label: "Vendor Viewer" },
+  { value: "vendor_operator",   label: "Vendor Operator" },
+  { value: "wellness_manager",  label: "Wellness Manager" },
+  { value: "marketing_manager", label: "Marketing Manager" },
+]
+
+function CustomRoleBuilderPreview() {
+  const { toast } = useToast()
+  const [roleName, setRoleName] = React.useState("")
+  const [targetRole, setTargetRole] = React.useState("vendor_viewer")
+  const [perms, setPerms] = React.useState<Record<string, boolean>>({})
+  const [previewed, setPreviewed] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  const togglePerm = (key: string) => setPerms((p) => ({ ...p, [key]: !p[key] }))
+  const selectedPerms = Object.keys(perms).filter((k) => perms[k])
+  const canSave = roleName.trim().length > 0 && selectedPerms.length > 0
+
+  async function handleSaveRole() {
+    setSaving(true)
+    try {
+      const res = await apiFetch("/api/role-permissions", {
+        method: "PUT",
+        body: JSON.stringify({ role: targetRole, permissions: selectedPerms }),
+      })
+      if (res.ok) {
+        toast({ title: "Role permissions saved", description: `"${roleName}" applied to ${EDITABLE_ROLES.find(r => r.value === targetRole)?.label}.` })
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast({ title: "Save failed", description: body?.detail ?? "Could not save permissions.", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Save failed", description: "Network error.", variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+      <CardHeader className="border-b border-[#f1f5f9] pb-[20px] pt-5 px-6">
+        <CardTitle className="text-[16px] font-bold text-[#0f172a]">Custom Role Builder</CardTitle>
+        <CardDescription className="text-[13px] text-[#64748b]">
+          Design a permission set and apply it to any editable role in your vendor account.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-6 space-y-4">
+        {/* Info note */}
+        <div className="flex items-start gap-2 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] px-4 py-3">
+          <span className="text-[13px] text-[#1e40af]">Changes apply to the selected role&apos;s permission set for your vendor only.</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold text-[#334155]">Role name <span className="text-[#94a3b8] font-normal">(display only)</span></Label>
+            <Input
+              value={roleName}
+              onChange={(e) => { setRoleName(e.target.value); setPreviewed(false) }}
+              placeholder="e.g. Wellness Manager"
+              className="border-[#cbd5e1]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold text-[#334155]">Apply to role</Label>
+            <select
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+            >
+              {EDITABLE_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[13px] font-semibold text-[#334155]">Permissions</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {ALL_PREVIEW_PERMS.map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!!perms[key]}
+                  onChange={() => togglePerm(key)}
+                  className="h-4 w-4 rounded border-[#cbd5e1] accent-[#00438f]"
+                />
+                <span className="text-[13px] text-[#334155]">{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2 border-[#cbd5e1] text-[#334155]"
+            disabled={!roleName.trim()}
+            onClick={() => setPreviewed(true)}
+          >
+            Preview
+          </Button>
+          <Button
+            className="bg-[#00438f] hover:bg-[#003070] text-white gap-2"
+            disabled={!canSave || saving}
+            onClick={handleSaveRole}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save to Role
+          </Button>
+        </div>
+
+        {previewed && (
+          <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 space-y-2 text-[13px]">
+            <p className="font-semibold text-[#0f172a]">"{roleName}" would have access to:</p>
+            <ul className="space-y-1 ml-2">
+              {ALL_PREVIEW_PERMS.map(({ key, label }) => (
+                <li key={key} className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${perms[key] ? "bg-[#10b981]" : "bg-[#e2e8f0]"}`} />
+                  <span className={perms[key] ? "text-[#0f172a]" : "text-[#94a3b8] line-through"}>{label}</span>
+                </li>
+              ))}
+            </ul>
+            {selectedPerms.length === 0 && (
+              <p className="text-[#ef4444] text-[12px]">No permissions selected — this role could not access any features.</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -216,6 +507,66 @@ export default function SettingsPage() {
   const [integrationDialogTarget, setIntegrationDialogTarget] = useState<"usda" | "nutrition_label" | "compliance_checker" | null>(null)
   const [integrationDialogKey, setIntegrationDialogKey] = useState("")
   const [savingIntegration, setSavingIntegration] = useState(false)
+
+  // ── Catalog Sync state ────────────────────────────────────────────────────
+  const [catalogPlatform, setCatalogPlatform] = useState<"shopify" | "woocommerce" | "bigcommerce" | "custom">("shopify")
+  const [catalogStoreUrl, setCatalogStoreUrl] = useState("")
+  const [catalogApiKey, setCatalogApiKey] = useState("")
+  const [savingCatalog, setSavingCatalog] = useState(false)
+  const [catalogSyncing, setCatalogSyncing] = useState(false)
+  const [catalogSyncResult, setCatalogSyncResult] = useState<{ synced: number; source: string } | null>(null)
+
+  // Load catalog config on mount
+  React.useEffect(() => {
+    apiFetch("/api/v1/catalog/sync/config")
+      .then((r) => r.json().catch(() => ({})))
+      .then((cfg: any) => {
+        if (cfg.platform) setCatalogPlatform(cfg.platform)
+        if (cfg.store_url) setCatalogStoreUrl(cfg.store_url)
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleSaveCatalog() {
+    setSavingCatalog(true)
+    try {
+      await apiFetch("/api/v1/catalog/sync/config", {
+        method: "PUT",
+        body: JSON.stringify({ platform: catalogPlatform, store_url: catalogStoreUrl, api_key: catalogApiKey || undefined }),
+      })
+      toast({ title: "Catalog sync config saved" })
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" })
+    } finally {
+      setSavingCatalog(false)
+    }
+  }
+
+  async function handleCatalogSync() {
+    if (!catalogStoreUrl || !catalogApiKey) {
+      toast({ title: "Enter store URL and API key first", variant: "destructive" })
+      return
+    }
+    setCatalogSyncing(true)
+    setCatalogSyncResult(null)
+    try {
+      const res = await apiFetch("/api/v1/catalog/sync", {
+        method: "POST",
+        body: JSON.stringify({ platform: catalogPlatform, store_url: catalogStoreUrl, api_key: catalogApiKey }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setCatalogSyncResult({ synced: json.synced ?? 0, source: json.source ?? catalogPlatform })
+        toast({ title: `Synced ${json.synced ?? 0} products from ${catalogPlatform}` })
+      } else {
+        toast({ title: "Sync failed", description: json.detail ?? "Partner API error", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Sync failed", variant: "destructive" })
+    } finally {
+      setCatalogSyncing(false)
+    }
+  }
 
   // ── CRM Integration state ──────────────────────────────────────────────────
   const [crmProvider, setCrmProvider] = useState<"none" | "hubspot" | "salesforce">("none")
@@ -1432,6 +1783,144 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* ── BI Connectors (mockup) ── */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">BI Connectors</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">
+                  Connect your BI tool using the credentials below. Use your live API key as the authentication token.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                {[
+                  {
+                    name: "Tableau",
+                    logo: "📊",
+                    label: "JDBC Connection String",
+                    value: `jdbc:tableau://api.nutriportal.com:443/b2b?api_key=${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
+                  },
+                  {
+                    name: "Power BI",
+                    logo: "📈",
+                    label: "OData Feed URL",
+                    value: `https://api.nutriportal.com/odata/v1/analytics?api_key=${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
+                  },
+                  {
+                    name: "Looker",
+                    logo: "🔍",
+                    label: "LookML Connection",
+                    value: `connection: nutriportal\nhost: api.nutriportal.com\nport: 443\napi_key: ${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
+                  },
+                ].map((connector) => (
+                  <div key={connector.name} className="rounded-lg border border-[#e2e8f0] p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{connector.logo}</span>
+                        <span className="font-semibold text-[#0f172a] text-[14px]">{connector.name}</span>
+                      </div>
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[#f1f5f9] text-[#64748b]">Coming Soon</span>
+                    </div>
+                    <p className="text-[12px] text-[#64748b] font-medium">{connector.label}</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-[11px] bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-2 font-mono text-[#334155] truncate">
+                        {connector.value.split("\n")[0]}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 h-8 px-3 text-[12px] border-[#cbd5e1] text-[#334155]"
+                        onClick={() => copyToClipboard(connector.value, connector.name)}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* ── Catalog Sync ── */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Catalog Sync</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">
+                  Pull products from your e-commerce platform directly into the portal.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                {/* Platform selector */}
+                <div className="space-y-2">
+                  <Label className="text-[14px] font-semibold text-[#334155]">Platform</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(["shopify", "woocommerce", "bigcommerce", "custom"] as const).map((p) => (
+                      <Button
+                        key={p}
+                        size="sm"
+                        variant={catalogPlatform === p ? "default" : "outline"}
+                        className={`capitalize ${catalogPlatform === p ? "bg-[#00438f] text-white" : "border-[#cbd5e1] text-[#334155]"}`}
+                        onClick={() => setCatalogPlatform(p)}
+                      >
+                        {p === "woocommerce" ? "WooCommerce" : p === "bigcommerce" ? "BigCommerce" : p.charAt(0).toUpperCase() + p.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[14px] font-semibold text-[#334155]">
+                    {catalogPlatform === "shopify" ? "Store URL" : catalogPlatform === "bigcommerce" ? "Store Hash" : "Store / API URL"}
+                  </Label>
+                  <Input
+                    value={catalogStoreUrl}
+                    onChange={(e) => setCatalogStoreUrl(e.target.value)}
+                    placeholder={
+                      catalogPlatform === "shopify" ? "your-store.myshopify.com"
+                      : catalogPlatform === "woocommerce" ? "https://your-store.com"
+                      : catalogPlatform === "bigcommerce" ? "abc123xyz (store hash)"
+                      : "https://api.yourstore.com/products"
+                    }
+                    className="border-[#cbd5e1]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[14px] font-semibold text-[#334155]">API Key / Access Token</Label>
+                  <Input
+                    type="password"
+                    value={catalogApiKey}
+                    onChange={(e) => setCatalogApiKey(e.target.value)}
+                    placeholder={
+                      catalogPlatform === "shopify" ? "shpat_xxxxxxxxxxxx"
+                      : catalogPlatform === "woocommerce" ? "ck_xxxx:cs_xxxx (consumer_key:consumer_secret)"
+                      : catalogPlatform === "bigcommerce" ? "Bearer token from BigCommerce API"
+                      : "Bearer token or API key"
+                    }
+                    className="border-[#cbd5e1] font-mono text-sm"
+                  />
+                </div>
+
+                <Separator className="bg-[#f1f5f9]" />
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Button onClick={handleSaveCatalog} disabled={savingCatalog} className="bg-[#00438f] hover:bg-[#003366] text-white">
+                    {savingCatalog ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save Config
+                  </Button>
+                  <Button variant="outline" onClick={handleCatalogSync} disabled={catalogSyncing} className="border-[#cbd5e1] text-[#334155]">
+                    {catalogSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                    Sync Now
+                  </Button>
+                </div>
+
+                {catalogSyncResult && (
+                  <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                    Sync complete: <strong>{catalogSyncResult.synced}</strong> products imported from <strong>{catalogSyncResult.source}</strong>.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </TabsContent>
 
           <TabsContent value="users" className="space-y-8 pt-8">
@@ -1538,6 +2027,10 @@ export default function SettingsPage() {
                 Save Permissions
               </Button>
             </div>
+
+            {/* ── Custom Role Builder Preview (UI preview only) ── */}
+            <CustomRoleBuilderPreview />
+
           </TabsContent>
 
           <TabsContent value="data" className="space-y-6">
@@ -1716,53 +2209,36 @@ export default function SettingsPage() {
               </div>
             </Card>
 
-            {/* API Keys card - second per Figma */}
-            <Card className="rounded-[12px] border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
-              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
-                <CardTitle className="text-[18px] font-bold text-[#0f172a]">API Keys</CardTitle>
-                <CardDescription className="text-[14px] text-[#64748b]">Manage API keys for external integrations.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
+            {/* Session Stats card */}
+            <SessionStatsCard />
+
+            {/* API Keys card — Figma layout; behavior unchanged */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardContent className="p-[33px] flex flex-col gap-8">
+                <div className="space-y-1">
+                  <CardTitle className="text-[24px] font-bold text-[#0f172a] tracking-[-0.6px] leading-8 p-0">API Keys</CardTitle>
+                  <p className="text-[16px] text-[#404750] leading-6">Manage API keys for external integrations.</p>
+                </div>
                 {apiKeysLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-[#64748b]" />
                   </div>
                 ) : (
-                  <div className="space-y-0">
+                  <div className="space-y-6">
                     {["live", "test"].map((env) => {
                       const key = apiKeys.find((k) => k.environment === env)
                       const label = env === "live" ? "Production API Key" : "Development API Key"
                       const mask = env === "live" ? "nutri_live_••••••••••••••••" : "nutri_test_••••••••••••••••"
                       return (
-                        <div
-                          key={env}
-                          className={`flex items-center justify-between py-6 ${env === "test" ? "border-t border-[#f1f5f9]" : ""}`}
-                        >
-                          <div className="flex flex-col gap-1 min-w-0">
-                            <Label className="text-[14px] font-bold text-[#0f172a]">{label}</Label>
-                            <div className="flex items-center gap-2 bg-[#f1f5f9] border border-[#e2e8f0] rounded-[4px] px-3 py-2 w-fit">
-                              <span className="font-mono text-[12px] text-[#334155] tracking-[0.6px]">
-                                {key ? mask : "No key configured"}
-                              </span>
-                              {key && (
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(mask, "Key reference")}
-                                  className="text-[#64748b] hover:text-[#0f172a] p-0.5"
-                                  aria-label="Copy key reference"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-3 shrink-0">
+                        <div key={env} className={`space-y-3 ${env === "test" ? "pt-6 border-t border-[#f1f5f9]" : ""}`}>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <Label className="text-[16px] font-bold text-[#0f172a]">{label}</Label>
                             {key ? (
-                              <>
+                              <div className="flex flex-wrap gap-2 shrink-0">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="border-[#e2e8f0] text-[#334155] text-[12px] font-bold px-4 py-2 rounded-[8px]"
+                                  className="border-[#c0c7d1] text-[#191c1d] text-[14px] font-bold h-9 px-[17px] rounded-[4px]"
                                   onClick={() => handleGenerateKey(env as "live" | "test")}
                                 >
                                   Regenerate
@@ -1770,21 +2246,36 @@ export default function SettingsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="border-[#fee2e2] text-[#dc2626] text-[12px] font-bold px-4 py-2 rounded-[8px] hover:bg-red-50"
+                                  className="border-[#fee2e2] text-[#dc2626] text-[12px] font-bold rounded-[8px] hover:bg-red-50"
                                   onClick={() => handleRevokeKey(key.id)}
                                 >
                                   Revoke
                                 </Button>
-                              </>
+                              </div>
                             ) : (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="border-[#e2e8f0] text-[#334155] text-[12px] font-bold px-4 py-2 rounded-[8px]"
+                                className="border-[#c0c7d1] text-[#191c1d] text-[14px] font-bold h-9 px-[17px] rounded-[4px] self-start sm:self-auto"
                                 onClick={() => handleGenerateKey(env as "live" | "test")}
                               >
                                 Generate
                               </Button>
+                            )}
+                          </div>
+                          <div className="bg-[#edeeef] border border-[rgba(192,199,209,0.35)] rounded-[4px] px-[13px] py-3 flex items-center gap-2 min-h-[46px]">
+                            <span className="font-mono text-[14px] text-[#404750] leading-5 flex-1 min-w-0 break-all">
+                              {key ? mask : "No key configured"}
+                            </span>
+                            {key && (
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(mask, "Key reference")}
+                                className="text-[#64748b] hover:text-[#0f172a] p-0.5 shrink-0"
+                                aria-label="Copy key reference"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1792,17 +2283,17 @@ export default function SettingsPage() {
                     })}
                   </div>
                 )}
+                <div className="pt-2 border-t border-[#f1f5f9]">
+                  <Button
+                    variant="outline"
+                    className="border-[#e2e8f0] bg-white text-[#0f172a] font-bold text-[14px] px-6 py-[11px] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                    onClick={() => setGenerateKeyOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Generate New Key
+                  </Button>
+                </div>
               </CardContent>
-              <div className="bg-[#f8fafc] border-t border-[#f1f5f9] p-6">
-                <Button
-                  variant="outline"
-                  className="border-[#e2e8f0] bg-white text-[#0f172a] font-bold text-[14px] px-6 py-[11px] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
-                  onClick={() => setGenerateKeyOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Generate New Key
-                </Button>
-              </div>
             </Card>
 
             {/* Generate New Key dialog - choose environment */}
@@ -2053,6 +2544,28 @@ export default function SettingsPage() {
           {/* ── PRIVACY & GDPR TAB ── */}
           <TabsContent value="privacy" className="space-y-6 pt-8">
 
+            {/* Self-service: Download Your Own Data (Figma hero) */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardContent className="px-6 py-8 sm:px-10 flex flex-col items-center text-center gap-3">
+                <h2 className="text-[24px] font-bold text-[#0f172a] tracking-[-0.6px] leading-8">
+                  Download Your Personal Data
+                </h2>
+                <p className="text-[16px] text-[#404750] leading-[26px] max-w-[640px]">
+                  Export your account data as a JSON file (GDPR Article 20). Your export includes: account details, vendor permissions, activity logs, and settings updates tied to your account.
+                </p>
+                <Button
+                  className="mt-2 gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold px-6 py-3 h-auto rounded-md"
+                  disabled={exportingUserId === authContext.userId}
+                  onClick={() => authContext.userId && handleExportUser(authContext.userId, "my-data")}
+                >
+                  {exportingUserId === authContext.userId
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Download className="h-4 w-4" />}
+                  Download My Data
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Export Data card — available to all admins with manage:users */}
             <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
               <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
@@ -2071,12 +2584,12 @@ export default function SettingsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-[13px]">
                       <thead>
-                        <tr className="border-b border-[#f1f5f9]">
-                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-6">User</th>
-                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Role</th>
-                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Status</th>
-                          <th className="text-left font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-4">Joined Date</th>
-                          <th className="text-right font-semibold text-[#64748b] uppercase text-[11px] tracking-wide py-3 px-6">Action</th>
+                        <tr className="bg-[#f8fafc] border-b border-[#f1f5f9]">
+                          <th className="text-left font-bold text-[#64748b] uppercase text-[12px] tracking-[0.6px] py-4 px-6">User</th>
+                          <th className="text-left font-bold text-[#64748b] uppercase text-[12px] tracking-[0.6px] py-4 px-4">Role</th>
+                          <th className="text-left font-bold text-[#64748b] uppercase text-[12px] tracking-[0.6px] py-4 px-4">Status</th>
+                          <th className="text-left font-bold text-[#64748b] uppercase text-[12px] tracking-[0.6px] py-4 px-4">Joined Date</th>
+                          <th className="text-right font-bold text-[#64748b] uppercase text-[12px] tracking-[0.6px] py-4 px-6">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f1f5f9]">
@@ -2114,9 +2627,8 @@ export default function SettingsPage() {
                             </td>
                             <td className="py-3 px-6 text-right">
                               <Button
-                                variant="outline"
                                 size="sm"
-                                className="border-[#cbd5e1] text-[#334155] gap-1.5"
+                                className="bg-[#00438f] hover:bg-[#003366] text-white gap-1.5 rounded-[4px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] font-bold text-[12px]"
                                 disabled={exportingUserId === u.userId}
                                 onClick={() => handleExportUser(u.userId, u.email)}
                               >
@@ -2161,9 +2673,9 @@ export default function SettingsPage() {
                               <p className="text-xs text-[#64748b]">{u.email} · <span className="capitalize">{u.role.replace("_", " ")}</span></p>
                             </div>
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
-                              className="gap-1.5"
+                              className="gap-1.5 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:text-red-700"
                               onClick={() => {
                                 setPurgeTarget(u)
                                 setPurgeConfirmText("")
@@ -2171,7 +2683,7 @@ export default function SettingsPage() {
                               }}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
-                              Purge
+                              Purge User
                             </Button>
                           </div>
                         ))}
@@ -2180,12 +2692,20 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Compliance — export / purge logging (Figma) */}
+            <div className="flex items-start gap-3 rounded-[8px] border border-[#dbeafe] bg-[#eff6ff] p-[17px]">
+              <Info className="size-5 text-[#1e40af] shrink-0 mt-0.5" />
+              <p className="text-[14px] text-[#1e40af] leading-5">
+                Compliance logs are automatically generated for all data export and purge actions. These logs are stored for 7 years to meet regulatory requirements.
+              </p>
+            </div>
           </TabsContent>
 
           {/* ── COMMUNICATIONS TAB ── */}
-          <TabsContent value="communications" className="space-y-6 pt-8">
+          <TabsContent value="communications" className="pt-8 space-y-6">
 
-            {/* Info banner */}
+            {/* Info banner — full width */}
             <div className="flex items-start gap-3 rounded-[12px] border border-[#bfdbfe] bg-[#eff6ff] px-5 py-4">
               <Info className="h-5 w-5 text-[#3b82f6] mt-0.5 shrink-0" />
               <p className="text-[14px] text-[#1e40af] leading-relaxed">
@@ -2193,114 +2713,132 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            {/* Email Templates */}
-            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
-              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
-                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Email Templates</CardTitle>
-                <CardDescription className="text-[14px] text-[#64748b]">Customize the emails sent to your members.</CardDescription>
-              </CardHeader>
-              <CardContent className="divide-y divide-[#f1f5f9] p-0">
-                {(["onboarding", "reengagement"] as const).map((type) => {
-                  const tpl = type === "onboarding" ? onboardingTemplate : reengagementTemplate
-                  const label = type === "onboarding" ? "Welcome / Onboarding" : "Re-engagement"
-                  const desc = type === "onboarding" ? "Sent when a new member joins" : "Sent to inactive members"
-                  return (
-                    <div key={type} className="flex items-start justify-between gap-4 px-6 py-5">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-[#0f172a]">{label}</p>
-                        <p className="text-[12px] text-[#64748b] mt-0.5">{desc}</p>
-                        <p className="text-[12px] text-[#334155] mt-1 truncate">Subject: {tpl.subject}</p>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-[13px]"
-                          onClick={() => setPreviewTemplate(type)}
-                        >
-                          Preview
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-[13px]"
-                          onClick={() => { setEditingTemplate(type); setEditTemplateForm(tpl) }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
+            {/* 2-column grid: Email Templates (left) + Create Announcement (right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-            {/* Create Announcement */}
-            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
-              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
-                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Create Announcement</CardTitle>
-                <CardDescription className="text-[14px] text-[#64748b]">Post a banner visible to all portal users. Banners appear at the top of every page until dismissed or expired.</CardDescription>
-              </CardHeader>
-              <CardContent className="px-6 py-5 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] font-semibold text-[#334155]">Title <span className="text-red-500">*</span></Label>
-                  <Input
-                    value={announcementTitle}
-                    onChange={(e) => setAnnouncementTitle(e.target.value)}
-                    placeholder="e.g. Platform maintenance scheduled for Sunday"
-                    className="border-[#cbd5e1]"
-                    maxLength={255}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] font-semibold text-[#334155]">Message <span className="text-[#94a3b8] font-normal">(optional)</span></Label>
-                  <textarea
-                    value={announcementMessage}
-                    onChange={(e) => setAnnouncementMessage(e.target.value)}
-                    rows={2}
-                    placeholder="Additional details..."
-                    className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              {/* LEFT — Email Templates */}
+              <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                  <CardTitle className="text-[18px] font-bold text-[#0f172a]">Email Templates</CardTitle>
+                  <CardDescription className="text-[14px] text-[#64748b]">Customize the emails sent to your members.</CardDescription>
+                </CardHeader>
+                <CardContent className="divide-y divide-[#f1f5f9] p-0">
+                  {(["onboarding", "reengagement"] as const).map((type) => {
+                    const tpl = type === "onboarding" ? onboardingTemplate : reengagementTemplate
+                    const label = type === "onboarding" ? "Welcome / Onboarding" : "Re-engagement"
+                    const desc = type === "onboarding" ? "Sent when a new member joins" : "Sent to inactive members"
+                    return (
+                      <div key={type} className="flex items-start justify-between gap-4 px-6 py-5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-[#0f172a]">{label}</p>
+                          <p className="text-[12px] text-[#64748b] mt-0.5">{desc}</p>
+                          <p className="text-[12px] text-[#334155] mt-1 truncate">Subject: {tpl.subject}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[13px]"
+                            onClick={() => setPreviewTemplate(type)}
+                          >
+                            Preview
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[13px]"
+                            onClick={() => { setEditingTemplate(type); setEditTemplateForm(tpl) }}
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </CardContent>
+              </Card>
+
+              {/* RIGHT — Create Announcement */}
+              <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                  <CardTitle className="text-[18px] font-bold text-[#0f172a] flex items-center gap-2">
+                    <Megaphone className="h-5 w-5 text-[#00438f]" />
+                    Create Announcement
+                  </CardTitle>
+                  <CardDescription className="text-[14px] text-[#64748b]">Post a banner visible to all portal users. Banners appear at the top of every page until dismissed or expired.</CardDescription>
+                </CardHeader>
+                <CardContent className="px-6 py-5 space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-[14px] font-semibold text-[#334155]">Priority</Label>
-                    <select
-                      value={announcementPriority}
-                      onChange={(e) => setAnnouncementPriority(e.target.value as any)}
-                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
-                    >
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
+                    <Label className="text-[11px] font-semibold text-[#334155] uppercase tracking-wide">Title <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      placeholder="System maintenance window..."
+                      className="border-[#cbd5e1]"
+                      maxLength={255}
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[14px] font-semibold text-[#334155]">Expires In</Label>
-                    <select
-                      value={announcementExpiry}
-                      onChange={(e) => setAnnouncementExpiry(e.target.value as any)}
-                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
-                    >
-                      <option value="1d">1 day</option>
-                      <option value="3d">3 days</option>
-                      <option value="7d">7 days</option>
-                      <option value="never">Never</option>
-                    </select>
+                    <Label className="text-[11px] font-semibold text-[#334155] uppercase tracking-wide">Message <span className="text-[#94a3b8] font-normal normal-case">(optional)</span></Label>
+                    <textarea
+                      value={announcementMessage}
+                      onChange={(e) => setAnnouncementMessage(e.target.value)}
+                      rows={3}
+                      placeholder="Describe the announcement details..."
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                    />
                   </div>
-                </div>
-                <div className="pt-1">
-                  <Button
-                    onClick={handleCreateAnnouncement}
-                    disabled={!announcementTitle.trim() || creatingAnnouncement}
-                    className="bg-[#00438f] hover:bg-[#003070] text-white"
-                  >
-                    {creatingAnnouncement ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Post Announcement
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold text-[#334155] uppercase tracking-wide">Priority</Label>
+                      <select
+                        value={announcementPriority}
+                        onChange={(e) => setAnnouncementPriority(e.target.value as any)}
+                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                      >
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold text-[#334155] uppercase tracking-wide">Expires In</Label>
+                      <select
+                        value={announcementExpiry}
+                        onChange={(e) => setAnnouncementExpiry(e.target.value as any)}
+                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                      >
+                        <option value="1d">1 day</option>
+                        <option value="3d">3 days</option>
+                        <option value="7d">7 days</option>
+                        <option value="never">Never</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="pt-1">
+                    <Button
+                      onClick={handleCreateAnnouncement}
+                      disabled={!announcementTitle.trim() || creatingAnnouncement}
+                      className="w-full bg-[#00438f] hover:bg-[#003070] text-white"
+                    >
+                      {creatingAnnouncement ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Post Announcement
+                    </Button>
+                  </div>
+                  <Separator />
+                  <div className="flex items-start gap-3">
+                    <HelpCircle className="h-4 w-4 text-[#94a3b8] mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#334155]">Need help with communications?</p>
+                      <p className="text-[12px] text-[#64748b] mt-0.5 leading-relaxed">
+                        Check our documentation on managing email sequences and public announcements.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
           </TabsContent>
         </Tabs>
       </div>

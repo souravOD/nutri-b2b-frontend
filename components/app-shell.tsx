@@ -58,6 +58,7 @@ import {
   Users,
   X,
   Megaphone,
+  BookOpen,
 } from "lucide-react"
 import TopNav from "./top-nav"
 import { NpsSurvey, useNpsTrigger } from "@/components/nps-survey"
@@ -96,6 +97,7 @@ const mainNavItems: NavItem[] = [
 const moreNavItems: NavItem[] = [
   { title: "Onboarding", href: "/onboarding", icon: GraduationCap },
   { title: "Settings", href: "/settings", icon: Settings, permission: "manage:settings" },
+  { title: "Knowledge Base", href: "/knowledge-base", icon: BookOpen },
   { title: "Help", href: "/help", icon: HelpCircle },
 ]
 

@@ -12,8 +12,21 @@ function normalizeTags(tags?: string[] | string) {
   return undefined;
 }
 
-export async function listCustomers(): Promise<UICustomer[]> {
-  const res = await apiFetch("/customers");
+export async function listCustomers(filters?: {
+  segment?: string;
+  engagement?: string;
+  status?: string;
+  q?: string;
+  limit?: number;
+}): Promise<UICustomer[]> {
+  const params = new URLSearchParams();
+  if (filters?.segment && filters.segment !== "all") params.set("segment", filters.segment);
+  if (filters?.engagement && filters.engagement !== "all") params.set("engagement", filters.engagement);
+  if (filters?.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters?.q) params.set("q", filters.q);
+  if (filters?.limit) params.set("limit", String(filters.limit));
+  const qs = params.toString();
+  const res = await apiFetch(`/customers${qs ? "?" + qs : ""}`);
   const raw = await res.json();
   return normalizeListResponse(raw).map(toUICustomer);
 }

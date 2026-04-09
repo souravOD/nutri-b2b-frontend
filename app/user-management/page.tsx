@@ -59,6 +59,7 @@ type UserLink = {
     status: string;
     displayName?: string;
     linkedAt?: string;
+    membershipExpiresAt?: string | null;
 };
 
 
@@ -67,6 +68,8 @@ const ROLE_LABELS: Record<string, string> = {
     vendor_admin: "Admin",
     vendor_operator: "Operator",
     vendor_viewer: "Viewer",
+    wellness_manager: "Wellness Manager",
+    marketing_manager: "Marketing Manager",
     superadmin: "Superadmin",
 };
 
@@ -74,6 +77,8 @@ const ROLE_VARIANT: Record<string, "default" | "secondary" | "outline" | "destru
     vendor_admin: "default",
     vendor_operator: "secondary",
     vendor_viewer: "outline",
+    wellness_manager: "secondary",
+    marketing_manager: "secondary",
     superadmin: "destructive",
 };
 
@@ -128,6 +133,7 @@ export default function UserManagementPage() {
     const [editOpen, setEditOpen] = React.useState(false);
     const [editUser, setEditUser] = React.useState<UserLink | null>(null);
     const [editRole, setEditRole] = React.useState("");
+    const [editExpiresAt, setEditExpiresAt] = React.useState("");
     const [editSubmitting, setEditSubmitting] = React.useState(false);
     const [editError, setEditError] = React.useState<string | null>(null);
 
@@ -209,23 +215,30 @@ export default function UserManagementPage() {
     function openEditDialog(user: UserLink) {
         setEditUser(user);
         setEditRole(user.role);
+        setEditExpiresAt(
+            user.membershipExpiresAt
+                ? new Date(user.membershipExpiresAt).toISOString().split("T")[0]
+                : ""
+        );
         setEditError(null);
         setEditOpen(true);
     }
 
     async function handleRoleChange() {
         if (!editUser || !editRole) return;
-        if (editRole === editUser.role) {
-            setEditOpen(false);
-            return;
-        }
         setEditSubmitting(true);
         setEditError(null);
         try {
+            const payload: Record<string, any> = { role: editRole };
+            if (editExpiresAt) {
+                payload.membershipExpiresAt = new Date(editExpiresAt).toISOString();
+            } else {
+                payload.membershipExpiresAt = null;
+            }
             const res = await apiFetch(`/api/users/${editUser.userId}/role`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ role: editRole }),
+                body: JSON.stringify(payload),
             });
             const body = await res.json().catch(() => ({} as any));
             if (!res.ok) throw new Error(body?.detail || "Failed to change role");
@@ -610,8 +623,21 @@ export default function UserManagementPage() {
                                     <SelectItem value="vendor_admin">Admin — Full management access</SelectItem>
                                     <SelectItem value="vendor_operator">Operator — Data management</SelectItem>
                                     <SelectItem value="vendor_viewer">Viewer — Read-only access</SelectItem>
+                                    <SelectItem value="wellness_manager">Wellness Manager — Customer health insights</SelectItem>
+                                    <SelectItem value="marketing_manager">Marketing Manager — Analytics &amp; promotions</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Access Expiry Date <span className="text-muted-foreground font-normal">(optional)</span></label>
+                            <Input
+                                type="date"
+                                value={editExpiresAt}
+                                onChange={(e) => setEditExpiresAt(e.target.value)}
+                                min={new Date().toISOString().split("T")[0]}
+                                disabled={editSubmitting}
+                            />
+                            <p className="text-xs text-muted-foreground">Leave blank for no expiry. Access is automatically revoked after this date.</p>
                         </div>
                         {editError && (
                             <p className="text-sm text-destructive">{editError}</p>
@@ -621,7 +647,7 @@ export default function UserManagementPage() {
                         <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSubmitting}>
                             Cancel
                         </Button>
-                        <Button onClick={handleRoleChange} disabled={editSubmitting || editRole === editUser?.role}>
+                        <Button onClick={handleRoleChange} disabled={editSubmitting}>
                             {editSubmitting ? "Saving…" : "Save Changes"}
                         </Button>
                     </DialogFooter>
@@ -675,6 +701,8 @@ export default function UserManagementPage() {
                                     <SelectItem value="vendor_admin">Admin — Full management access</SelectItem>
                                     <SelectItem value="vendor_operator">Operator — Can manage data &amp; products</SelectItem>
                                     <SelectItem value="vendor_viewer">Viewer — Read-only access</SelectItem>
+                                    <SelectItem value="wellness_manager">Wellness Manager — Customer health insights</SelectItem>
+                                    <SelectItem value="marketing_manager">Marketing Manager — Analytics &amp; promotions</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
