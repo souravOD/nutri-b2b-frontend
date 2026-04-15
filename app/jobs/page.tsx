@@ -241,7 +241,7 @@ export default function JobsPage() {
             <ImportWizard
               onComplete={load}
               triggerLabel="Start Import"
-              triggerClassName="bg-[#00438f] hover:bg-[#003366] text-white font-bold rounded-[8px]"
+              triggerClassName="bg-primary hover:bg-[#003366] text-white font-bold rounded-[8px]"
             />
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function JobsPage() {
           </div>
           <div className="bg-white border border-[#e2e8f0] rounded-[12px] pt-[29px] pb-[21px] px-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
             <p className="text-[16px] font-medium text-[#64748b]">Processing</p>
-            <p className="text-[24px] font-bold text-[#00438f] mt-1">{stats.processing}</p>
+            <p className="text-[24px] font-bold text-primary mt-1">{stats.processing}</p>
           </div>
           <div className="bg-white border border-[#e2e8f0] rounded-[12px] pt-[29px] pb-[21px] px-[21px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
             <p className="text-[16px] font-medium text-[#64748b]">Failures</p>
@@ -384,7 +384,7 @@ export default function JobsPage() {
                       size="sm"
                       className={`h-10 w-10 rounded-[8px] ${
                         currentPage === pageNum
-                          ? "bg-[#00438f] hover:bg-[#003366] text-white"
+                          ? "bg-primary hover:bg-[#003366] text-white"
                           : ""
                       }`}
                       onClick={() => setCurrentPage(pageNum)}
@@ -424,7 +424,7 @@ export default function JobsPage() {
 function TypeCell({ run }: { run: Run }) {
   const label = run.sourceName ?? flowLabel(run.flowName)
   return (
-    <span className="text-[14px] font-medium text-[#00438f] capitalize">{label}</span>
+    <span className="text-[14px] font-medium text-primary capitalize">{label}</span>
   )
 }
 
@@ -492,7 +492,7 @@ function ActionsCell({ run, onView }: { run: Run; onView: () => void }) {
     return (
       <Link
         href="/products?import=1"
-        className="text-[14px] font-bold text-[#00438f] hover:underline"
+        className="text-[14px] font-bold text-primary hover:underline"
       >
         Retry
       </Link>
@@ -502,7 +502,7 @@ function ActionsCell({ run, onView }: { run: Run; onView: () => void }) {
     <button
       type="button"
       onClick={onView}
-      className="text-[14px] font-bold text-[#00438f] hover:underline"
+      className="text-[14px] font-bold text-primary hover:underline"
     >
       View
     </button>
@@ -581,7 +581,7 @@ function RunDetailDialog({
                 <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] mb-1">
                   Type
                 </p>
-                <span className="text-[14px] font-medium text-[#00438f] capitalize">
+                <span className="text-[14px] font-medium text-primary capitalize">
                   {detail.sourceName ?? flowLabel(detail.flowName)}
                 </span>
               </div>
@@ -670,7 +670,7 @@ function RunDetailDialog({
                 Download Report
               </Button>
               <Button
-                className="bg-[#00438f] hover:bg-[#003366] text-white rounded-[8px]"
+                className="bg-primary hover:bg-[#003366] text-white rounded-[8px]"
                 onClick={() => {
                   if (!detail || detail.layers.length === 0) return
                   const headers = ["layer", "status", "records_input", "records_processed", "records_written", "records_failed", "duration_sec"]

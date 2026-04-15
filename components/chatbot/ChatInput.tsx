@@ -35,7 +35,7 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type a mess
         type="submit"
         size="icon"
         disabled={disabled || !value.trim()}
-        className="bg-[#00438f] hover:bg-[#003366] shrink-0"
+        className="bg-primary hover:bg-[#003366] shrink-0"
       >
         <Send className="h-4 w-4" />
       </Button>

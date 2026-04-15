@@ -391,7 +391,7 @@ export default function CompliancePage() {
               Run Compliance Check
             </Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003366] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+              className="bg-primary hover:bg-[#003366] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
               onClick={generateReport}
               disabled={reportLoading || loading}
             >
@@ -423,7 +423,7 @@ export default function CompliancePage() {
                 <Progress value={summary.overallScore} className="mt-2 h-2 bg-[#f1f5f9]" />
               </div>
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-[rgba(0,67,143,0.1)]">
-                <BarChart3 className="h-5 w-5 text-[#00438f]" />
+                <BarChart3 className="h-5 w-5 text-primary" />
               </div>
             </div>
           </Card>
@@ -473,7 +473,7 @@ export default function CompliancePage() {
                 onClick={() => changeTab(tab.key)}
                 className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.key
-                    ? "border-[#00438f] text-[#00438f] font-bold"
+                    ? "border-primary text-primary font-bold"
                     : "border-transparent text-[#64748b] hover:text-[#0f172a]"
                 }`}
               >
@@ -641,7 +641,7 @@ export default function CompliancePage() {
                       size="sm"
                       variant={n === page ? "default" : "outline"}
                       className={`h-8 w-8 p-0 border-[#e2e8f0] text-[13px] ${
-                        n === page ? "bg-[#00438f] hover:bg-[#003366] border-[#00438f]" : ""
+                        n === page ? "bg-primary hover:bg-[#003366] border-primary" : ""
                       }`}
                       onClick={() => setPage(n)}
                     >

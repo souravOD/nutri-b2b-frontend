@@ -27,7 +27,7 @@ export default function QuickFactsCard({ product }: { product: any }) {
         {items.map(({ label, value, highlight }) => (
           <div key={label} className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">{label}</span>
-            <span className={`text-base font-semibold ${highlight ? "text-[#00438f]" : "text-[#0f172a]"}`}>
+            <span className={`text-base font-semibold ${highlight ? "text-primary" : "text-[#0f172a]"}`}>
               {value}
             </span>
           </div>

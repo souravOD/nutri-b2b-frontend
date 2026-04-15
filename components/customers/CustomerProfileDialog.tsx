@@ -163,13 +163,13 @@ export default function CustomerProfileDialog({ open, id, onOpenChange, onDelete
             </div>
             <div className="flex items-center gap-2 pt-2">
               {!editing ? (
-                <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10">
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="border-primary text-primary hover:bg-primary/10">
                   <Pencil className="mr-2 h-4 w-4" />Edit
                 </Button>
               ) : (
                 <>
                   <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
-                  <Button size="sm" onClick={onSave} disabled={!canSave || loading} className="bg-[#00438f] hover:bg-[#003366] text-white">
+                  <Button size="sm" onClick={onSave} disabled={!canSave || loading} className="bg-primary hover:bg-[#003366] text-white">
                     <Save className="mr-2 h-4 w-4" />Save Changes
                   </Button>
                 </>

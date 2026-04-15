@@ -65,7 +65,7 @@ export default function AccountCreatedPage() {
             </div>
           </div>
           <div className="w-10 h-10 rounded-full bg-[rgba(0,67,143,0.1)] flex items-center justify-center">
-            <User className="w-4 h-4 text-[#00438f]" />
+            <User className="w-4 h-4 text-primary" />
           </div>
         </div>
       </header>
@@ -82,8 +82,8 @@ export default function AccountCreatedPage() {
                   "linear-gradient(180deg, rgba(220, 232, 239, 0.5) 0%, rgba(0, 67, 143, 0.05) 100%)",
               }}
             >
-              <div className="w-[90px] h-[90px] rounded-full border-2 border-[#00438f]/20 flex items-center justify-center bg-white/80">
-                <CheckCircle2 className="w-12 h-12 text-[#00438f]" />
+              <div className="w-[90px] h-[90px] rounded-full border-2 border-primary/20 flex items-center justify-center bg-white/80">
+                <CheckCircle2 className="w-12 h-12 text-primary" />
               </div>
             </div>
 
@@ -99,14 +99,14 @@ export default function AccountCreatedPage() {
               <div className="mt-10 space-y-4">
                 <Button
                   onClick={() => router.push("/dashboard")}
-                  className="w-full h-14 rounded-lg bg-[#00438f] hover:bg-[#003366] text-white font-semibold text-base"
+                  className="w-full h-14 rounded-lg bg-primary hover:bg-[#003366] text-white font-semibold text-base"
                 >
                   Go to Dashboard
                 </Button>
                 <div className="flex justify-center pt-4">
                   <Link
                     href="/help"
-                    className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#00438f] hover:underline"
+                    className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary hover:underline"
                   >
                     <HelpCircle className="h-4 w-4" />
                     Need help? Contact {branding.vendorName} support

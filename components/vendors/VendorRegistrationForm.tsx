@@ -237,9 +237,9 @@ export default function VendorRegistrationForm() {
           <h2 className="text-xl font-bold text-[#0f172a]">Register Vendor</h2>
           <p className="text-base leading-6 text-[#475569]">
             Superadmin only. This creates the vendor in{" "}
-            <span className="font-medium text-[#00438f]">Appwrite</span>
+            <span className="font-medium text-primary">Appwrite</span>
             {" "}and{" "}
-            <span className="font-medium text-[#00438f]">Supabase</span>
+            <span className="font-medium text-primary">Supabase</span>
             . Ensure all details are accurate as slug and domain are automatically derived.
           </p>
         </div>
@@ -407,7 +407,7 @@ export default function VendorRegistrationForm() {
             <Button
               type="submit"
               disabled={submitting}
-              className="bg-[#00438f] hover:bg-[#003a7a] rounded-lg"
+              className="bg-primary hover:bg-[#003a7a] rounded-lg"
             >
               {submitting ? "Registering..." : "Register vendor"}
             </Button>

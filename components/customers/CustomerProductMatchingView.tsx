@@ -216,7 +216,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
           <div className="flex items-center gap-4 min-w-0 flex-1">
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               asChild
             >
               <Link href="/customers" className="flex items-center gap-2">
@@ -243,13 +243,13 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
           <div className="flex items-center gap-3 shrink-0">
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               asChild
             >
               <Link href={`/customers/${customer.id}/edit`}>Edit Profile</Link>
             </Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              className="bg-primary hover:bg-[#003366] text-white"
               asChild
             >
               <Link href={`/customers/${customer.id}`}>View Profile</Link>
@@ -265,7 +265,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
             <div className="relative shrink-0">
               <Avatar className="h-24 w-24 rounded-full border-4 border-white">
                 <AvatarImage src={customer.avatar} alt={customer.name} />
-                <AvatarFallback className="bg-[#f1f5f9] text-[#00438f] text-2xl font-bold">
+                <AvatarFallback className="bg-[#f1f5f9] text-primary text-2xl font-bold">
                   {getInitials(customer.name)}
                 </AvatarFallback>
               </Avatar>
@@ -305,7 +305,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
             <Card className="border-[#e2e8f0] shadow-sm overflow-hidden rounded-xl">
               <div className="bg-[rgba(248,250,252,0.5)] border-b border-[#e2e8f0] px-6 py-4">
                 <div className="flex items-center gap-2">
-                  <Activity className="h-[18px] w-[18px] text-[#00438f]" />
+                  <Activity className="h-[18px] w-[18px] text-primary" />
                   <h2 className="text-base font-bold text-[#0f172a]">Customer Info</h2>
                 </div>
               </div>
@@ -326,7 +326,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                     className="flex items-center justify-between gap-4 px-6 py-3"
                   >
                     <span className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider shrink-0">{label}</span>
-                    <span className="text-[20px] font-semibold text-[#00438f] text-right min-w-0 truncate">{String(value)}</span>
+                    <span className="text-[20px] font-semibold text-primary text-right min-w-0 truncate">{String(value)}</span>
                   </div>
                 ))}
                 <div className="px-6 py-4">
@@ -355,12 +355,12 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
             {/* Product Matches header + Refresh */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 shrink-0">
-                <Package className="h-5 w-5 text-[#00438f]" />
+                <Package className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-bold text-[#0f172a]">Product Matches</h2>
               </div>
               <Button
                 variant="ghost"
-                className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/5 shrink-0"
+                className="text-primary hover:text-[#003366] hover:bg-primary/5 shrink-0"
                 onClick={runMatch}
                 disabled={!MATCHING_ENABLED || matching}
               >
@@ -433,7 +433,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm border border-[rgba(0,67,143,0.1)] px-2 py-1 rounded-lg">
-                        <span className="text-xs font-bold text-[#00438f]">
+                        <span className="text-xs font-bold text-primary">
                           {product.matchScore}% Match
                         </span>
                       </div>
@@ -452,7 +452,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                           {product.diets.slice(0, 4).map((d) => (
                             <span
                               key={d}
-                              className="px-2 py-0.5 rounded bg-[rgba(0,67,143,0.05)] text-[#00438f] text-[10px] font-bold uppercase tracking-wider"
+                              className="px-2 py-0.5 rounded bg-[rgba(0,67,143,0.05)] text-primary text-[10px] font-bold uppercase tracking-wider"
                             >
                               {d}
                             </span>
@@ -467,7 +467,7 @@ export default function CustomerProductMatchingView({ customer, onDeleted, onSav
                         <div className="flex gap-3">
                           <Button
                             size="sm"
-                            className="bg-[#00438f] hover:bg-[#003366] text-white"
+                            className="bg-primary hover:bg-[#003366] text-white"
                             onClick={() => openProductDetails(product)}
                           >
                             <Eye className="h-3.5 w-3.5 mr-1" />

@@ -311,7 +311,7 @@ export default function ProductForm({
           {/* Section: Basic Information */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2 uppercase tracking-wide">
-              <Info className="h-4 w-4 text-[#00438f]" />
+              <Info className="h-4 w-4 text-primary" />
               Basic Information
             </h3>
             <div className="grid gap-6">
@@ -388,7 +388,7 @@ export default function ProductForm({
           {/* Section: Classification & IDs */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2 uppercase tracking-wide">
-              <FolderTree className="h-4 w-4 text-[#00438f]" />
+              <FolderTree className="h-4 w-4 text-primary" />
               Classification & IDs
             </h3>
             <div className="grid gap-6 md:grid-cols-4">
@@ -414,7 +414,7 @@ export default function ProductForm({
           {/* Section: Pricing & Logistics */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2 uppercase tracking-wide">
-              <DollarSign className="h-4 w-4 text-[#00438f]" />
+              <DollarSign className="h-4 w-4 text-primary" />
               Pricing & Logistics
             </h3>
             <div className="grid gap-6 md:grid-cols-3">
@@ -487,7 +487,7 @@ export default function ProductForm({
           {/* Section: Ingredients & Compliance */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
-              <Beaker className="h-4 w-4 text-[#00438f]" />
+              <Beaker className="h-4 w-4 text-primary" />
               Ingredients & Compliance
             </h3>
             <div className="grid gap-6 md:grid-cols-2">
@@ -521,7 +521,7 @@ export default function ProductForm({
           {/* Section: Nutrition */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
-              <Apple className="h-4 w-4 text-[#00438f]" />
+              <Apple className="h-4 w-4 text-primary" />
               Nutrition (per serving)
             </h3>
             <div className="grid gap-6 md:grid-cols-5">
@@ -571,7 +571,7 @@ export default function ProductForm({
           {/* Section: Dietary Tags */}
           <div className="space-y-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[#0f172a] border-b border-[#e2e8f0] pb-2">
-              <Tag className="h-4 w-4 text-[#00438f]" />
+              <Tag className="h-4 w-4 text-primary" />
               Dietary Tags
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -600,7 +600,7 @@ export default function ProductForm({
             </Button>
             <Button
               type="submit"
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              className="bg-primary hover:bg-[#003366] text-white"
             >
               {mode === "create" ? "Create Product" : "Save"}
             </Button>
@@ -650,7 +650,7 @@ function TagInput({
             setTag("")
           }
         }}
-        className="bg-[#00438f] hover:bg-[#003366] text-white"
+        className="bg-primary hover:bg-[#003366] text-white"
       >
         Add
       </Button>

@@ -31,7 +31,7 @@ export default function SuggestedVendorsSection() {
         <h2 className="text-[20px] font-bold text-[#0f172a]">Suggested Vendors for You</h2>
         <Link
           href="/vendors"
-          className="text-[14px] font-medium text-[#00438f] hover:underline"
+          className="text-[14px] font-medium text-primary hover:underline"
         >
           See all vendors
         </Link>
@@ -73,7 +73,7 @@ export default function SuggestedVendorsSection() {
                       {vendor.name}
                     </span>
                     {isActive && (
-                      <Badge className="bg-[#e8f0fb] text-[#00438f] hover:bg-[#e8f0fb] text-[11px] font-semibold px-2 py-0">
+                      <Badge className="bg-[#e8f0fb] text-primary hover:bg-[#e8f0fb] text-[11px] font-semibold px-2 py-0">
                         PREFERRED
                       </Badge>
                     )}
@@ -87,7 +87,7 @@ export default function SuggestedVendorsSection() {
                 <Button
                   asChild
                   variant="outline"
-                  className="shrink-0 border-[#e2e8f0] text-[#0f172a] hover:border-[#00438f]/40 hover:text-[#00438f]"
+                  className="shrink-0 border-[#e2e8f0] text-[#0f172a] hover:border-primary/40 hover:text-primary"
                 >
                   <Link href="/vendors">View Profile</Link>
                 </Button>

@@ -161,11 +161,11 @@ export default function RegisterEmployeeForm() {
           />
           <Label htmlFor="terms" className="font-normal text-[14px] text-[#475569] cursor-pointer leading-[17.5px]">
             I agree to the{" "}
-            <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+            <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
               Terms of Service
             </a>{" "}
             and{" "}
-            <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+            <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
               Privacy Policy
             </a>
             .
@@ -180,7 +180,7 @@ export default function RegisterEmployeeForm() {
           />
           <Label htmlFor="dpa" className="font-normal text-[14px] text-[#475569] cursor-pointer leading-[17.5px]">
             I agree to the{" "}
-            <a href="/dpa" target="_blank" rel="noreferrer" className="font-medium text-[#00438f] hover:underline">
+            <a href="/dpa" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
               Data Processing Agreement (DPA)
             </a>
             .
@@ -190,7 +190,7 @@ export default function RegisterEmployeeForm() {
 
       <Button
         type="submit"
-        className="w-full h-12 rounded-lg bg-[#00438f] hover:bg-[#003366] text-white font-bold text-base shadow-sm"
+        className="w-full h-12 rounded-lg bg-primary hover:bg-[#003366] text-white font-bold text-base shadow-sm"
         disabled={working}
       >
         {working ? (

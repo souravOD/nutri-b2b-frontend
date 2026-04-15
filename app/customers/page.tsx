@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import * as XLSX from "xlsx";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@/components/app-shell";
@@ -148,18 +149,37 @@ export default function CustomersIndexPage() {
     setImportError(null);
     setImportResult(null);
     setImportFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const rows = parseCsv(text);
-      if (rows.length === 0) {
-        setImportError("No data rows found. Check the file has a header row and at least one data row.");
-        setImportRows([]);
-      } else {
-        setImportRows(rows);
-      }
-    };
-    reader.readAsText(file);
+    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+        if (rows.length === 0) {
+          setImportError("No data rows found.");
+          setImportRows([]);
+        } else {
+          setImportRows(rows);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const rows = parseCsv(text);
+        if (rows.length === 0) {
+          setImportError("No data rows found. Check the file has a header row and at least one data row.");
+          setImportRows([]);
+        } else {
+          setImportRows(rows);
+        }
+      };
+      reader.readAsText(file);
+    }
   }
 
   async function handleImportConfirm() {
@@ -329,7 +349,7 @@ export default function CustomersIndexPage() {
             <PermissionGate permission="write:customers">
               <Button
                 onClick={() => setAddOpen(true)}
-                className="bg-[#00438f] hover:bg-[#003366] text-white"
+                className="bg-primary hover:bg-[#003366] text-white"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Customer
@@ -344,7 +364,7 @@ export default function CustomersIndexPage() {
             <div className="relative w-full min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748b]" />
               <Input
-                className="pl-9 bg-[#f8fafc] rounded-lg border-[#e2e8f0] focus-visible:ring-2 focus-visible:ring-[#00438f]/30"
+                className="pl-9 bg-[#f8fafc] rounded-lg border-[#e2e8f0] focus-visible:ring-2 focus-visible:ring-primary/30"
                 placeholder="Search by name, email or ID..."
                 value={url.q}
                 onChange={(e) => handleSearch(e.target.value)}
@@ -360,11 +380,11 @@ export default function CustomersIndexPage() {
             />
             <Tabs value={url.view} onValueChange={(v) => handleViewChange(v as any)} className="shrink-0">
               <TabsList className="bg-[#f1f5f9] inline-flex">
-                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f]">
+                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-primary">
                   <Grid3X3 className="h-4 w-4" />
                   Cards
                 </TabsTrigger>
-                <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f]">
+                <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-primary">
                   <ListIcon className="h-4 w-4" />
                   List
                 </TabsTrigger>
@@ -388,7 +408,7 @@ export default function CustomersIndexPage() {
                 key={seg}
                 size="sm"
                 variant={isActive ? "default" : "outline"}
-                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
+                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-primary text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
                 onClick={() => { set({ segment: seg }); trackEvent("members_filter", { filter_type: "segment", value: seg }); }}
               >
                 {labels[seg].icon}
@@ -414,7 +434,7 @@ export default function CustomersIndexPage() {
                 key={eng}
                 size="sm"
                 variant={isActive ? "default" : "outline"}
-                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-[#00438f] text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
+                className={`h-7 px-3 text-xs gap-1.5 ${isActive ? "bg-primary text-white hover:bg-[#003366]" : "border-[#e2e8f0] text-[#64748b]"}`}
                 onClick={() => { set({ engagement: eng }); trackEvent("members_filter", { filter_type: "engagement", value: eng }); }}
               >
                 {meta[eng].dot && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${meta[eng].dot}`} />}
@@ -473,8 +493,6 @@ export default function CustomersIndexPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Allergens</TableHead>
-                  <TableHead>Conditions</TableHead>
                   <TableHead>Tags</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -487,14 +505,6 @@ export default function CustomersIndexPage() {
                     <TableCell>{c.phone || "-"}</TableCell>
                     <TableCell className="capitalize">{c.status}</TableCell>
                     <TableCell className="max-w-[220px] truncate">
-                      {(c.restrictions?.allergens || []).slice(0, 3).join(", ")}
-                      {(c.restrictions?.allergens || []).length > 3 ? "…" : ""}
-                    </TableCell>
-                    <TableCell className="max-w-[220px] truncate">
-                      {(c.restrictions?.conditions || []).slice(0, 3).join(", ")}
-                      {(c.restrictions?.conditions || []).length > 3 ? "…" : ""}
-                    </TableCell>
-                    <TableCell className="max-w-[220px] truncate">
                       {(c.tags || []).slice(0, 3).join(", ")}
                       {(c.tags || []).length > 3 ? "…" : ""}
                     </TableCell>
@@ -503,7 +513,7 @@ export default function CustomersIndexPage() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => { e.stopPropagation(); navigateToDetail(c.id); }}
-                        className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
+                        className="text-primary hover:text-[#003366] hover:bg-primary/10"
                       >
                         View
                       </Button>
@@ -538,7 +548,7 @@ export default function CustomersIndexPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -609,7 +619,7 @@ export default function CustomersIndexPage() {
               <Button
                 disabled={importRows.length === 0 || importing}
                 onClick={handleImportConfirm}
-                className="bg-[#00438f] hover:bg-[#003366] text-white"
+                className="bg-primary hover:bg-[#003366] text-white"
               >
                 {importing ? "Importing…" : `Confirm Import (${importRows.length} rows)`}
               </Button>

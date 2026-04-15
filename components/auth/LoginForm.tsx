@@ -144,7 +144,7 @@ export default function LoginForm() {
           </Label>
           <a
             href="/reset-password"
-            className="text-[12px] font-medium text-[#00438f] hover:underline"
+            className="text-[12px] font-medium text-primary hover:underline"
           >
             Forgot password?
           </a>
@@ -194,7 +194,7 @@ export default function LoginForm() {
       <Button
         type="submit"
         disabled={submitting}
-        className="w-full h-12 rounded-lg bg-[#00438f] hover:bg-[#003366] text-white font-bold text-base shadow-sm"
+        className="w-full h-12 rounded-lg bg-primary hover:bg-[#003366] text-white font-bold text-base shadow-sm"
       >
         {submitting ? (
           <span className="inline-flex items-center gap-2">

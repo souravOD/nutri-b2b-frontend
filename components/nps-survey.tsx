@@ -119,7 +119,7 @@ export function NpsSurvey({ open, onClose }: { open: boolean; onClose: () => voi
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
                 placeholder="What could we do better?"
-                className="w-full rounded-lg border border-[#e2e8f0] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                className="w-full rounded-lg border border-[#e2e8f0] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
 
@@ -133,7 +133,7 @@ export function NpsSurvey({ open, onClose }: { open: boolean; onClose: () => voi
               <button
                 onClick={handleSubmit}
                 disabled={score === null || submitting}
-                className="px-4 py-2 bg-[#00438f] hover:bg-[#003070] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-[#003070] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 {submitting ? "Submitting…" : "Submit Feedback"}
               </button>

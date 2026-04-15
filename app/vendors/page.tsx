@@ -94,7 +94,7 @@ export default function VendorsPage() {
             <Button variant="outline" asChild className="border-[#e2e8f0] text-[#0f172a]">
               <Link href="/vendors/manage">View all vendors</Link>
             </Button>
-            <Button asChild className="bg-[#00438f] hover:bg-[#003366] text-white">
+            <Button asChild className="bg-primary hover:bg-[#003366] text-white">
               <Link href="/vendors/new" className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Register Vendor
@@ -112,7 +112,7 @@ export default function VendorsPage() {
             <div
               className="h-[192px] flex flex-col justify-end p-8"
               style={{
-                background: "linear-gradient(129.649deg, #00438f 67.51%, #0066cc 95.218%)",
+                background: "linear-gradient(129.649deg, var(--primary) 67.51%, #0066cc 95.218%)",
               }}
             >
               <h2 className="text-[24px] font-bold text-white leading-8">Select Tenant</h2>
@@ -145,14 +145,14 @@ export default function VendorsPage() {
                   </div>
                   <p className="text-[14px] text-[#64748b] flex items-center gap-1">
                     <span>This will take you to</span>
-                    <span className="font-mono text-[#00438f]">/{displaySlug}/login</span>
+                    <span className="font-mono text-primary">/{displaySlug}/login</span>
                   </p>
                 </div>
 
                 <Button
                   type="submit"
                   disabled={!vendorSlug.trim()}
-                  className="w-full h-12 bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[16px] rounded-[8px] flex items-center justify-center gap-2"
+                  className="w-full h-12 bg-primary hover:bg-[#003366] text-white font-bold text-[16px] rounded-[8px] flex items-center justify-center gap-2"
                 >
                   Continue
                   <ChevronRight className="h-4 w-4" />
@@ -163,7 +163,7 @@ export default function VendorsPage() {
               <div className="border-t border-[#f1f5f9] pt-8">
                 <p className="text-[14px] text-[#64748b] text-center">
                   Need help finding your slug?{" "}
-                  <Link href="/help" className="font-semibold text-[#00438f] hover:underline">
+                  <Link href="/help" className="font-semibold text-primary hover:underline">
                     Contact Support
                   </Link>
                 </p>
@@ -176,7 +176,7 @@ export default function VendorsPage() {
         <div className="flex flex-wrap justify-center gap-6 pt-6">
           <div className="flex items-center gap-4 p-[17px] rounded-[8px] border border-[#e2e8f0] bg-white min-w-[200px] flex-1 max-w-[283px]">
             <div className="h-10 w-10 rounded-lg bg-[rgba(0,67,143,0.1)] flex items-center justify-center shrink-0">
-              <Building2 className="h-5 w-5 text-[#00438f]" />
+              <Building2 className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] leading-4">
@@ -189,7 +189,7 @@ export default function VendorsPage() {
           </div>
           <div className="flex items-center gap-4 p-[17px] rounded-[8px] border border-[#e2e8f0] bg-white min-w-[200px] flex-1 max-w-[283px]">
             <div className="h-9 w-8 flex items-center justify-center shrink-0">
-              <Activity className="h-8 w-8 text-[#00438f]" />
+              <Activity className="h-8 w-8 text-primary" />
             </div>
             <div>
               <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] leading-4">
@@ -200,7 +200,7 @@ export default function VendorsPage() {
           </div>
           <div className="flex items-center gap-4 p-[17px] rounded-[8px] border border-[#e2e8f0] bg-white min-w-[200px] flex-1 max-w-[283px]">
             <div className="h-9 w-8 flex items-center justify-center shrink-0">
-              <Shield className="h-8 w-8 text-[#00438f]" />
+              <Shield className="h-8 w-8 text-primary" />
             </div>
             <div>
               <p className="text-[12px] font-bold text-[#64748b] uppercase tracking-[0.6px] leading-4">

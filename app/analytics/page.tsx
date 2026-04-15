@@ -17,7 +17,7 @@ import { getAnalyticsOverview, getHealthSummary, getEngagementAnalytics, type An
 import { apiFetch } from "@/lib/backend"
 import { trackEvent } from "@/lib/analytics"
 import Link from "next/link"
-import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight, FileText, CalendarClock, Loader2 } from "lucide-react"
+import { Package, Users, CheckCircle, BarChart3, TrendingUp, UserCheck, AlertCircle, Heart, Utensils, ArrowUpRight, ArrowDownRight, RefreshCw, Download, ChevronDown, ChevronRight, FileText, CalendarClock, Loader2, Presentation } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,7 +82,7 @@ function StatCard({ label, value, icon: Icon, meta, trend }: {
             )}
           </div>
           <div className="p-2 bg-[#f1f5f9] rounded-lg">
-            <Icon className="h-5 w-5 text-[#00438f]" />
+            <Icon className="h-5 w-5 text-primary" />
           </div>
         </div>
       </CardContent>
@@ -100,7 +100,7 @@ function EmptyChart({ message }: { message: string }) {
 }
 
 const trendConfig = {
-  products: { label: "Products", color: "#00438f" },
+  products: { label: "Products", color: "var(--primary)" },
   customers: { label: "Customers", color: "#94a3b8" },
   runs: { label: "Runs", color: "#8b5cf6" },
 }
@@ -168,7 +168,7 @@ function FeatureAdoptionTab() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-[#00438f]" />
+            <BarChart3 className="h-4 w-4 text-primary" />
             Daily Event Frequency
           </CardTitle>
         </CardHeader>
@@ -181,7 +181,7 @@ function FeatureAdoptionTab() {
               </div>
               <div className="h-2 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all bg-[#00438f]"
+                  className="h-full rounded-full transition-all bg-primary"
                   style={{ width: `${Math.round((count / maxCount) * 100)}%` }}
                 />
               </div>
@@ -215,7 +215,7 @@ function FeatureAdoptionTab() {
                   const status = e.status ?? "success"
                   return (
                     <tr key={e.ts + e.name + i} className="border-b border-[#f3f4f5] hover:bg-[#f8fafc]">
-                      <td className="py-3 px-4 font-mono text-[12px] font-bold text-[#00438f] whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-[12px] font-bold text-primary whitespace-nowrap">
                         #{shortId(e.ts)}
                       </td>
                       <td className="py-3 px-4 font-semibold text-[#1e293b]">
@@ -261,7 +261,7 @@ function FeatureAdoptionTab() {
                 <button
                   disabled={page === 1}
                   onClick={() => setPage(p => p - 1)}
-                  className="text-[12px] text-[#00438f] disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
+                  className="text-[12px] text-primary disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
                 >
                   Previous
                 </button>
@@ -269,7 +269,7 @@ function FeatureAdoptionTab() {
                   <button
                     key={p}
                     onClick={() => setPage(p)}
-                    className={`w-7 h-7 rounded text-[12px] font-medium transition-colors ${p === page ? "bg-[#00438f] text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"}`}
+                    className={`w-7 h-7 rounded text-[12px] font-medium transition-colors ${p === page ? "bg-primary text-white" : "text-[#64748b] hover:bg-[#f1f5f9]"}`}
                   >
                     {p}
                   </button>
@@ -277,7 +277,7 @@ function FeatureAdoptionTab() {
                 <button
                   disabled={page === totalPages}
                   onClick={() => setPage(p => p + 1)}
-                  className="text-[12px] text-[#00438f] disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
+                  className="text-[12px] text-primary disabled:text-[#94a3b8] px-2 py-1 hover:underline disabled:no-underline disabled:cursor-default"
                 >
                   Next
                 </button>
@@ -368,7 +368,7 @@ export default function AnalyticsPage() {
 
   const isEmpty = overview && overview.totals.products === 0 && overview.totals.customers === 0
 
-  async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" | "pdf" = "csv") {
+  async function handleExport(type: "overview" | "health" | "engagement", format: "csv" | "xlsx" | "pdf" | "pptx" = "csv") {
     trackEvent("analytics_export", { type, format, days })
     try {
       const res = await apiFetch(`/api/v1/analytics/export?type=${type}&days=${days}&format=${format}`)
@@ -378,7 +378,9 @@ export default function AnalyticsPage() {
       const a = document.createElement("a")
       a.href = url
       const dateStr = new Date().toISOString().slice(0, 10)
-      a.download = format === "pdf" ? `analytics-report-${dateStr}.pdf` : `analytics-${type}-${dateStr}.${format}`
+      a.download = format === "pdf" ? `analytics-report-${dateStr}.pdf`
+               : format === "pptx" ? `analytics-report-${dateStr}.pptx`
+               : `analytics-${type}-${dateStr}.${format}`
       a.click()
       URL.revokeObjectURL(url)
     } catch { /* silent */ }
@@ -443,7 +445,7 @@ export default function AnalyticsPage() {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#00438f] hover:bg-[#003070] text-white transition-colors">
+              <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-primary hover:bg-[#003070] text-white transition-colors">
                 <Download className="h-4 w-4" />
                 Download Report
                 <ChevronDown className="h-4 w-4" />
@@ -474,6 +476,13 @@ export default function AnalyticsPage() {
               >
                 <FileText className="h-3.5 w-3.5 text-[#64748b]" />
                 Full Report PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExport("overview", "pptx")}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Presentation className="h-3.5 w-3.5 text-[#64748b]" />
+                PowerPoint Deck
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -511,7 +520,7 @@ export default function AnalyticsPage() {
                   variant={days === value ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDays(value)}
-                  className={days === value ? "bg-[#00438f] text-white" : ""}
+                  className={days === value ? "bg-primary text-white" : ""}
                 >
                   {label}
                 </Button>
@@ -552,7 +561,7 @@ export default function AnalyticsPage() {
                   <p className="text-xs text-[#64748b]">Historical growth analysis over time</p>
                   <div className="flex items-center gap-4 pt-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-sm bg-[#00438f] inline-block" />
+                      <span className="h-2.5 w-2.5 rounded-sm bg-primary inline-block" />
                       <span className="text-[11px] text-[#64748b]">Products</span>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -573,7 +582,7 @@ export default function AnalyticsPage() {
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="products" fill="#00438f" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="products" fill="var(--primary)" radius={[3, 3, 0, 0]} />
                         <Bar dataKey="customers" fill="#94a3b8" radius={[3, 3, 0, 0]} />
                       </BarChart>
                     </ChartContainer>
@@ -608,7 +617,7 @@ export default function AnalyticsPage() {
                       <p className="text-xs text-[#94a3b8] mb-4">No data ingestion activities recorded yet. Ready to populate your dashboard?</p>
                       <Link
                         href="/jobs"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#00438f] border border-[#00438f] rounded-lg hover:bg-[#00438f]/5 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors"
                       >
                         <Package className="h-3.5 w-3.5" />
                         Start New Import
@@ -632,7 +641,7 @@ export default function AnalyticsPage() {
                   <div className="border-t border-[#e2e8f0]/60 bg-[#f8fafc]/30 mt-auto">
                     <Link
                       href="/jobs"
-                      className="block w-full py-2.5 px-4 text-[12px] font-bold text-[#00438f] text-center hover:bg-[#f1f5f9] transition-colors"
+                      className="block w-full py-2.5 px-4 text-[12px] font-bold text-primary text-center hover:bg-[#f1f5f9] transition-colors"
                     >
                       View All Logs
                     </Link>
@@ -676,7 +685,7 @@ export default function AnalyticsPage() {
                     <Card>
                       <CardContent className="pt-5 pb-4 flex items-center gap-4">
                         <div className="p-2.5 bg-[#f1f5f9] rounded-lg shrink-0">
-                          <TrendingUp className="h-5 w-5 text-[#00438f]" />
+                          <TrendingUp className="h-5 w-5 text-primary" />
                         </div>
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Top Preference</p>
@@ -689,7 +698,7 @@ export default function AnalyticsPage() {
                   <Card>
                     <CardContent className="pt-5 pb-4 flex items-center gap-4">
                       <div className="p-2.5 bg-[#f1f5f9] rounded-lg shrink-0">
-                        <Users className="h-5 w-5 text-[#00438f]" />
+                        <Users className="h-5 w-5 text-primary" />
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Active Profiles</p>
@@ -712,7 +721,7 @@ export default function AnalyticsPage() {
                   variant={days === value ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDays(value)}
-                  className={days === value ? "bg-[#00438f] text-white" : ""}
+                  className={days === value ? "bg-primary text-white" : ""}
                 >
                   {label}
                 </Button>
@@ -758,7 +767,7 @@ export default function AnalyticsPage() {
                                 <p className="text-2xl font-bold text-[#1e293b] mt-1">{engagement.activationRate}%</p>
                               </div>
                               <div className="p-2 bg-[#f1f5f9] rounded-lg">
-                                <TrendingUp className="h-5 w-5 text-[#00438f]" />
+                                <TrendingUp className="h-5 w-5 text-primary" />
                               </div>
                             </div>
                           </CardContent>
@@ -794,13 +803,13 @@ export default function AnalyticsPage() {
                             {engagement.newCustomersTrend.length === 0 ? (
                               <EmptyChart message="No new customers in this period." />
                             ) : (
-                              <ChartContainer config={{ count: { label: "New Customers", color: "#00438f" } }} className="h-48 w-full">
+                              <ChartContainer config={{ count: { label: "New Customers", color: "var(--primary)" } }} className="h-48 w-full">
                                 <BarChart data={engagement.newCustomersTrend}>
                                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                   <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
                                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                                   <ChartTooltip content={<ChartTooltipContent />} />
-                                  <Bar dataKey="count" fill="#00438f" radius={[4, 4, 0, 0]} />
+                                  <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                               </ChartContainer>
                             )}
@@ -863,7 +872,7 @@ export default function AnalyticsPage() {
                               <ChartContainer
                                 config={{
                                   cohort_size: { label: "Total Joined", color: "#bfdbfe" },
-                                  retained_count: { label: "Still Active", color: "#00438f" },
+                                  retained_count: { label: "Still Active", color: "var(--primary)" },
                                 }}
                                 className="h-56 w-full"
                               >
@@ -887,13 +896,13 @@ export default function AnalyticsPage() {
                                           <p className="font-semibold text-[#0f172a] mb-1">{label}</p>
                                           <p className="text-[#64748b]">Joined: <span className="font-medium text-[#1e293b]">{cohort?.cohort_size ?? 0}</span></p>
                                           <p className="text-[#64748b]">Still active: <span className="font-medium text-[#1e293b]">{cohort?.retained_count ?? 0}</span></p>
-                                          <p className="text-[#00438f] font-semibold mt-1">{cohort?.retention_pct ?? 0}% retained</p>
+                                          <p className="text-primary font-semibold mt-1">{cohort?.retention_pct ?? 0}% retained</p>
                                         </div>
                                       )
                                     }}
                                   />
                                   <Bar dataKey="cohort_size" fill="#bfdbfe" radius={[4, 4, 0, 0]} name="Total Joined" />
-                                  <Bar dataKey="retained_count" fill="#00438f" radius={[4, 4, 0, 0]} name="Still Active" />
+                                  <Bar dataKey="retained_count" fill="var(--primary)" radius={[4, 4, 0, 0]} name="Still Active" />
                                 </BarChart>
                               </ChartContainer>
                             </CardContent>
@@ -919,7 +928,7 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Heart className="h-4 w-4 text-[#00438f]" />
+                <Heart className="h-4 w-4 text-primary" />
                 Nutritional Goal Achievement
                 <span className="ml-auto text-xs font-normal text-[#94a3b8]">{goalAchievement.members_tracked} members tracked</span>
               </CardTitle>
@@ -938,7 +947,7 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="h-2 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-[#00438f] transition-all"
+                        className="h-full rounded-full bg-primary transition-all"
                         style={{ width: pct != null ? `${Math.min(pct, 100)}%` : "0%" }}
                       />
                     </div>
@@ -954,7 +963,7 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Utensils className="h-4 w-4 text-[#00438f]" />
+                <Utensils className="h-4 w-4 text-primary" />
                 Top-Rated Recipes
               </CardTitle>
             </CardHeader>
@@ -984,7 +993,7 @@ export default function AnalyticsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarClock className="h-5 w-5 text-[#00438f]" />
+              <CalendarClock className="h-5 w-5 text-primary" />
               Schedule Report Delivery
             </DialogTitle>
           </DialogHeader>
@@ -1014,7 +1023,7 @@ export default function AnalyticsPage() {
                 <select
                   value={scheduleFrequency}
                   onChange={(e) => setScheduleFrequency(e.target.value as any)}
-                  className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                  className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
@@ -1027,7 +1036,7 @@ export default function AnalyticsPage() {
                   <select
                     value={scheduleDay}
                     onChange={(e) => setScheduleDay(e.target.value)}
-                    className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                    className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   >
                     {["Monday","Tuesday","Wednesday","Thursday","Friday"].map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -1045,7 +1054,7 @@ export default function AnalyticsPage() {
                         value={f}
                         checked={scheduleFormat === f}
                         onChange={() => setScheduleFormat(f)}
-                        className="accent-[#00438f]"
+                        className="accent-primary"
                       />
                       <span className="text-sm font-medium text-[#334155]">{f.toUpperCase()}</span>
                     </label>
@@ -1070,7 +1079,7 @@ export default function AnalyticsPage() {
             </Button>
             {!scheduleSubmitted && (
               <Button
-                className="bg-[#00438f] hover:bg-[#003070] text-white"
+                className="bg-primary hover:bg-[#003070] text-white"
                 disabled={!scheduleRecipients.trim() || scheduleLoading}
                 onClick={async () => {
                   setScheduleLoading(true)
@@ -1139,7 +1148,7 @@ function AllergensCard({ data }: { data: { name: string; customer_count: number 
             </div>
             <div className="h-2.5 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#00438f] rounded-full transition-all"
+                className="h-full bg-primary rounded-full transition-all"
                 style={{ width: `${Math.round((item.customer_count / maxCount) * 100)}%` }}
               />
             </div>
@@ -1169,7 +1178,7 @@ function TrendingInsightCard({ topAllergen }: { topAllergen: string | null }) {
     : `${topAllergen ?? "The top allergen"} is the most common restriction in your customer base. Review your product catalog for safe alternatives.`
 
   return (
-    <Card className="bg-[#00438f] border-[#00438f] text-white">
+    <Card className="bg-primary border-primary text-white">
       <CardContent className="pt-5 pb-5 space-y-3">
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-semibold uppercase tracking-wide text-white">
           <TrendingUp className="h-3 w-3" />
@@ -1209,7 +1218,7 @@ function HealthConditionsCard({ data }: { data: { name: string; customer_count: 
             </div>
             <div className="h-2 w-full bg-[#f1f5f9] rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#00438f] rounded-full"
+                className="h-full bg-primary rounded-full"
                 style={{ width: `${Math.round((item.customer_count / maxCount) * 100)}%` }}
               />
             </div>
@@ -1227,7 +1236,7 @@ function DietaryPreferencesCard({ data }: { data: { name: string; customer_count
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <Utensils className="h-4 w-4 text-[#00438f]" />
+          <Utensils className="h-4 w-4 text-primary" />
           <CardTitle className="text-base font-medium">Dietary Preferences</CardTitle>
         </div>
       </CardHeader>
@@ -1239,11 +1248,11 @@ function DietaryPreferencesCard({ data }: { data: { name: string; customer_count
             {items.map((item) => (
               <div
                 key={item.name}
-                className="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-[#e2e8f0] hover:border-[#00438f]/30 hover:bg-[#f8fafc] transition-colors cursor-default relative"
+                className="group flex items-center justify-between px-3 py-2.5 rounded-lg border border-[#e2e8f0] hover:border-primary/30 hover:bg-[#f8fafc] transition-colors cursor-default relative"
                 title={`${item.customer_count} customer${item.customer_count !== 1 ? "s" : ""} follow ${item.name}`}
               >
                 <span className="text-sm font-medium text-[#1e293b]">{item.name}</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-[#00438f]">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#f1f5f9] text-primary">
                   {item.customer_count}
                 </span>
                 <span className="absolute left-1/2 -translate-x-1/2 -top-9 whitespace-nowrap bg-[#1e293b] text-white text-[11px] px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">

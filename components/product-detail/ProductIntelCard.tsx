@@ -90,7 +90,7 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
                   <p className="text-sm font-bold text-[#0f172a] mb-1.5">{data!.regional_popularity.label}</p>
                   <div className="h-1.5 bg-[#e2e8f0] rounded-full mb-2">
                     <div
-                      className="h-1.5 bg-[#00438f] rounded-full"
+                      className="h-1.5 bg-primary rounded-full"
                       style={{ width: `${Math.min(100, data!.regional_popularity.value)}%` }}
                     />
                   </div>
@@ -106,7 +106,7 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
                   <p className="text-sm font-bold text-[#0f172a] mb-1.5">{data!.sentiment.label}</p>
                   <div className="h-1.5 bg-[#e2e8f0] rounded-full mb-2">
                     <div
-                      className="h-1.5 bg-[#00438f] rounded-full"
+                      className="h-1.5 bg-primary rounded-full"
                       style={{ width: `${Math.min(100, data!.sentiment.value)}%` }}
                     />
                   </div>
@@ -120,8 +120,8 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
           {data!.summary && (
             <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-[12px] p-4">
               <div className="flex items-center gap-1.5 mb-2">
-                <MessageSquareQuote className="h-4 w-4 text-[#00438f]" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#00438f]">Intelligence Summary</span>
+                <MessageSquareQuote className="h-4 w-4 text-primary" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Intelligence Summary</span>
               </div>
               <p className="text-sm text-[#334155] leading-relaxed">"{data!.summary}"</p>
             </div>
@@ -138,13 +138,13 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
           {Array.isArray(data!.demand_signals) && data!.demand_signals.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <TrendingUp className="h-3.5 w-3.5 text-[#00438f]" />
+                <TrendingUp className="h-3.5 w-3.5 text-primary" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">Demand Signals</span>
               </div>
               <ul className="space-y-1">
                 {data!.demand_signals.map((s, i) => (
                   <li key={i} className="text-sm text-[#334155] flex items-start gap-1.5">
-                    <span className="text-[#00438f] mt-0.5">•</span>
+                    <span className="text-primary mt-0.5">•</span>
                     {s}
                   </li>
                 ))}
@@ -158,7 +158,7 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
               <ul className="space-y-1 mt-1.5">
                 {data!.insights.map((insight, i) => (
                   <li key={i} className="text-sm text-[#334155] flex items-start gap-1.5">
-                    <span className="text-[#00438f] mt-0.5">•</span>
+                    <span className="text-primary mt-0.5">•</span>
                     {insight}
                   </li>
                 ))}
@@ -172,7 +172,7 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
               <ul className="space-y-1 mt-1.5">
                 {data!.similar_products.map((p) => (
                   <li key={p.id}>
-                    <a href={`/products/${p.id}`} className="text-sm text-[#00438f] hover:underline">
+                    <a href={`/products/${p.id}`} className="text-sm text-primary hover:underline">
                       {p.name}
                       {p.similarity !== undefined && (
                         <span className="text-[#94a3b8] ml-1">({Math.round(p.similarity * 100)}% match)</span>

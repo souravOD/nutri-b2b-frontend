@@ -581,7 +581,7 @@ export default function ImportWizard({
                   <Info className="h-5 w-5 shrink-0 text-[#1e40af]" />
                   <p className="text-[12px] text-[#1e40af] leading-[19.5px]">
                     Make sure your CSV file includes a header row. The file size limit is {FILE_SIZE_LIMIT_MB}MB. Need help?{" "}
-                    <a href={SAMPLE_TEMPLATE_URL} download="products_sample.csv" className="font-bold text-[#00438f] hover:underline">
+                    <a href={SAMPLE_TEMPLATE_URL} download="products_sample.csv" className="font-bold text-primary hover:underline">
                       Download a sample template
                     </a>
                   </p>
@@ -696,7 +696,7 @@ export default function ImportWizard({
                       )}
                     </div>
                   </div>
-                  <div className="bg-white border-l-4 border-[#00438f] border border-[#e2e8f0] rounded-[12px] p-[25px] pl-[28px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+                  <div className="bg-white border-l-4 border-primary border border-[#e2e8f0] rounded-[12px] p-[25px] pl-[28px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
                     <p className="text-[14px] text-[#64748b]">Potential Errors</p>
                     <p className="text-[30px] font-bold text-[#0f172a] mt-1">0</p>
                     <div className="flex items-center gap-1 pt-1">
@@ -721,7 +721,7 @@ export default function ImportWizard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-[#00438f] font-semibold hover:bg-[#eff6ff]"
+                      className="text-primary font-semibold hover:bg-[#eff6ff]"
                       onClick={goBackToMap}
                     >
                       <Pencil className="size-3.5 mr-1" />
@@ -750,7 +750,7 @@ export default function ImportWizard({
                             return (
                               <tr key={m.sourceHeader} className="border-t border-[#f1f5f9]">
                                 <td className="px-6 py-4 font-medium text-[#0f172a]">{m.sourceHeader}</td>
-                                <td className="px-6 py-4 font-bold text-[#00438f]">{destLabel}</td>
+                                <td className="px-6 py-4 font-bold text-primary">{destLabel}</td>
                                 <td className="px-6 py-4 text-[#475569]">{sampleVal}</td>
                                 <td className="px-6 py-4">
                                   <span className="inline-flex items-center rounded-full bg-[#ecfdf5] border border-[#d1fae5] px-2 py-0.5 text-[10px] font-bold text-[#059669]">
@@ -798,7 +798,7 @@ export default function ImportWizard({
                     </div>
                   ) : (
                     <div className="bg-[rgba(0,67,143,0.1)] rounded-full size-[80px] flex items-center justify-center mb-4">
-                      <CheckCircle2 className="size-[43px] text-[#00438f]" />
+                      <CheckCircle2 className="size-[43px] text-primary" />
                     </div>
                   )}
                   <h3 className="text-[24px] font-bold text-[#0f172a]">
@@ -820,7 +820,7 @@ export default function ImportWizard({
                   </div>
                   <div className="bg-[#f8fafc] border border-[rgba(0,67,143,0.1)] rounded-[12px] p-[17px]">
                     <p className="text-[12px] font-semibold text-[#94a3b8] uppercase tracking-[0.6px] text-center">Successful</p>
-                    <p className="text-[24px] font-bold text-[#00438f] text-center mt-1">
+                    <p className="text-[24px] font-bold text-primary text-center mt-1">
                       {(completionMetrics?.successful ?? 0).toLocaleString()}
                     </p>
                   </div>
@@ -833,7 +833,7 @@ export default function ImportWizard({
                 </div>
                 {/* Info Alert */}
                 <div className="bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.1)] rounded-[8px] p-[17px] flex gap-3 items-start">
-                  <Info className="size-5 shrink-0 text-[#00438f]" />
+                  <Info className="size-5 shrink-0 text-primary" />
                   <p className="text-[14px] text-[#475569]">
                     {completionMetrics?.finishedAt
                       ? `Import finished at ${new Date(completionMetrics.finishedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. `
@@ -856,7 +856,7 @@ export default function ImportWizard({
                   <Button variant="outline" onClick={handleClose} className="rounded-[8px] border-[#e2e8f0] font-bold text-[#334155]">
                     Cancel
                   </Button>
-                  <Button onClick={goToMap} disabled={!file || uploading} className="rounded-[8px] bg-[#00438f] hover:bg-[#003366] font-bold text-white">
+                  <Button onClick={goToMap} disabled={!file || uploading} className="rounded-[8px] bg-primary hover:bg-[#003366] font-bold text-white">
                     Next
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
@@ -872,7 +872,7 @@ export default function ImportWizard({
                   <Button variant="outline" onClick={handleClose} disabled={uploading} className="rounded-[8px] border-[#e2e8f0] font-bold text-[#334155]">
                     Cancel
                   </Button>
-                  <Button onClick={goToReview} disabled={uploading || mappedCount === 0} className="rounded-[8px] bg-[#00438f] hover:bg-[#003366] font-bold text-white">
+                  <Button onClick={goToReview} disabled={uploading || mappedCount === 0} className="rounded-[8px] bg-primary hover:bg-[#003366] font-bold text-white">
                     Next
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
@@ -888,7 +888,7 @@ export default function ImportWizard({
                   <Button variant="outline" onClick={handleClose} disabled={uploading} className="rounded-[8px] border-[#e2e8f0] font-bold text-[#334155]">
                     Cancel
                   </Button>
-                  <Button onClick={proceedFromMap} disabled={uploading} className="rounded-[8px] bg-[#00438f] hover:bg-[#003366] font-bold text-white">
+                  <Button onClick={proceedFromMap} disabled={uploading} className="rounded-[8px] bg-primary hover:bg-[#003366] font-bold text-white">
                     {uploading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -917,7 +917,7 @@ export default function ImportWizard({
                 {done && (
                   <Button
                     onClick={handleViewJobs}
-                    className="rounded-[8px] bg-[#00438f] hover:bg-[#003366] font-bold text-white"
+                    className="rounded-[8px] bg-primary hover:bg-[#003366] font-bold text-white"
                   >
                     View Jobs
                     <ChevronRight className="h-4 w-4 ml-2" />
@@ -955,11 +955,11 @@ function ImportStepper({
         <div key={s.key} className="flex flex-col items-center flex-1 min-w-0">
           <div className="flex items-center w-full">
             {i > 0 && (
-              <div className={`h-[2px] flex-1 ${steps[i - 1].done ? "bg-[#00438f]" : "bg-[#e2e8f0]"}`} />
+              <div className={`h-[2px] flex-1 ${steps[i - 1].done ? "bg-primary" : "bg-[#e2e8f0]"}`} />
             )}
             <div
               className={`shrink-0 size-8 rounded-full flex items-center justify-center ${
-                s.done ? "bg-[#00438f] text-white" : s.active ? "bg-[#00438f] text-white" : "bg-[#e2e8f0] text-[#64748b]"
+                s.done ? "bg-primary text-white" : s.active ? "bg-primary text-white" : "bg-[#e2e8f0] text-[#64748b]"
               }`}
             >
               {s.done ? (
@@ -969,12 +969,12 @@ function ImportStepper({
               )}
             </div>
             {i < steps.length - 1 && (
-              <div className={`h-[2px] flex-1 ${s.done ? "bg-[#00438f]" : "bg-[#e2e8f0]"}`} />
+              <div className={`h-[2px] flex-1 ${s.done ? "bg-primary" : "bg-[#e2e8f0]"}`} />
             )}
           </div>
           <span
             className={`mt-2 text-[12px] font-bold uppercase tracking-[0.6px] ${
-              s.active ? "text-[#00438f]" : s.done ? "text-[#00438f]" : "text-[#64748b]"
+              s.active ? "text-primary" : s.done ? "text-primary" : "text-[#64748b]"
             }`}
           >
             {s.label}

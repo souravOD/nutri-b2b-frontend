@@ -56,7 +56,7 @@ export default function SearchLandingView({ onSearch }: Props) {
               if (e.key === "Enter") handleSubmit(inputValue)
             }}
             placeholder="Search products, customers, jobs... (Press '/' to focus)"
-            className="h-14 pl-12 pr-4 text-[16px] border-[#e2e8f0] bg-white rounded-[8px] shadow-sm focus-visible:ring-[#00438f]/30"
+            className="h-14 pl-12 pr-4 text-[16px] border-[#e2e8f0] bg-white rounded-[8px] shadow-sm focus-visible:ring-primary/30"
           />
         </div>
 
@@ -68,7 +68,7 @@ export default function SearchLandingView({ onSearch }: Props) {
               <button
                 key={q}
                 onClick={() => handleSubmit(q)}
-                className="flex items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-white px-3 py-1 text-[13px] text-[#475569] hover:border-[#00438f]/40 hover:text-[#00438f] transition-colors"
+                className="flex items-center gap-1.5 rounded-full border border-[#e2e8f0] bg-white px-3 py-1 text-[13px] text-[#475569] hover:border-primary/40 hover:text-primary transition-colors"
               >
                 <Clock className="h-[10.5px] w-[10.5px] shrink-0 text-[#94a3b8]" />
                 {q}

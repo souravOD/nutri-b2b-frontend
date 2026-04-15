@@ -65,7 +65,7 @@ export default function SafetyCheckCard({ productId, allergens = [] }: Props) {
           <Button
             onClick={handleRun}
             disabled={loading}
-            className="w-full bg-[#00438f] hover:bg-[#003070] text-white"
+            className="w-full bg-primary hover:bg-[#003070] text-white"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

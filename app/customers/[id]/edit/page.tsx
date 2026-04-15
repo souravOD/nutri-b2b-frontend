@@ -82,7 +82,7 @@ export default function EditCustomerPage() {
           <div className="flex items-center gap-4 mb-4">
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               asChild
             >
               <Link href="/customers" className="flex items-center gap-2">

@@ -45,7 +45,7 @@ export default function TrendingCategoriesSection() {
         <h2 className="text-[20px] font-bold text-[#0f172a]">Trending Categories</h2>
         <Link
           href="/products"
-          className="text-[14px] font-medium text-[#00438f] hover:underline"
+          className="text-[14px] font-medium text-primary hover:underline"
         >
           View all categories
         </Link>
@@ -72,10 +72,10 @@ export default function TrendingCategoriesSection() {
               <Link
                 key={cat.id}
                 href={`/products?category=${encodeURIComponent(cat.code ?? cat.id)}`}
-                className="flex flex-col border border-[#e2e8f0] rounded-[8px] p-6 bg-white hover:border-[#00438f]/40 hover:shadow-sm transition-all"
+                className="flex flex-col border border-[#e2e8f0] rounded-[8px] p-6 bg-white hover:border-primary/40 hover:shadow-sm transition-all"
               >
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] bg-[#e8f0fb]">
-                  <Icon className="h-5 w-5 text-[#00438f]" strokeWidth={1.5} />
+                  <Icon className="h-5 w-5 text-primary" strokeWidth={1.5} />
                 </div>
                 <p className="text-[16px] font-semibold text-[#0f172a] mb-1">{cat.label}</p>
                 <p className="text-[14px] text-[#64748b]">{countLabel}</p>

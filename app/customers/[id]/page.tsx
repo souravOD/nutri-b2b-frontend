@@ -97,7 +97,7 @@ export default function CustomerDetailPage() {
           <p className="text-[#64748b] text-sm max-w-sm">{error}</p>
           <button
             onClick={() => router.replace("/customers")}
-            className="px-4 py-2 text-sm font-medium text-[#00438f] border border-[#e2e8f0] rounded-lg hover:bg-[#f1f5f9] transition-colors"
+            className="px-4 py-2 text-sm font-medium text-primary border border-[#e2e8f0] rounded-lg hover:bg-[#f1f5f9] transition-colors"
           >
             Back to Customers
           </button>

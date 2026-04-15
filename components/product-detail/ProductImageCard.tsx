@@ -22,7 +22,7 @@ export default function ProductImageCard({ product }: { product: any }) {
         </div>
       </div>
       <div className="flex gap-2 p-4 border-t border-[#e2e8f0]">
-        <div className="w-12 h-12 rounded-lg border-2 border-[#00438f] bg-[#f8fafc] flex items-center justify-center overflow-hidden">
+        <div className="w-12 h-12 rounded-lg border-2 border-primary bg-[#f8fafc] flex items-center justify-center overflow-hidden">
           <Image
             src={imageUrl || "/placeholder.svg?height=48&width=48"}
             alt=""

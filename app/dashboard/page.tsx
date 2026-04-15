@@ -24,6 +24,7 @@ import {
   Clock,
 } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
+import { ChurnWidget, type ChurnData } from "@/components/ChurnWidget";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type OverviewTotals = { products: number; customers: number; completedJobs: number };
@@ -49,6 +50,7 @@ type DashboardData = {
   roi: RoiData;
   npsScore: number | null;
   npsBreakdown: NpsBreakdown | null;
+  churnData: ChurnData | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,7 +101,7 @@ function KpiCard({
   );
 }
 
-function PctBar({ label, pctVal, color = "#00438f" }: { label: string; pctVal: number; color?: string }) {
+function PctBar({ label, pctVal, color = "var(--primary)" }: { label: string; pctVal: number; color?: string }) {
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
@@ -307,6 +309,7 @@ export default function DashboardPage() {
     roi: { budgetAdherence: null, foodWasteReduction: null, healthCostSavings: null },
     npsScore: null,
     npsBreakdown: null,
+    churnData: null,
   });
 
   React.useEffect(() => {
@@ -317,7 +320,7 @@ export default function DashboardPage() {
     let alive = true;
     async function load() {
       try {
-        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes, roiRes, npsRes] = await Promise.allSettled([
+        const [overviewRes, healthRes, runsRes, catsRes, popRes, engagementRes, welcomeRes, goalRes, roiRes, npsRes, churnRes] = await Promise.allSettled([
           apiFetch("/api/v1/analytics/overview?days=30"),
           apiFetch("/api/v1/analytics/health-summary"),
           apiFetch("/api/v1/ingest/runs"),
@@ -328,6 +331,7 @@ export default function DashboardPage() {
           apiFetch("/api/v1/analytics/goal-achievement?days=30"),
           apiFetch("/api/v1/analytics/roi"),
           apiFetch("/api/v1/analytics/nps"),
+          apiFetch("/api/v1/analytics/churn"),
         ]);
         if (!alive) return;
 
@@ -417,8 +421,22 @@ export default function DashboardPage() {
           }
         }
 
+        let churnData: ChurnData | null = null;
+        if (churnRes.status === "fulfilled" && churnRes.value.ok) {
+          const j = await churnRes.value.json().catch(() => ({}));
+          if (typeof j.healthy === "number") {
+            churnData = {
+              healthy: j.healthy ?? 0,
+              atRisk: j.atRisk ?? 0,
+              churned: j.churned ?? 0,
+              atRiskRate: j.atRiskRate ?? 0,
+              atRiskCustomers: Array.isArray(j.atRiskCustomers) ? j.atRiskCustomers : [],
+            };
+          }
+        }
+
         if (alive) {
-          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi, npsScore, npsBreakdown });
+          setData({ totals, dietary, totalCustomers, integrationUsage, trendingCats, popularProducts, activationRate, goalAchievement, roi, npsScore, npsBreakdown, churnData });
         }
       } catch { /* non-critical */ } finally {
         if (alive) setLoading(false);
@@ -499,7 +517,7 @@ export default function DashboardPage() {
                 icon={Users}
                 sub={data.totals.customers > 0 ? `/ ${(data.totals.customers * 10).toLocaleString()} cap` : "All time"}
                 iconBg="bg-[rgba(0,67,143,0.1)]"
-                iconColor="text-[#00438f]"
+                iconColor="text-primary"
               />
               <AvgSessionCard />
               <KpiCard
@@ -535,7 +553,7 @@ export default function DashboardPage() {
                           key={g.metric}
                           label={g.metric}
                           pctVal={Math.round(g.achieved_pct)}
-                          color={i === data.goalAchievement.length - 1 ? "#94a3b8" : "#00438f"}
+                          color={i === data.goalAchievement.length - 1 ? "#94a3b8" : "var(--primary)"}
                         />
                       ))}
                     </div>
@@ -554,7 +572,7 @@ export default function DashboardPage() {
                       {data.dietary.map((d) => (
                         <div key={d.name} className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#00438f] shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                             <span className="text-[12px] text-[#475569] truncate">{d.name}</span>
                           </div>
                           <span className="text-[12px] font-semibold text-[#0f172a] ml-1 shrink-0">
@@ -579,7 +597,7 @@ export default function DashboardPage() {
                           className="border border-[#e2e8f0] rounded-[8px] p-2.5 flex flex-col items-center text-center gap-1.5 bg-[#f8fafc]"
                         >
                           <div className="h-8 w-8 rounded-full bg-[rgba(0,67,143,0.1)] flex items-center justify-center">
-                            <span className="text-[11px] font-bold text-[#00438f]">{String(i + 1).padStart(2, "0")}</span>
+                            <span className="text-[11px] font-bold text-primary">{String(i + 1).padStart(2, "0")}</span>
                           </div>
                           <span className="text-[11px] font-semibold text-[#1e293b] leading-tight">{p.name}</span>
                           {p.dietaryTags && p.dietaryTags.length > 0 && (
@@ -591,7 +609,7 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <Link href="/analytics" className="flex items-center gap-1 text-[12px] font-bold text-[#00438f] hover:underline">
+                <Link href="/analytics" className="flex items-center gap-1 text-[12px] font-bold text-primary hover:underline">
                   View Health Summary <ExternalLink className="h-3 w-3" />
                 </Link>
               </CardContent>
@@ -600,7 +618,7 @@ export default function DashboardPage() {
             {/* Right: Shopping & Revenue Impact */}
             <Card className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-2 px-5 pt-5 pb-3 border-b border-[#f1f5f9]">
-                <ShoppingCart className="h-4 w-4 text-[#00438f]" />
+                <ShoppingCart className="h-4 w-4 text-primary" />
                 <p className="text-[13px] font-bold text-[#0f172a]">Shopping &amp; Revenue Impact</p>
               </div>
               <CardContent className="px-5 py-4 space-y-5">
@@ -615,7 +633,7 @@ export default function DashboardPage() {
                       <div
                         key={i}
                         className="flex-1 rounded-t-sm"
-                        style={{ height: `${h}%`, background: i >= 8 ? "#00438f" : "#c7d9f0" }}
+                        style={{ height: `${h}%`, background: i >= 8 ? "var(--primary)" : "#c7d9f0" }}
                       />
                     ))}
                   </div>
@@ -630,7 +648,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-[#f8fafc] rounded-[8px] p-3 border border-[#f1f5f9]">
                     <div className="flex items-center gap-1 mb-1">
-                      <Zap className="h-3 w-3 text-[#00438f]" />
+                      <Zap className="h-3 w-3 text-primary" />
                       <p className="text-[10px] font-bold uppercase tracking-[0.4px] text-[#94a3b8]">Integration Usage</p>
                     </div>
                     <p className="text-[20px] font-bold text-[#0f172a]">
@@ -663,7 +681,7 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <Link href="/products" className="flex items-center gap-1 text-[12px] font-bold text-[#00438f] hover:underline">
+                <Link href="/products" className="flex items-center gap-1 text-[12px] font-bold text-primary hover:underline">
                   View All Products <ExternalLink className="h-3 w-3" />
                 </Link>
               </CardContent>
@@ -673,7 +691,7 @@ export default function DashboardPage() {
           {/* ── Section 3: Projected Annual ROI Banner ─────────────────────── */}
           <section
             className="rounded-[12px] p-6 text-white"
-            style={{ background: "linear-gradient(110deg, #00438f 0%, #003070 100%)" }}
+            style={{ background: "linear-gradient(110deg, var(--primary) 0%, #003070 100%)" }}
           >
             <p className="text-[13px] font-bold text-white mb-5">Projected Annual ROI &amp; Cost Savings</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-white/20">
@@ -691,11 +709,18 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* ── Section 4: Category Distribution Summary ────────────────────── */}
+          {/* ── Section 4: Churn & At-Risk Analysis ─────────────────────────── */}
+          {data.churnData && (
+            <section>
+              <ChurnWidget data={data.churnData} />
+            </section>
+          )}
+
+          {/* ── Section 5: Category Distribution Summary ────────────────────── */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <p className="text-[13px] font-bold text-[#0f172a]">Category Distribution Summary</p>
-              <Link href="/products" className="text-[12px] font-bold text-[#00438f] hover:underline flex items-center gap-1">
+              <Link href="/products" className="text-[12px] font-bold text-primary hover:underline flex items-center gap-1">
                 View All Details <ExternalLink className="h-3 w-3" />
               </Link>
             </div>

@@ -78,7 +78,7 @@ export default function OnboardingPage() {
               <div className="flex flex-col justify-between p-[32px] min-h-[92px]">
                 <div className="pb-[12px]">
                   <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="h-5 w-5 shrink-0 text-[#00438f]" />
+                    <FileSpreadsheet className="h-5 w-5 shrink-0 text-primary" />
                     <h2 className="text-[20px] font-bold text-[#0f172a]">CSV import</h2>
                   </div>
                 </div>
@@ -88,12 +88,12 @@ export default function OnboardingPage() {
                 <div className="flex flex-col gap-[24px] items-stretch pt-[87px]">
                   <ImportWizard
                     triggerLabel="Import"
-                    triggerClassName="w-full bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[16px] h-12 px-6 rounded-[8px] flex items-center justify-center gap-2"
+                    triggerClassName="w-full bg-primary hover:bg-[#003366] text-white font-bold text-[16px] h-12 px-6 rounded-[8px] flex items-center justify-center gap-2"
                     showTriggerIcon={true}
                   />
                   <p className="text-center text-[14px] text-[#94a3b8]">
                     Re-run imports any time from{" "}
-                    <Link href="/jobs" className="text-[#00438f] hover:underline">
+                    <Link href="/jobs" className="text-primary hover:underline">
                       Jobs
                     </Link>
                     .
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
               <div className="p-[32px] space-y-0">
                 <div className="pb-[12px]">
                   <div className="flex items-center gap-2">
-                    <Globe className="h-[22px] w-[22px] text-[#00438f]" />
+                    <Globe className="h-[22px] w-[22px] text-primary" />
                     <h2 className="text-[20px] font-bold text-[#0f172a]">API integration</h2>
                   </div>
                 </div>
@@ -123,7 +123,7 @@ export default function OnboardingPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                        className="h-auto gap-1 px-0 text-[12px] font-bold text-primary hover:bg-transparent hover:text-[#003366]"
                         onClick={copyToClipboard(exampleCurl, "curl")}
                       >
                         <Copy className="h-3.5 w-3.5" />
@@ -142,7 +142,7 @@ export default function OnboardingPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                        className="h-auto gap-1 px-0 text-[12px] font-bold text-primary hover:bg-transparent hover:text-[#003366]"
                         onClick={copyToClipboard(exampleBody, "json")}
                       >
                         <Copy className="h-3.5 w-3.5" />
@@ -157,7 +157,7 @@ export default function OnboardingPage() {
                 <div className="border-t border-[#f1f5f9] pt-[17px]">
                   <p className="text-[14px] text-[#64748b]">
                     Need keys/webhooks? Go to{" "}
-                    <Link href="/settings" className="font-medium text-[#00438f] hover:underline">
+                    <Link href="/settings" className="font-medium text-primary hover:underline">
                       Settings → API
                     </Link>
                     .
@@ -170,7 +170,7 @@ export default function OnboardingPage() {
           {/* Assistance section */}
           <div className="bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.1)] rounded-[12px] p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[rgba(0,67,143,0.1)] flex items-center justify-center">
-              <HelpCircle className="h-5 w-5 text-[#00438f]" />
+              <HelpCircle className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1 space-y-1">
               <h3 className="text-[16px] font-bold text-[#0f172a]">Need help with mapping?</h3>

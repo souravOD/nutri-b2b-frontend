@@ -52,8 +52,8 @@ export default function VendorNotesCard({
   return (
     <div className="bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.1)] rounded-2xl p-6">
       <div className="flex items-center gap-2 mb-3">
-        <FileText className="h-4 w-4 text-[#00438f]" />
-        <h3 className="font-bold text-[12px] uppercase tracking-wider text-[#00438f]">Internal Vendor Notes</h3>
+        <FileText className="h-4 w-4 text-primary" />
+        <h3 className="font-bold text-[12px] uppercase tracking-wider text-primary">Internal Vendor Notes</h3>
       </div>
       {isAdding ? (
         <div className="space-y-3">
@@ -67,7 +67,7 @@ export default function VendorNotesCard({
           />
           <Button
             size="sm"
-            className="bg-[#00438f] hover:bg-[#003366] text-white"
+            className="bg-primary hover:bg-[#003366] text-white"
             onClick={handleSave}
             disabled={noteLoading || noteSaving}
           >
@@ -86,7 +86,7 @@ export default function VendorNotesCard({
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="mt-3 flex items-center gap-1 text-[#00438f] font-bold text-xs hover:underline"
+            className="mt-3 flex items-center gap-1 text-primary font-bold text-xs hover:underline"
           >
             <Plus className="h-3.5 w-3.5" />
             {noteText ? "Edit note" : "Add internal note"}

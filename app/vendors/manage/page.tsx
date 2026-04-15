@@ -133,7 +133,7 @@ export default function VendorsManagePage() {
             <h1 className="text-2xl font-semibold text-[#0f172a]">Vendor Management</h1>
             <p className="text-sm text-[#64748b]">Manage vendor identities and workspace teams.</p>
           </div>
-          <Button asChild className="bg-[#00438f] hover:bg-[#003366] text-white rounded-lg h-10">
+          <Button asChild className="bg-primary hover:bg-[#003366] text-white rounded-lg h-10">
             <Link href="/vendors/new" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Register Vendor

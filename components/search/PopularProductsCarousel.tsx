@@ -34,7 +34,7 @@ export default function PopularProductsCarousel() {
           <button
             onClick={() => setOffset(o => Math.max(0, o - 1))}
             disabled={offset === 0}
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#00438f]/40 disabled:opacity-30 transition-colors"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:border-primary/40 disabled:opacity-30 transition-colors"
             aria-label="Previous"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -42,7 +42,7 @@ export default function PopularProductsCarousel() {
           <button
             onClick={() => setOffset(o => Math.min(maxOffset, o + 1))}
             disabled={offset >= maxOffset}
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#00438f]/40 disabled:opacity-30 transition-colors"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#64748b] hover:border-primary/40 disabled:opacity-30 transition-colors"
             aria-label="Next"
           >
             <ChevronRight className="h-4 w-4" />

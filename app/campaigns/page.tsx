@@ -16,7 +16,7 @@ import {
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
 import { trackEvent } from "@/lib/analytics"
-import { FlaskConical, GitBranch, Loader2, Megaphone, Plus, Trash2, Users } from "lucide-react"
+import { FlaskConical, GitBranch, Loader2, Megaphone, Plus, Send, Trash2, Users } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +70,7 @@ export default function CampaignsPage() {
   const [creating, setCreating] = React.useState(false)
   const [updatingId, setUpdatingId] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [sendingId, setSendingId] = React.useState<string | null>(null)
   const [segmentCount, setSegmentCount] = React.useState<number | null>(null)
   const [segmentLoading, setSegmentLoading] = React.useState(false)
 
@@ -171,6 +172,28 @@ export default function CampaignsPage() {
     }
   }
 
+  async function handleSend(id: string) {
+    setSendingId(id)
+    try {
+      const res = await apiFetch(`/api/v1/campaigns/${id}/send`, { method: "POST" })
+      if (res.ok) {
+        const json = await res.json()
+        setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, status: "sent", sent_at: new Date().toISOString(), recipient_count: json.sent ?? c.recipient_count } : c))
+        toast({ title: json.skipped ? "Campaign saved (email delivery skipped — no API key)" : `Campaign sent to ${json.sent?.toLocaleString()} recipient(s)` })
+        trackEvent("campaign_sent_via_sendgrid", { sent: json.sent, skipped: json.skipped })
+      } else if (res.status === 409) {
+        toast({ title: "Already sent", description: "This campaign has already been delivered.", variant: "destructive" })
+      } else if (res.status === 422) {
+        toast({ title: "No recipients", description: "No opted-in recipients found for this segment.", variant: "destructive" })
+      } else {
+        const json = await res.json().catch(() => ({}))
+        toast({ title: "Failed to send campaign", description: json.detail, variant: "destructive" })
+      }
+    } finally {
+      setSendingId(null)
+    }
+  }
+
   async function handleDelete(id: string) {
     setDeletingId(id)
     try {
@@ -197,7 +220,7 @@ export default function CampaignsPage() {
             </div>
             <Button
               onClick={() => setCreateOpen(true)}
-              className="bg-[#00438f] hover:bg-[#003070] text-white gap-2"
+              className="bg-primary hover:bg-[#003070] text-white gap-2"
             >
               <Plus className="h-4 w-4" />
               New Campaign
@@ -212,8 +235,8 @@ export default function CampaignsPage() {
               </CardContent>
             ) : campaigns.length === 0 ? (
               <CardContent className="py-20 flex flex-col items-center gap-3 text-center">
-                <div className="h-12 w-12 rounded-xl bg-[#00438f]/10 flex items-center justify-center">
-                  <Megaphone className="h-6 w-6 text-[#00438f]" />
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Megaphone className="h-6 w-6 text-primary" />
                 </div>
                 <p className="text-[15px] font-semibold text-[#0f172a]">No campaigns yet</p>
                 <p className="text-[13px] text-[#64748b] max-w-xs">
@@ -221,7 +244,7 @@ export default function CampaignsPage() {
                 </p>
                 <Button
                   onClick={() => setCreateOpen(true)}
-                  className="mt-2 bg-[#00438f] hover:bg-[#003070] text-white gap-2"
+                  className="mt-2 bg-primary hover:bg-[#003070] text-white gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   New Campaign
@@ -276,12 +299,12 @@ export default function CampaignsPage() {
                             {c.status === "active" && (
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="text-[12px] h-7 px-2.5"
-                                disabled={updatingId === c.id}
-                                onClick={() => handleStatusChange(c.id, "sent")}
+                                className="text-[12px] h-7 px-2.5 bg-primary hover:bg-[#003070] text-white gap-1.5"
+                                disabled={sendingId === c.id}
+                                onClick={() => handleSend(c.id)}
                               >
-                                {updatingId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Mark Sent"}
+                                {sendingId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                                {sendingId === c.id ? "Sending…" : "Send Campaign"}
                               </Button>
                             )}
                             {c.status === "draft" && (
@@ -328,7 +351,7 @@ export default function CampaignsPage() {
               <select
                 value={form.target_segment}
                 onChange={(e) => setForm((f) => ({ ...f, target_segment: e.target.value }))}
-                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               >
                 <option value="all">All Members</option>
                 <option value="active">Active Members</option>
@@ -339,8 +362,8 @@ export default function CampaignsPage() {
                 {segmentLoading ? (
                   <><Loader2 className="h-3 w-3 animate-spin" /> Counting members…</>
                 ) : segmentCount !== null ? (
-                  <><Users className="h-3 w-3 text-[#00438f]" />
-                    <span className="text-[#00438f] font-semibold">{segmentCount.toLocaleString()}</span> members will be targeted</>
+                  <><Users className="h-3 w-3 text-primary" />
+                    <span className="text-primary font-semibold">{segmentCount.toLocaleString()}</span> members will be targeted</>
                 ) : null}
               </p>
             </div>
@@ -360,14 +383,14 @@ export default function CampaignsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                 rows={4}
                 placeholder="Write your campaign message here..."
-                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
             {/* A/B Test Toggle */}
             <div className="space-y-3">
               <div className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4 text-[#00438f]" />
+                  <FlaskConical className="h-4 w-4 text-primary" />
                   <span className="text-[13px] font-semibold text-[#334155]">Enable A/B Test</span>
                 </div>
                 <Switch
@@ -397,7 +420,7 @@ export default function CampaignsPage() {
                       onChange={(e) => setMessageB(e.target.value)}
                       rows={3}
                       placeholder="Alternate message body..."
-                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     />
                   </div>
                 </div>
@@ -407,7 +430,7 @@ export default function CampaignsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003070] text-white"
+              className="bg-primary hover:bg-[#003070] text-white"
               onClick={handleCreate}
               disabled={creating || !form.name.trim() || !form.subject.trim() || !form.message.trim() || (abEnabled && (!subjectB.trim() || !messageB.trim()))}
             >

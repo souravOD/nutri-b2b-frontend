@@ -51,7 +51,7 @@ export default function PHIAccessDialog({ open, customerName, onConfirm, onCance
           {/* Header with shield visual */}
           <div className="flex flex-col items-center px-8 pt-8 pb-6 text-center">
             <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(0,67,143,0.1)]">
-              <Shield className="h-7 w-7 text-[#00438f]" strokeWidth={2} />
+              <Shield className="h-7 w-7 text-primary" strokeWidth={2} />
             </div>
 
             <h2 className="mb-3 font-bold text-[24px] text-[#0f172a] tracking-[-0.6px] leading-8">
@@ -106,7 +106,7 @@ export default function PHIAccessDialog({ open, customerName, onConfirm, onCance
                   href="https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/minimum-necessary-requirement/index.html"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[#00438f] hover:underline"
+                  className="font-medium text-primary hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Minimum Necessary Rule
@@ -120,7 +120,7 @@ export default function PHIAccessDialog({ open, customerName, onConfirm, onCance
               <Button
                 onClick={() => canSubmit && onConfirm(reason)}
                 disabled={!canSubmit}
-                className="w-full h-14 rounded-[8px] bg-[#00438f] hover:bg-[#003a7a] text-white text-[16px] font-bold disabled:opacity-50 disabled:cursor-not-allowed relative"
+                className="w-full h-14 rounded-[8px] bg-primary hover:bg-[#003a7a] text-white text-[16px] font-bold disabled:opacity-50 disabled:cursor-not-allowed relative"
                 style={{
                   boxShadow: canSubmit
                     ? "0px 10px 15px -3px rgba(0,67,143,0.2), 0px 4px 6px -4px rgba(0,67,143,0.2)"

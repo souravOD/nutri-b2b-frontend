@@ -88,7 +88,7 @@ function getPriorityPill(priority: string) {
 
 function getNewPill() {
   return (
-    <span className="rounded-[4px] border border-[#00438f] px-[9px] py-[3px] text-[10px] font-bold tracking-[0.5px] uppercase text-[#00438f] bg-white">
+    <span className="rounded-[4px] border border-primary px-[9px] py-[3px] text-[10px] font-bold tracking-[0.5px] uppercase text-primary bg-white">
       NEW
     </span>
   )
@@ -223,7 +223,7 @@ export default function AlertsPage() {
                 {viewDetailsHref && (
                   <Button
                     size="sm"
-                    className="bg-[#00438f] hover:bg-[#003366]"
+                    className="bg-primary hover:bg-[#003366]"
                     disabled={updatingId === alert.id}
                     onClick={() => handleViewDetails(alert)}
                   >
@@ -295,7 +295,7 @@ export default function AlertsPage() {
                 <p className="text-2xl font-bold text-[#0f172a] mt-1">{summary.total}</p>
               </div>
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] bg-[rgba(0,67,143,0.1)]">
-                <Bell className="h-6 w-6 text-[#00438f]" />
+                <Bell className="h-6 w-6 text-primary" />
               </div>
             </div>
           </Card>
@@ -331,7 +331,7 @@ export default function AlertsPage() {
               onClick={() => setActiveTab("all")}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "all"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
+                  ? "border-primary text-primary font-bold"
                   : "border-transparent text-[#64748b] hover:text-[#0f172a]"
               }`}
             >
@@ -342,7 +342,7 @@ export default function AlertsPage() {
               onClick={() => setActiveTab("unread")}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "unread"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
+                  ? "border-primary text-primary font-bold"
                   : "border-transparent text-[#64748b] hover:text-[#0f172a]"
               }`}
             >
@@ -353,7 +353,7 @@ export default function AlertsPage() {
               onClick={() => setActiveTab("read")}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "read"
-                  ? "border-[#00438f] text-[#00438f] font-bold"
+                  ? "border-primary text-primary font-bold"
                   : "border-transparent text-[#64748b] hover:text-[#0f172a]"
               }`}
             >

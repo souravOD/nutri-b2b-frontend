@@ -27,7 +27,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { AlertTriangle, BarChart3, Copy, Database, Download, Globe, HelpCircle, Info, Loader2, Megaphone, Palette, Plus, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Copy, Database, Download, Globe, Heart, HelpCircle, Info, Loader2, Megaphone, Palette, Plus, RefreshCw, Shield, ShieldAlert, Trash2, User, Zap } from 'lucide-react'
 import { Checkbox } from "@/components/ui/checkbox"
 import { apiFetch } from "@/lib/backend"
 import { useToast } from "@/hooks/use-toast"
@@ -71,14 +71,20 @@ const SETTINGS_KEYS = {
   accessRevocationGraceDays: "access_revocation_grace_days",
   emailTemplateOnboarding: "email_template.onboarding",
   emailTemplateReengagement: "email_template.reengagement",
+  passwordMinLength:      "security.password_min_length",
+  passwordRequireUpper:   "security.password_require_uppercase",
+  passwordRequireNumber:  "security.password_require_number",
+  passwordRequireSpecial: "security.password_require_special",
+  lockoutMaxAttempts:     "security.lockout_max_attempts",
+  lockoutDurationMinutes: "security.lockout_duration_minutes",
 } as const
 
 // ── Role Permissions config (Figma design) ───────────────────────────────────
-type RoleKey = "superadmin" | "vendor_admin" | "vendor_viewer"
+type RoleKey = "superadmin" | "vendor_admin" | "vendor_operator" | "vendor_viewer" | "wellness_manager" | "marketing_manager"
 const ROLE_CONFIG: {
   key: RoleKey
   label: string
-  icon: "shield" | "user"
+  icon: "shield" | "user" | "heart" | "megaphone"
   permissions: { label: string; permKey: string }[]
 }[] = [
   {
@@ -97,15 +103,50 @@ const ROLE_CONFIG: {
     label: "Administrator",
     icon: "shield",
     permissions: [
-      { label: "Full system access", permKey: "*" },
-      { label: "User management", permKey: "manage:users" },
-      { label: "System settings", permKey: "manage:settings" },
+      { label: "Manage users", permKey: "manage:users" },
+      { label: "Manage settings", permKey: "manage:settings" },
+      { label: "Read / write products", permKey: "write:products" },
       { label: "Data export", permKey: "read:audit" },
     ],
   },
   {
+    key: "vendor_operator",
+    label: "Operator",
+    icon: "shield",
+    permissions: [
+      { label: "Read / write products", permKey: "write:products" },
+      { label: "Read / write customers", permKey: "write:customers" },
+      { label: "Product ingest", permKey: "write:ingest" },
+      { label: "Run ingestion", permKey: "read:ingest" },
+      { label: "View matches", permKey: "read:matches" },
+    ],
+  },
+  {
+    key: "wellness_manager",
+    label: "Wellness Manager",
+    icon: "heart",
+    permissions: [
+      { label: "View customers", permKey: "read:customers" },
+      { label: "View products", permKey: "read:products" },
+      { label: "View matches", permKey: "read:matches" },
+      { label: "View audit log", permKey: "read:audit" },
+    ],
+  },
+  {
+    key: "marketing_manager",
+    label: "Marketing Manager",
+    icon: "megaphone",
+    permissions: [
+      { label: "View customers", permKey: "read:customers" },
+      { label: "View products", permKey: "read:products" },
+      { label: "View vendor profile", permKey: "read:vendors" },
+      { label: "Edit vendor profile", permKey: "write:vendors" },
+      { label: "View audit log", permKey: "read:audit" },
+    ],
+  },
+  {
     key: "vendor_viewer",
-    label: "User",
+    label: "Viewer",
     icon: "user",
     permissions: [
       { label: "View products", permKey: "read:products" },
@@ -240,7 +281,7 @@ function BrandingLivePreview({ color, logoUrl }: { color: string; logoUrl: strin
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`px-3 py-1.5 transition-colors ${mode === m ? "bg-[#00438f] text-white" : "bg-white text-[#64748b] hover:bg-[#f8fafc]"}`}
+            className={`px-3 py-1.5 transition-colors ${mode === m ? "bg-primary text-white" : "bg-white text-[#64748b] hover:bg-[#f8fafc]"}`}
           >
             {m === "admin" ? "Admin Portal" : "Member App"}
           </button>
@@ -366,10 +407,32 @@ function CustomRoleBuilderPreview() {
   return (
     <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
       <CardHeader className="border-b border-[#f1f5f9] pb-[20px] pt-5 px-6">
-        <CardTitle className="text-[16px] font-bold text-[#0f172a]">Custom Role Builder</CardTitle>
-        <CardDescription className="text-[13px] text-[#64748b]">
-          Design a permission set and apply it to any editable role in your vendor account.
-        </CardDescription>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-[16px] font-bold text-[#0f172a]">Custom Role Builder</CardTitle>
+            <CardDescription className="text-[13px] text-[#64748b] mt-1">
+              Design a permission set and apply it to any editable role in your vendor account.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              className="gap-2 border-[#cbd5e1] text-[#334155]"
+              disabled={!roleName.trim()}
+              onClick={() => setPreviewed(true)}
+            >
+              Preview
+            </Button>
+            <Button
+              className="bg-primary hover:bg-[#003070] text-white gap-2"
+              disabled={!canSave || saving}
+              onClick={handleSaveRole}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save to Role
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
         {/* Info note */}
@@ -379,7 +442,7 @@ function CustomRoleBuilderPreview() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-[13px] font-semibold text-[#334155]">Role name <span className="text-[#94a3b8] font-normal">(display only)</span></Label>
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.8px] text-[#64748b]">Role Name</Label>
             <Input
               value={roleName}
               onChange={(e) => { setRoleName(e.target.value); setPreviewed(false) }}
@@ -388,11 +451,11 @@ function CustomRoleBuilderPreview() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[13px] font-semibold text-[#334155]">Apply to role</Label>
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.8px] text-[#64748b]">Apply to Role</Label>
             <select
               value={targetRole}
               onChange={(e) => setTargetRole(e.target.value)}
-              className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+              className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             >
               {EDITABLE_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
@@ -402,39 +465,18 @@ function CustomRoleBuilderPreview() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[13px] font-semibold text-[#334155]">Permissions</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label className="text-[11px] font-semibold uppercase tracking-[0.8px] text-[#64748b]">Permissions Grid</Label>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             {ALL_PREVIEW_PERMS.map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={!!perms[key]}
-                  onChange={() => togglePerm(key)}
-                  className="h-4 w-4 rounded border-[#cbd5e1] accent-[#00438f]"
-                />
+              <div key={key} className="flex items-center justify-between">
                 <span className="text-[13px] text-[#334155]">{label}</span>
-              </label>
+                <Switch
+                  checked={!!perms[key]}
+                  onCheckedChange={() => togglePerm(key)}
+                />
+              </div>
             ))}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="gap-2 border-[#cbd5e1] text-[#334155]"
-            disabled={!roleName.trim()}
-            onClick={() => setPreviewed(true)}
-          >
-            Preview
-          </Button>
-          <Button
-            className="bg-[#00438f] hover:bg-[#003070] text-white gap-2"
-            disabled={!canSave || saving}
-            onClick={handleSaveRole}
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Save to Role
-          </Button>
         </div>
 
         {previewed && (
@@ -477,6 +519,12 @@ export default function SettingsPage() {
   const [apiKeys, setApiKeys] = useState<{ id: string; key_prefix: string; label: string; environment: string; is_active: boolean }[]>([])
   const [apiKeysLoading, setApiKeysLoading] = useState(false)
   const [savingSecurity, setSavingSecurity] = useState(false)
+  const [passwordMinLength, setPasswordMinLength] = useState("8")
+  const [passwordRequireUpper, setPasswordRequireUpper] = useState(false)
+  const [passwordRequireNumber, setPasswordRequireNumber] = useState(false)
+  const [passwordRequireSpecial, setPasswordRequireSpecial] = useState(false)
+  const [lockoutMaxAttempts, setLockoutMaxAttempts] = useState("5")
+  const [lockoutDurationMinutes, setLockoutDurationMinutes] = useState("15")
 
   // ── Branding state ─────────────────────────────────────────────────────────
   const [brandingLogoUrl, setBrandingLogoUrl] = useState("")
@@ -509,7 +557,7 @@ export default function SettingsPage() {
   const [savingIntegration, setSavingIntegration] = useState(false)
 
   // ── Catalog Sync state ────────────────────────────────────────────────────
-  const [catalogPlatform, setCatalogPlatform] = useState<"shopify" | "woocommerce" | "bigcommerce" | "custom">("shopify")
+  const [catalogPlatform, setCatalogPlatform] = useState<"shopify" | "woocommerce" | "bigcommerce">("shopify")
   const [catalogStoreUrl, setCatalogStoreUrl] = useState("")
   const [catalogApiKey, setCatalogApiKey] = useState("")
   const [savingCatalog, setSavingCatalog] = useState(false)
@@ -568,6 +616,11 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleResync() {
+    await handleSaveCatalog()
+    await handleCatalogSync()
+  }
+
   // ── CRM Integration state ──────────────────────────────────────────────────
   const [crmProvider, setCrmProvider] = useState<"none" | "hubspot" | "salesforce">("none")
   const [crmAccessToken, setCrmAccessToken] = useState("")
@@ -592,12 +645,18 @@ export default function SettingsPage() {
   const [usersByRole, setUsersByRole] = useState<Record<RoleKey, { displayName?: string; email: string }[]>>({
     superadmin: [],
     vendor_admin: [],
+    vendor_operator: [],
+    wellness_manager: [],
+    marketing_manager: [],
     vendor_viewer: [],
   })
   const [rolePermissions, setRolePermissions] = useState<Record<RoleKey, Record<string, boolean>>>({
-    superadmin: { "*": true, "manage:users": true, "manage:settings": true, "read:audit": true },
-    vendor_admin: { "*": true, "manage:users": true, "manage:settings": true, "read:audit": true },
-    vendor_viewer: { "read:products": true, "read:customers": true, "write:products": false, "read:audit": false },
+    superadmin:        { "*": true, "manage:users": true, "manage:settings": true, "read:audit": true },
+    vendor_admin:      { "manage:users": true, "manage:settings": true, "write:products": true, "read:audit": true },
+    vendor_operator:   { "write:products": true, "write:customers": true, "write:ingest": true },
+    wellness_manager:  { "read:customers": true, "read:products": true, "read:audit": true },
+    marketing_manager: { "read:customers": true, "read:products": true, "write:vendors": true, "read:audit": true },
+    vendor_viewer:     { "read:products": true, "read:customers": true },
   })
   const [savingPermissions, setSavingPermissions] = useState(false)
 
@@ -861,6 +920,12 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.ipRestrictions)) setIpRestrictions(map.get(SETTINGS_KEYS.ipRestrictions) === "true")
         if (map.has(SETTINGS_KEYS.auditLogging)) setAuditLogging(map.get(SETTINGS_KEYS.auditLogging) === "true")
         if (map.has(SETTINGS_KEYS.accessRevocationGraceDays)) setGraceDays(map.get(SETTINGS_KEYS.accessRevocationGraceDays) ?? "0")
+        if (map.has(SETTINGS_KEYS.passwordMinLength)) setPasswordMinLength(map.get(SETTINGS_KEYS.passwordMinLength) ?? "8")
+        if (map.has(SETTINGS_KEYS.passwordRequireUpper)) setPasswordRequireUpper(map.get(SETTINGS_KEYS.passwordRequireUpper) === "true")
+        if (map.has(SETTINGS_KEYS.passwordRequireNumber)) setPasswordRequireNumber(map.get(SETTINGS_KEYS.passwordRequireNumber) === "true")
+        if (map.has(SETTINGS_KEYS.passwordRequireSpecial)) setPasswordRequireSpecial(map.get(SETTINGS_KEYS.passwordRequireSpecial) === "true")
+        if (map.has(SETTINGS_KEYS.lockoutMaxAttempts)) setLockoutMaxAttempts(map.get(SETTINGS_KEYS.lockoutMaxAttempts) ?? "5")
+        if (map.has(SETTINGS_KEYS.lockoutDurationMinutes)) setLockoutDurationMinutes(map.get(SETTINGS_KEYS.lockoutDurationMinutes) ?? "15")
         if (map.has(SETTINGS_KEYS.brandingLogoUrl)) setBrandingLogoUrl(map.get(SETTINGS_KEYS.brandingLogoUrl) ?? "")
         if (map.has(SETTINGS_KEYS.brandingFaviconUrl)) setBrandingFaviconUrl(map.get(SETTINGS_KEYS.brandingFaviconUrl) ?? "")
         if (map.has(SETTINGS_KEYS.brandingPrimaryColor)) setBrandingPrimaryColor(map.get(SETTINGS_KEYS.brandingPrimaryColor) ?? "#2073BD")
@@ -987,21 +1052,23 @@ export default function SettingsPage() {
       setError(null)
       setSuccess(null)
 
-      const viewerPerms = rolePermissions.vendor_viewer || {}
-      const vendorViewerToSave = [
-        ...(viewerPerms["read:products"] ? ["read:products"] : []),
-        ...(viewerPerms["read:customers"] ? ["read:customers"] : []),
-        ...(viewerPerms["write:products"] ? ["write:products"] : []),
-        ...(viewerPerms["read:audit"] ? ["read:audit"] : []),
-      ]
+      const editableRoles: RoleKey[] = ["vendor_admin", "vendor_operator", "vendor_viewer", "wellness_manager", "marketing_manager"]
 
-      const res = await apiFetch("/api/role-permissions", {
-        method: "PUT",
-        body: JSON.stringify({ role: "vendor_viewer", permissions: vendorViewerToSave }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body?.detail || "Failed to save permissions")
+      for (const roleKey of editableRoles) {
+        const perms = rolePermissions[roleKey] || {}
+        const permKeys = Object.entries(perms)
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+
+        const res = await apiFetch("/api/role-permissions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: roleKey, permissions: permKeys }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body?.detail || `Failed to save ${roleKey} permissions`)
+        }
       }
 
       setSuccess("Permissions saved")
@@ -1077,6 +1144,12 @@ export default function SettingsPage() {
         saveSetting(SETTINGS_KEYS.ipRestrictions, String(ipRestrictions)),
         saveSetting(SETTINGS_KEYS.auditLogging, String(auditLogging)),
         saveSetting(SETTINGS_KEYS.accessRevocationGraceDays, String(Math.max(0, parseInt(graceDays, 10) || 0))),
+        saveSetting(SETTINGS_KEYS.passwordMinLength, String(Math.max(6, parseInt(passwordMinLength, 10) || 8))),
+        saveSetting(SETTINGS_KEYS.passwordRequireUpper, String(passwordRequireUpper)),
+        saveSetting(SETTINGS_KEYS.passwordRequireNumber, String(passwordRequireNumber)),
+        saveSetting(SETTINGS_KEYS.passwordRequireSpecial, String(passwordRequireSpecial)),
+        saveSetting(SETTINGS_KEYS.lockoutMaxAttempts, String(Math.max(1, parseInt(lockoutMaxAttempts, 10) || 5))),
+        saveSetting(SETTINGS_KEYS.lockoutDurationMinutes, String(Math.max(1, parseInt(lockoutDurationMinutes, 10) || 15))),
       ])
       setSuccess("Security settings saved")
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
@@ -1306,49 +1379,49 @@ export default function SettingsPage() {
           <TabsList className="h-auto w-full justify-start gap-8 rounded-none border-b border-[#e2e8f0] bg-transparent p-0">
             <TabsTrigger
               value="general"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               General
             </TabsTrigger>
             <TabsTrigger
               value="integrations"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Integrations
             </TabsTrigger>
             <TabsTrigger
               value="users"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Role Permissions
             </TabsTrigger>
             <TabsTrigger
               value="data"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Data & Storage
             </TabsTrigger>
             <TabsTrigger
               value="security"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Security
             </TabsTrigger>
             <TabsTrigger
               value="branding"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Branding
             </TabsTrigger>
             <TabsTrigger
               value="privacy"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Privacy &amp; GDPR
             </TabsTrigger>
             <TabsTrigger
               value="communications"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:font-bold data-[state=inactive]:text-[#64748b] data-[state=inactive]:font-medium px-0 pb-5 pt-4"
             >
               Communications
             </TabsTrigger>
@@ -1406,7 +1479,7 @@ export default function SettingsPage() {
                   <Button
                     onClick={handleSaveOrg}
                     disabled={saving}
-                    className="bg-[#00438f] hover:bg-[#003366] text-white px-6 py-[10px] text-[16px] font-bold rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                    className="bg-primary hover:bg-[#003366] text-white px-6 py-[10px] text-[16px] font-bold rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Save Changes
@@ -1427,28 +1500,28 @@ export default function SettingsPage() {
                       <Label className="text-[14px] font-bold text-[#0f172a]">Auto-matching</Label>
                       <p className="text-[12px] text-[#64748b]">Automatically run product matching for new imports</p>
                     </div>
-                    <Switch checked={autoMatching} onCheckedChange={setAutoMatching} className="data-[state=checked]:bg-[#00438f]" />
+                    <Switch checked={autoMatching} onCheckedChange={setAutoMatching} className="data-[state=checked]:bg-primary" />
                   </div>
                   <div className="border-t border-[#f1f5f9] flex items-center justify-between py-4">
                     <div className="space-y-0.5">
                       <Label className="text-[14px] font-bold text-[#0f172a]">Email Notifications</Label>
                       <p className="text-[12px] text-[#64748b]">Send system notifications via email</p>
                     </div>
-                    <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} className="data-[state=checked]:bg-[#00438f]" />
+                    <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} className="data-[state=checked]:bg-primary" />
                   </div>
                   <div className="border-t border-[#f1f5f9] flex items-center justify-between py-4">
                     <div className="space-y-0.5">
                       <Label className="text-[14px] font-bold text-[#0f172a]">Data Retention</Label>
                       <p className="text-[12px] text-[#64748b]">Automatically archive old data after 2 years</p>
                     </div>
-                    <Switch checked={dataRetention} onCheckedChange={setDataRetention} className="data-[state=checked]:bg-[#00438f]" />
+                    <Switch checked={dataRetention} onCheckedChange={setDataRetention} className="data-[state=checked]:bg-primary" />
                   </div>
                 </div>
                 <div className="flex justify-end pt-4">
                   <Button
                     onClick={handleSavePrefs}
                     disabled={savingPrefs}
-                    className="bg-[#00438f] hover:bg-[#003366] text-white px-6 py-[10px] text-[16px] font-bold rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                    className="bg-primary hover:bg-[#003366] text-white px-6 py-[10px] text-[16px] font-bold rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                   >
                     {savingPrefs ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Save Preferences
@@ -1489,8 +1562,8 @@ export default function SettingsPage() {
                     <Button
                       onClick={() => openIntegrationDialog("usda", usdaApiKey)}
                       className={isIntegrationConnected(usdaApiKey)
-                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
-                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                        ? "border border-[rgba(0,67,143,0.2)] text-primary font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-primary/5 bg-transparent"
+                        : "bg-primary hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
                     >
                       {isIntegrationConnected(usdaApiKey) ? "Configure" : "Connect"}
                     </Button>
@@ -1521,8 +1594,8 @@ export default function SettingsPage() {
                     <Button
                       onClick={() => openIntegrationDialog("nutrition_label", nutritionLabelApiKey)}
                       className={isIntegrationConnected(nutritionLabelApiKey)
-                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
-                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                        ? "border border-[rgba(0,67,143,0.2)] text-primary font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-primary/5 bg-transparent"
+                        : "bg-primary hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
                     >
                       {isIntegrationConnected(nutritionLabelApiKey) ? "Configure" : "Connect"}
                     </Button>
@@ -1553,8 +1626,8 @@ export default function SettingsPage() {
                     <Button
                       onClick={() => openIntegrationDialog("compliance_checker", complianceApiKey)}
                       className={isIntegrationConnected(complianceApiKey)
-                        ? "border border-[rgba(0,67,143,0.2)] text-[#00438f] font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-[#00438f]/5 bg-transparent"
-                        : "bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
+                        ? "border border-[rgba(0,67,143,0.2)] text-primary font-bold text-[14px] px-4 py-2 rounded-[8px] hover:bg-primary/5 bg-transparent"
+                        : "bg-primary hover:bg-[#003366] text-white font-bold text-[14px] px-4 py-2 rounded-[8px]"}
                     >
                       {isIntegrationConnected(complianceApiKey) ? "Configure" : "Connect"}
                     </Button>
@@ -1599,7 +1672,7 @@ export default function SettingsPage() {
                             toast({ title: "Failed to save", variant: "destructive" })
                           }
                         }}
-                        className="bg-[#00438f] hover:bg-[#003366] text-white"
+                        className="bg-primary hover:bg-[#003366] text-white"
                       >
                         Save
                       </Button>
@@ -1631,7 +1704,7 @@ export default function SettingsPage() {
                             <p className="text-sm font-medium text-[#1e293b] truncate">{w.url}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {w.events.map((ev) => (
-                                <span key={ev} className="text-[10px] bg-[#eff6ff] text-[#00438f] rounded px-1.5 py-0.5 font-medium">{ev}</span>
+                                <span key={ev} className="text-[10px] bg-[#eff6ff] text-primary rounded px-1.5 py-0.5 font-medium">{ev}</span>
                               ))}
                             </div>
                           </div>
@@ -1647,7 +1720,7 @@ export default function SettingsPage() {
                               disabled={webhookTestingId === w.id}
                               onClick={() => handleTestWebhook(w.id)}
                               title="Send test payload"
-                              className="h-8 w-8 p-0 text-[#64748b] hover:text-[#00438f]"
+                              className="h-8 w-8 p-0 text-[#64748b] hover:text-primary"
                             >
                               {webhookTestingId === w.id
                                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -1700,7 +1773,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <Button
-                  className="!bg-[#00438f] hover:!bg-[#003366] text-white font-bold text-[16px] h-12 min-w-[180px] px-8 py-3 rounded-[12px]"
+                  className="!bg-primary hover:!bg-[#003366] text-white font-bold text-[16px] h-12 min-w-[180px] px-8 py-3 rounded-[12px]"
                   disabled={webhookSaving || !webhookUrl.trim()}
                   onClick={handleAddWebhook}
                 >
@@ -1725,7 +1798,7 @@ export default function SettingsPage() {
                         key={p}
                         size="sm"
                         variant={crmProvider === p ? "default" : "outline"}
-                        className={`capitalize ${crmProvider === p ? "bg-[#00438f] text-white" : "border-[#cbd5e1] text-[#334155]"}`}
+                        className={`capitalize ${crmProvider === p ? "bg-primary text-white" : "border-[#cbd5e1] text-[#334155]"}`}
                         onClick={() => setCrmProvider(p)}
                       >
                         {p === "none" ? "Disabled" : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -1764,7 +1837,7 @@ export default function SettingsPage() {
                 <Separator className="bg-[#f1f5f9]" />
 
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Button onClick={handleSaveCrm} disabled={savingCrm} className="bg-[#00438f] hover:bg-[#003366] text-white">
+                  <Button onClick={handleSaveCrm} disabled={savingCrm} className="bg-primary hover:bg-[#003366] text-white">
                     {savingCrm ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Save CRM Settings
                   </Button>
@@ -1784,7 +1857,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* ── BI Connectors (mockup) ── */}
+            {/* ── BI Connectors ── */}
             <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
               <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
                 <CardTitle className="text-[18px] font-bold text-[#0f172a]">BI Connectors</CardTitle>
@@ -1792,51 +1865,43 @@ export default function SettingsPage() {
                   Connect your BI tool using the credentials below. Use your live API key as the authentication token.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                {[
-                  {
-                    name: "Tableau",
-                    logo: "📊",
-                    label: "JDBC Connection String",
-                    value: `jdbc:tableau://api.nutriportal.com:443/b2b?api_key=${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
-                  },
-                  {
-                    name: "Power BI",
-                    logo: "📈",
-                    label: "OData Feed URL",
-                    value: `https://api.nutriportal.com/odata/v1/analytics?api_key=${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
-                  },
-                  {
-                    name: "Looker",
-                    logo: "🔍",
-                    label: "LookML Connection",
-                    value: `connection: nutriportal\nhost: api.nutriportal.com\nport: 443\napi_key: ${apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"}...`,
-                  },
-                ].map((connector) => (
-                  <div key={connector.name} className="rounded-lg border border-[#e2e8f0] p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{connector.logo}</span>
-                        <span className="font-semibold text-[#0f172a] text-[14px]">{connector.name}</span>
-                      </div>
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[#f1f5f9] text-[#64748b]">Coming Soon</span>
+              <CardContent className="p-6">
+                {(() => {
+                  const liveKeyPrefix = apiKeys.find((k) => k.environment === "live")?.key_prefix ?? "YOUR_API_KEY"
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { name: "Tableau", letter: "T", bg: "bg-[#dbeafe]", text: "text-[#1e40af]", label: "JDBC Connection String", value: `jdbc:tableau://api.nutriportal.com:443/b2b?api_key=${liveKeyPrefix}...` },
+                        { name: "Power BI", letter: "P", bg: "bg-[#fef9c3]", text: "text-[#854d0e]", label: "OData Feed URL", value: `https://api.nutriportal.com/odata/v1/analytics?api_key=${liveKeyPrefix}...` },
+                        { name: "Looker", letter: "L", bg: "bg-[#dcfce7]", text: "text-[#166534]", label: "LookML Connection", value: `connection: nutriportal\nhost: api.nutriportal.com\nport: 443\napi_key: ${liveKeyPrefix}...` },
+                        { name: "Metabase", letter: "M", bg: "bg-[#f3e8ff]", text: "text-[#6b21a8]", label: "REST API URL", value: `https://api.nutriportal.com/api/v3/dataset?api_key=${liveKeyPrefix}...` },
+                      ].map((c) => (
+                        <div key={c.name} className="rounded-lg border border-[#e2e8f0] p-4 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
+                              <span className={`text-[15px] font-bold ${c.text}`}>{c.letter}</span>
+                            </div>
+                            <span className="font-semibold text-[#0f172a] text-[14px]">{c.name}</span>
+                          </div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#94a3b8]">{c.label}</p>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 text-[11px] bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-2 font-mono text-[#334155] truncate">
+                              {c.value.split("\n")[0]}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="shrink-0 h-8 px-3 text-[12px] border-[#cbd5e1] text-[#334155]"
+                              onClick={() => copyToClipboard(c.value, c.name)}
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-[12px] text-[#64748b] font-medium">{connector.label}</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-[11px] bg-[#f8fafc] border border-[#e2e8f0] rounded px-3 py-2 font-mono text-[#334155] truncate">
-                        {connector.value.split("\n")[0]}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 h-8 px-3 text-[12px] border-[#cbd5e1] text-[#334155]"
-                        onClick={() => copyToClipboard(connector.value, connector.name)}
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })()}
               </CardContent>
             </Card>
 
@@ -1848,70 +1913,64 @@ export default function SettingsPage() {
                   Pull products from your e-commerce platform directly into the portal.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                {/* Platform selector */}
-                <div className="space-y-2">
-                  <Label className="text-[14px] font-semibold text-[#334155]">Platform</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {(["shopify", "woocommerce", "bigcommerce", "custom"] as const).map((p) => (
-                      <Button
-                        key={p}
-                        size="sm"
-                        variant={catalogPlatform === p ? "default" : "outline"}
-                        className={`capitalize ${catalogPlatform === p ? "bg-[#00438f] text-white" : "border-[#cbd5e1] text-[#334155]"}`}
-                        onClick={() => setCatalogPlatform(p)}
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left column — Platform + Store URL */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Platform Selection</label>
+                      <select
+                        value={catalogPlatform}
+                        onChange={(e) => setCatalogPlatform(e.target.value as typeof catalogPlatform)}
+                        className="w-full bg-[#f3f4f5] border border-[#e2e8f0] rounded-md px-3 py-2.5 text-[14px] text-[#191c1d] appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
                       >
-                        {p === "woocommerce" ? "WooCommerce" : p === "bigcommerce" ? "BigCommerce" : p.charAt(0).toUpperCase() + p.slice(1)}
-                      </Button>
-                    ))}
+                        <option value="shopify">Shopify</option>
+                        <option value="woocommerce">WooCommerce</option>
+                        <option value="bigcommerce">BigCommerce</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Store URL</label>
+                      <Input
+                        value={catalogStoreUrl}
+                        onChange={(e) => setCatalogStoreUrl(e.target.value)}
+                        placeholder={
+                          catalogPlatform === "shopify" ? "https://store.brand-hq.com"
+                          : catalogPlatform === "woocommerce" ? "https://your-store.com"
+                          : "abc123xyz (store hash)"
+                        }
+                        className="bg-[#f3f4f5] border-[#e2e8f0] text-[14px] text-[#191c1d]"
+                      />
+                    </div>
+                  </div>
+                  {/* Right column — Admin API Key */}
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Admin API Key</label>
+                    <Input
+                      type="password"
+                      value={catalogApiKey}
+                      onChange={(e) => setCatalogApiKey(e.target.value)}
+                      placeholder={
+                        catalogPlatform === "shopify" ? "shpat_xxxxxxxxxxxx"
+                        : catalogPlatform === "woocommerce" ? "ck_xxxx:cs_xxxx"
+                        : "Bearer token from BigCommerce API"
+                      }
+                      className="bg-[#f3f4f5] border-[#e2e8f0] font-mono text-[14px] text-[#191c1d]"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-[14px] font-semibold text-[#334155]">
-                    {catalogPlatform === "shopify" ? "Store URL" : catalogPlatform === "bigcommerce" ? "Store Hash" : "Store / API URL"}
-                  </Label>
-                  <Input
-                    value={catalogStoreUrl}
-                    onChange={(e) => setCatalogStoreUrl(e.target.value)}
-                    placeholder={
-                      catalogPlatform === "shopify" ? "your-store.myshopify.com"
-                      : catalogPlatform === "woocommerce" ? "https://your-store.com"
-                      : catalogPlatform === "bigcommerce" ? "abc123xyz (store hash)"
-                      : "https://api.yourstore.com/products"
-                    }
-                    className="border-[#cbd5e1]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[14px] font-semibold text-[#334155]">API Key / Access Token</Label>
-                  <Input
-                    type="password"
-                    value={catalogApiKey}
-                    onChange={(e) => setCatalogApiKey(e.target.value)}
-                    placeholder={
-                      catalogPlatform === "shopify" ? "shpat_xxxxxxxxxxxx"
-                      : catalogPlatform === "woocommerce" ? "ck_xxxx:cs_xxxx (consumer_key:consumer_secret)"
-                      : catalogPlatform === "bigcommerce" ? "Bearer token from BigCommerce API"
-                      : "Bearer token or API key"
-                    }
-                    className="border-[#cbd5e1] font-mono text-sm"
-                  />
-                </div>
-
-                <Separator className="bg-[#f1f5f9]" />
-
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Button onClick={handleSaveCatalog} disabled={savingCatalog} className="bg-[#00438f] hover:bg-[#003366] text-white">
-                    {savingCatalog ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Save Config
-                  </Button>
-                  <Button variant="outline" onClick={handleCatalogSync} disabled={catalogSyncing} className="border-[#cbd5e1] text-[#334155]">
-                    {catalogSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
-                    Sync Now
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleResync}
+                  disabled={savingCatalog || catalogSyncing}
+                  className="bg-primary hover:bg-[#003366] text-white"
+                >
+                  {(savingCatalog || catalogSyncing)
+                    ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    : <RefreshCw className="h-4 w-4 mr-2" />
+                  }
+                  Initiate Full Resync
+                </Button>
 
                 {catalogSyncResult && (
                   <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
@@ -1924,12 +1983,22 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-8 pt-8">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-[18px] font-bold text-[#0f172a]">Role Permissions</h2>
-              <p className="text-[14px] text-[#64748b]">Configure permissions for different user roles within the portal.</p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-2">
+                <h2 className="text-[18px] font-bold text-[#0f172a]">Role Permissions</h2>
+                <p className="text-[14px] text-[#64748b]">Configure permissions for different user roles within the portal.</p>
+              </div>
+              <Button
+                onClick={handleSavePermissions}
+                disabled={savingPermissions}
+                className="bg-primary hover:bg-[#003366] text-white font-bold text-[14px] px-8 py-3 rounded-[8px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] shrink-0"
+              >
+                {savingPermissions ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save Permissions
+              </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {ROLE_CONFIG.map((role) => {
                 const users = usersByRole[role.key] || []
                 const count = Math.max(users.length, 1)
@@ -1945,8 +2014,6 @@ export default function SettingsPage() {
                     return (e.slice(0, 2) || "?").toUpperCase()
                   })
                 const perms = rolePermissions[role.key] || {}
-                const isAdmin = role.icon === "shield"
-
                 return (
                   <Card
                     key={role.key}
@@ -1957,11 +2024,18 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-3">
                           <div
                             className={`size-10 rounded-[8px] flex items-center justify-center shrink-0 ${
-                              isAdmin ? "bg-[rgba(0,67,143,0.1)]" : "bg-[#f1f5f9]"
+                              role.icon === "shield"    ? "bg-[rgba(0,67,143,0.1)]"
+                              : role.icon === "heart"    ? "bg-[rgba(239,68,68,0.1)]"
+                              : role.icon === "megaphone"? "bg-[rgba(245,158,11,0.1)]"
+                              : "bg-[#f1f5f9]"
                             }`}
                           >
-                            {isAdmin ? (
-                              <Shield className="h-5 w-5 text-[#00438f]" />
+                            {role.icon === "shield" ? (
+                              <Shield className="h-5 w-5 text-primary" />
+                            ) : role.icon === "heart" ? (
+                              <Heart className="h-5 w-5 text-red-500" />
+                            ) : role.icon === "megaphone" ? (
+                              <Megaphone className="h-5 w-5 text-amber-500" />
                             ) : (
                               <User className="h-5 w-5 text-[#64748b]" />
                             )}
@@ -1977,7 +2051,7 @@ export default function SettingsPage() {
                                 key={i}
                                 className={`size-10 rounded-full flex items-center justify-center text-[16px] font-bold shrink-0 border-2 border-white ${
                                   i === 0 && initials.length > 1
-                                    ? "bg-[#e5ecf4] text-[#00438f]"
+                                    ? "bg-[#e5ecf4] text-primary"
                                     : i === 1 && initials.length > 2
                                     ? "bg-[#ffedd5] text-[#ea580c]"
                                     : "bg-[#f1f5f9] text-[#64748b]"
@@ -2006,7 +2080,7 @@ export default function SettingsPage() {
                               onCheckedChange={(v) =>
                                 handleTogglePermission(role.key, p.permKey, v === true)
                               }
-                              className="rounded-[4px] border-[#cbd5e1] data-[state=checked]:bg-[#00438f] data-[state=checked]:border-[#00438f] size-5"
+                              className="rounded-[4px] border-[#cbd5e1] data-[state=checked]:bg-primary data-[state=checked]:border-primary size-5"
                             />
                           </div>
                         ))}
@@ -2015,17 +2089,6 @@ export default function SettingsPage() {
                   </Card>
                 )
               })}
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={handleSavePermissions}
-                disabled={savingPermissions}
-                className="bg-[#00438f] hover:bg-[#003366] text-white font-bold text-[14px] px-8 py-3 rounded-[8px] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)]"
-              >
-                {savingPermissions ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Save Permissions
-              </Button>
             </div>
 
             {/* ── Custom Role Builder Preview (UI preview only) ── */}
@@ -2042,7 +2105,7 @@ export default function SettingsPage() {
                   <p className="text-[14px] font-medium uppercase tracking-[0.7px] text-[#64748b]">Storage Used</p>
                   <p className="text-[30px] font-bold text-[#0f172a] mt-2">2.4 GB / 10 GB</p>
                   <div className="mt-3 h-2 bg-[#f1f5f9] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#00438f] rounded-full" style={{ width: "24%" }} />
+                    <div className="h-full bg-primary rounded-full" style={{ width: "24%" }} />
                   </div>
                 </CardContent>
               </Card>
@@ -2085,7 +2148,7 @@ export default function SettingsPage() {
                         setAutoBackups(!v)
                       }
                     }}
-                    className="data-[state=checked]:bg-[#00438f]"
+                    className="data-[state=checked]:bg-primary"
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -2103,13 +2166,13 @@ export default function SettingsPage() {
                         setCloudStorage(!v)
                       }
                     }}
-                    className="data-[state=checked]:bg-[#00438f]"
+                    className="data-[state=checked]:bg-primary"
                   />
                 </div>
               </CardContent>
               <div className="bg-[#f8fafc] border-t border-[#e2e8f0] p-6 flex gap-3">
                 <Button
-                  className="bg-[#00438f] hover:bg-[#003366] text-white px-5 py-[11px] rounded-[8px]"
+                  className="bg-primary hover:bg-[#003366] text-white px-5 py-[11px] rounded-[8px]"
                   onClick={() => toast({ title: "Coming soon" })}
                 >
                   Create Backup Now
@@ -2126,7 +2189,7 @@ export default function SettingsPage() {
 
             {/* Info banner */}
             <div className="flex items-start gap-3 p-4 rounded-[8px] bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.2)]">
-              <Info className="size-5 text-[#00438f] shrink-0 mt-0.5" />
+              <Info className="size-5 text-primary shrink-0 mt-0.5" />
               <p className="text-[14px] text-[#334155]">
                 Data retention policies are applied automatically every Sunday at midnight. For custom retention rules, please contact your account manager.
               </p>
@@ -2146,7 +2209,7 @@ export default function SettingsPage() {
                     <Label className="text-[14px] font-bold text-[#0f172a]">Two-Factor Authentication</Label>
                     <p className="text-[12px] text-[#64748b]">Require 2FA for all users upon login.</p>
                   </div>
-                  <Switch checked={require2fa} onCheckedChange={setRequire2fa} className="data-[state=checked]:bg-[#00438f]" />
+                  <Switch checked={require2fa} onCheckedChange={setRequire2fa} className="data-[state=checked]:bg-primary" />
                 </div>
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-0.5 flex-1">
@@ -2166,21 +2229,21 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </div>
-                  <Switch checked={sessionTimeoutEnabled} onCheckedChange={setSessionTimeoutEnabled} className="data-[state=checked]:bg-[#00438f] mt-0.5" />
+                  <Switch checked={sessionTimeoutEnabled} onCheckedChange={setSessionTimeoutEnabled} className="data-[state=checked]:bg-primary mt-0.5" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-[14px] font-bold text-[#0f172a]">IP Restrictions</Label>
                     <p className="text-[12px] text-[#64748b]">Limit access to specific IP addresses.</p>
                   </div>
-                  <Switch checked={ipRestrictions} onCheckedChange={setIpRestrictions} className="data-[state=checked]:bg-[#00438f]" />
+                  <Switch checked={ipRestrictions} onCheckedChange={setIpRestrictions} className="data-[state=checked]:bg-primary" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label className="text-[14px] font-bold text-[#0f172a]">Audit Logging</Label>
                     <p className="text-[12px] text-[#64748b]">Log all user actions and system events.</p>
                   </div>
-                  <Switch checked={auditLogging} onCheckedChange={setAuditLogging} className="data-[state=checked]:bg-[#00438f]" />
+                  <Switch checked={auditLogging} onCheckedChange={setAuditLogging} className="data-[state=checked]:bg-primary" />
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <div className="space-y-0.5">
@@ -2193,13 +2256,66 @@ export default function SettingsPage() {
                     max="365"
                     value={graceDays}
                     onChange={(e) => setGraceDays(e.target.value)}
-                    className="w-20 text-right border border-[#e2e8f0] rounded-[6px] px-3 py-1.5 text-[14px] text-[#0f172a] bg-white focus:outline-none focus:ring-2 focus:ring-[#00438f]"
+                    className="w-20 text-right border border-[#e2e8f0] rounded-[6px] px-3 py-1.5 text-[14px] text-[#0f172a] bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                </div>
+                {/* ── Password Requirements ── */}
+                <Separator className="bg-[#f1f5f9]" />
+                <div>
+                  <Label className="text-[14px] font-bold text-[#0f172a]">Password Requirements</Label>
+                  <p className="text-[12px] text-[#64748b] mb-4">Minimum standards enforced at registration and password change.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Minimum Length</label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={6} max={32} value={passwordMinLength}
+                          onChange={(e) => setPasswordMinLength(e.target.value)}
+                          className="w-20 h-8 text-sm border-[#cbd5e1]" />
+                        <span className="text-[13px] text-[#64748b]">characters</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Require uppercase letter", state: passwordRequireUpper, set: setPasswordRequireUpper },
+                        { label: "Require number", state: passwordRequireNumber, set: setPasswordRequireNumber },
+                        { label: "Require special character", state: passwordRequireSpecial, set: setPasswordRequireSpecial },
+                      ].map(({ label, state, set }) => (
+                        <div key={label} className="flex items-center justify-between">
+                          <span className="text-[13px] text-[#334155]">{label}</span>
+                          <Switch checked={state} onCheckedChange={set} className="data-[state=checked]:bg-primary" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Account Lockout ── */}
+                <Separator className="bg-[#f1f5f9]" />
+                <div>
+                  <Label className="text-[14px] font-bold text-[#0f172a]">Account Lockout</Label>
+                  <p className="text-[12px] text-[#64748b] mb-4">Temporarily lock accounts after repeated failed login attempts.</p>
+                  <div className="flex flex-wrap gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Max failed attempts</label>
+                      <Input type="number" min={1} max={20} value={lockoutMaxAttempts}
+                        onChange={(e) => setLockoutMaxAttempts(e.target.value)}
+                        className="w-24 h-8 text-sm border-[#cbd5e1]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold uppercase tracking-wider text-[#64748b]">Lockout duration</label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={1} max={1440} value={lockoutDurationMinutes}
+                          onChange={(e) => setLockoutDurationMinutes(e.target.value)}
+                          className="w-24 h-8 text-sm border-[#cbd5e1]" />
+                        <span className="text-[13px] text-[#64748b]">minutes</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
               <div className="bg-[#f8fafc] border-t border-[#f1f5f9] p-6 flex justify-end">
                 <Button
-                  className="bg-[#00438f] hover:bg-[#003366] text-white font-bold px-6 py-[10px] rounded-[8px]"
+                  className="bg-primary hover:bg-[#003366] text-white font-bold px-6 py-[10px] rounded-[8px]"
                   onClick={handleSaveSecuritySettings}
                   disabled={savingSecurity}
                 >
@@ -2305,7 +2421,7 @@ export default function SettingsPage() {
                 </DialogHeader>
                 <div className="flex gap-3 py-4">
                   <Button
-                    className="flex-1 bg-[#00438f] hover:bg-[#003366]"
+                    className="flex-1 bg-primary hover:bg-[#003366]"
                     onClick={() => handleGenerateKey("live")}
                   >
                     Production (Live)
@@ -2370,7 +2486,7 @@ export default function SettingsPage() {
                 )}
                 <DialogFooter>
                   <Button
-                    className="bg-[#00438f] hover:bg-[#003366]"
+                    className="bg-primary hover:bg-[#003366]"
                     onClick={() => setNewKeyModal(null)}
                   >
                     I have stored these securely
@@ -2385,7 +2501,7 @@ export default function SettingsPage() {
             <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
               <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
                 <div className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-[#00438f]" />
+                  <Palette className="h-5 w-5 text-primary" />
                   <CardTitle className="text-[18px] font-bold text-[#0f172a]">White-Label Branding</CardTitle>
                 </div>
                 <CardDescription className="text-[14px] text-[#64748b]">
@@ -2477,10 +2593,22 @@ export default function SettingsPage() {
                           className="border-[#e2e8f0] font-mono text-sm"
                         />
                       </div>
-                      <p className="text-[12px] text-[#64748b]">Applied to success states, highlights and call-to-action accents.</p>
+                      <p className="text-[12px] text-[#64748b]">Used for highlights, status indicators and accents.</p>
                     </div>
 
                     <div className="space-y-2">
+                      <Label htmlFor="branding-font-url" className="text-[14px] font-medium text-[#0f172a]">Custom Font URL</Label>
+                      <Input
+                        id="branding-font-url"
+                        placeholder="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+                        value={brandingFontUrl}
+                        onChange={(e) => setBrandingFontUrl(e.target.value)}
+                        className="border-[#e2e8f0]"
+                      />
+                      <p className="text-[12px] text-[#64748b]">Import a custom Google Font or external CSS file.</p>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="branding-copyright" className="text-[14px] font-medium text-[#0f172a]">Copyright Text</Label>
                       <Input
                         id="branding-copyright"
@@ -2489,6 +2617,7 @@ export default function SettingsPage() {
                         onChange={(e) => setBrandingCopyright(e.target.value)}
                         className="border-[#e2e8f0]"
                       />
+                      <p className="text-[12px] text-[#64748b]">Displayed in the portal footer and login page.</p>
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
@@ -2499,22 +2628,9 @@ export default function SettingsPage() {
                         value={brandingWelcomeMessage}
                         onChange={(e) => setBrandingWelcomeMessage(e.target.value)}
                         rows={2}
-                        className="w-full rounded-md border border-[#e2e8f0] px-3 py-2 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 resize-none"
+                        className="w-full rounded-md border border-[#e2e8f0] px-3 py-2 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                       />
-                      <p className="text-[11px] text-[#94a3b8]">Shown as a banner at the top of the dashboard for all users in your portal.</p>
-                      <p className="text-[12px] text-[#64748b]">Displayed in the portal footer and login page.</p>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="branding-font-url" className="text-[14px] font-medium text-[#0f172a]">Custom Font URL</Label>
-                      <Input
-                        id="branding-font-url"
-                        placeholder="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-                        value={brandingFontUrl}
-                        onChange={(e) => setBrandingFontUrl(e.target.value)}
-                        className="border-[#e2e8f0]"
-                      />
-                      <p className="text-[11px] text-[#94a3b8]">Google Fonts or self-hosted CSS URL. Applied globally to all pages in your portal.</p>
+                      <p className="text-[12px] text-[#64748b]">Greeting displayed to users on the main dashboard.</p>
                     </div>
                   </div>
 
@@ -2531,7 +2647,7 @@ export default function SettingsPage() {
                   <Button
                     onClick={handleSaveBranding}
                     disabled={savingBranding}
-                    className="bg-[#00438f] hover:bg-[#003366] text-white"
+                    className="bg-primary hover:bg-[#003366] text-white"
                   >
                     {savingBranding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Save Branding
@@ -2554,7 +2670,7 @@ export default function SettingsPage() {
                   Export your account data as a JSON file (GDPR Article 20). Your export includes: account details, vendor permissions, activity logs, and settings updates tied to your account.
                 </p>
                 <Button
-                  className="mt-2 gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold px-6 py-3 h-auto rounded-md"
+                  className="mt-2 gap-2 bg-primary hover:bg-[#003366] text-white font-bold px-6 py-3 h-auto rounded-md"
                   disabled={exportingUserId === authContext.userId}
                   onClick={() => authContext.userId && handleExportUser(authContext.userId, "my-data")}
                 >
@@ -2570,7 +2686,7 @@ export default function SettingsPage() {
             <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
               <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
                 <CardTitle className="text-[18px] font-bold text-[#0f172a] flex items-center gap-2">
-                  <Database className="h-5 w-5 text-[#00438f]" />
+                  <Database className="h-5 w-5 text-primary" />
                   User Data Export
                 </CardTitle>
                 <CardDescription className="text-[14px] text-[#64748b]">
@@ -2597,7 +2713,7 @@ export default function SettingsPage() {
                           <tr key={u.userId} className="hover:bg-[#f8fafc]">
                             <td className="py-3 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="size-8 rounded-full bg-[#00438f]/10 flex items-center justify-center shrink-0 text-[12px] font-bold text-[#00438f]">
+                                <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-[12px] font-bold text-primary">
                                   {(u.displayName || u.email).slice(0, 2).toUpperCase()}
                                 </div>
                                 <div>
@@ -2628,7 +2744,7 @@ export default function SettingsPage() {
                             <td className="py-3 px-6 text-right">
                               <Button
                                 size="sm"
-                                className="bg-[#00438f] hover:bg-[#003366] text-white gap-1.5 rounded-[4px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] font-bold text-[12px]"
+                                className="bg-primary hover:bg-[#003366] text-white gap-1.5 rounded-[4px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] font-bold text-[12px]"
                                 disabled={exportingUserId === u.userId}
                                 onClick={() => handleExportUser(u.userId, u.email)}
                               >
@@ -2762,7 +2878,7 @@ export default function SettingsPage() {
               <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
                 <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
                   <CardTitle className="text-[18px] font-bold text-[#0f172a] flex items-center gap-2">
-                    <Megaphone className="h-5 w-5 text-[#00438f]" />
+                    <Megaphone className="h-5 w-5 text-primary" />
                     Create Announcement
                   </CardTitle>
                   <CardDescription className="text-[14px] text-[#64748b]">Post a banner visible to all portal users. Banners appear at the top of every page until dismissed or expired.</CardDescription>
@@ -2785,7 +2901,7 @@ export default function SettingsPage() {
                       onChange={(e) => setAnnouncementMessage(e.target.value)}
                       rows={3}
                       placeholder="Describe the announcement details..."
-                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                      className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -2794,7 +2910,7 @@ export default function SettingsPage() {
                       <select
                         value={announcementPriority}
                         onChange={(e) => setAnnouncementPriority(e.target.value as any)}
-                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
@@ -2806,7 +2922,7 @@ export default function SettingsPage() {
                       <select
                         value={announcementExpiry}
                         onChange={(e) => setAnnouncementExpiry(e.target.value as any)}
-                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f]"
+                        className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="1d">1 day</option>
                         <option value="3d">3 days</option>
@@ -2819,7 +2935,7 @@ export default function SettingsPage() {
                     <Button
                       onClick={handleCreateAnnouncement}
                       disabled={!announcementTitle.trim() || creatingAnnouncement}
-                      className="w-full bg-[#00438f] hover:bg-[#003070] text-white"
+                      className="w-full bg-primary hover:bg-[#003070] text-white"
                     >
                       {creatingAnnouncement ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                       Post Announcement
@@ -2915,7 +3031,7 @@ export default function SettingsPage() {
                 value={editTemplateForm.bodyText}
                 onChange={(e) => setEditTemplateForm((f) => ({ ...f, bodyText: e.target.value }))}
                 rows={6}
-                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-[#00438f]/30 focus:border-[#00438f] font-mono"
+                className="w-full rounded-lg border border-[#cbd5e1] px-3 py-2 text-sm text-[#1e293b] resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-mono"
               />
               <p className="text-[11px] text-[#94a3b8]">Use {"{{name}}"} for member name.</p>
             </div>
@@ -2923,7 +3039,7 @@ export default function SettingsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingTemplate(null)} disabled={savingTemplate}>Cancel</Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003070] text-white"
+              className="bg-primary hover:bg-[#003070] text-white"
               disabled={savingTemplate || !editTemplateForm.subject.trim()}
               onClick={() => editingTemplate && handleSaveTemplate(editingTemplate)}
             >
@@ -2994,7 +3110,7 @@ export default function SettingsPage() {
               Cancel
             </Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              className="bg-primary hover:bg-[#003366] text-white"
               disabled={savingIntegration || !integrationDialogKey.trim()}
               onClick={handleSaveIntegration}
             >

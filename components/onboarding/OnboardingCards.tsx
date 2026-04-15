@@ -62,12 +62,12 @@ export default function OnboardingCards() {
             <div className="flex flex-col gap-6 pt-6">
               <ImportWizard
                 triggerLabel="Import"
-                triggerClassName="w-full bg-[#00438f] hover:bg-[#003366] text-white font-bold rounded-[8px] py-3 text-[16px]"
+                triggerClassName="w-full bg-primary hover:bg-[#003366] text-white font-bold rounded-[8px] py-3 text-[16px]"
                 showTriggerIcon={false}
               />
               <p className="text-center text-[14px] text-[#94a3b8]">
                 Re-run imports any time from{" "}
-                <Link href="/jobs" className="font-medium text-[#00438f] hover:underline">
+                <Link href="/jobs" className="font-medium text-primary hover:underline">
                   Jobs
                 </Link>
                 .
@@ -99,7 +99,7 @@ export default function OnboardingCards() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                    className="h-auto gap-1 px-0 text-[12px] font-bold text-primary hover:bg-transparent hover:text-[#003366]"
                     onClick={copy(exampleCurl, "curl")}
                   >
                     <Copy className="h-3 w-3" />
@@ -120,7 +120,7 @@ export default function OnboardingCards() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto gap-1 px-0 text-[12px] font-bold text-[#00438f] hover:bg-transparent hover:text-[#003366]"
+                    className="h-auto gap-1 px-0 text-[12px] font-bold text-primary hover:bg-transparent hover:text-[#003366]"
                     onClick={copy(exampleBody, "schema")}
                   >
                     <Copy className="h-3 w-3" />
@@ -136,7 +136,7 @@ export default function OnboardingCards() {
             <div className="border-t border-[#f1f5f9] pt-4">
               <p className="text-[14px] text-[#64748b]">
                 Need keys/webhooks? Go to{" "}
-                <Link href="/settings" className="font-medium text-[#00438f] hover:underline">
+                <Link href="/settings" className="font-medium text-primary hover:underline">
                   Settings → API
                 </Link>
                 .
@@ -150,7 +150,7 @@ export default function OnboardingCards() {
       <div className="flex items-center justify-between rounded-[12px] border border-[rgba(0,67,143,0.1)] bg-[rgba(0,67,143,0.05)] px-6 py-6">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgba(0,67,143,0.1)]">
-            <HelpCircle className="h-5 w-5 text-[#00438f]" />
+            <HelpCircle className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h3 className="text-[16px] font-bold text-[#0f172a]">Need help with mapping?</h3>

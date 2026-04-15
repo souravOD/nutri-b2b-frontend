@@ -298,7 +298,7 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
           <Button variant="outline" onClick={onCancel} className="border-[#cbd5e1] text-[#334155] hover:bg-[#f1f5f9] rounded-[8px]">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-[#00438f] hover:bg-[#003366] text-white rounded-[8px]">
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-[#003366] text-white rounded-[8px]">
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>
@@ -398,7 +398,7 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
                 <Label className={labelClass} style={{ marginBottom: 8 }}>Dietary Approach</Label>
                 <div className="flex flex-wrap gap-2">
                   {(health.dietGoals ?? []).map((code) => (
-                    <span key={code} className="bg-[#00438f] text-white rounded-full px-3 py-1.5 text-[14px] font-medium flex items-center gap-1">
+                    <span key={code} className="bg-primary text-white rounded-full px-3 py-1.5 text-[14px] font-medium flex items-center gap-1">
                       {getDietLabel(code)}
                       <button type="button" onClick={() => removeFromArray("dietGoals", code)} className="hover:opacity-80" aria-label={`Remove ${code}`}>
                         <X className="h-3.5 w-3.5" />
@@ -443,7 +443,7 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
               <div className="border-t border-[#f1f5f9] pt-6 flex items-center justify-between">
                 <Label className={labelClass}>Daily Calorie Target</Label>
                 <div className="flex gap-2 items-center">
-                  <Input type="number" value={health.macroTargets?.calories ?? ""} onChange={(e) => handleHealthChange("macroTargets", { ...(health.macroTargets || {}), calories: e.target.value ? Number(e.target.value) : undefined })} placeholder="1820" className={`${inputClass} w-[128px] text-right font-black text-[#00438f]`} />
+                  <Input type="number" value={health.macroTargets?.calories ?? ""} onChange={(e) => handleHealthChange("macroTargets", { ...(health.macroTargets || {}), calories: e.target.value ? Number(e.target.value) : undefined })} placeholder="1820" className={`${inputClass} w-[128px] text-right font-black text-primary`} />
                   <span className="text-[16px] font-bold text-[#64748b]">kcal</span>
                 </div>
               </div>
@@ -458,12 +458,12 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
             <div className="flex flex-col items-center gap-4">
               <Avatar className="h-[128px] w-[128px] rounded-full border-4 border-[#f8fafc] shadow-md">
                 <AvatarImage src={customer.avatar} alt={customer.name} />
-                <AvatarFallback className="bg-[#f1f5f9] text-[#00438f] text-3xl font-bold">
+                <AvatarFallback className="bg-[#f1f5f9] text-primary text-3xl font-bold">
                   {getInitials(customer.name)}
                 </AvatarFallback>
               </Avatar>
               <p className="text-[12px] text-[#94a3b8] text-center">Click to upload new photo</p>
-              <Button variant="link" className="text-[#00438f] font-bold text-[14px] h-auto p-0" onClick={handleStatusChange}>
+              <Button variant="link" className="text-primary font-bold text-[14px] h-auto p-0" onClick={handleStatusChange}>
                 Change Member Status
               </Button>
             </div>
@@ -473,11 +473,11 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
           <Card className={cardClass}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-[#00438f]" />
+                <AlertTriangle className="h-5 w-5 text-primary" />
                 <h3 className="text-[18px] font-bold text-[#0f172a]">Restrictions</h3>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setAvoidSelect(allergenOptions[0]?.code ?? ""); addAvoid(); }}>
-                <Plus className="h-5 w-5 text-[#00438f]" />
+                <Plus className="h-5 w-5 text-primary" />
               </Button>
             </div>
             <div className="space-y-2 mb-4">
@@ -513,11 +513,11 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
           <Card className={cardClass}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Stethoscope className="h-5 w-5 text-[#00438f]" />
+                <Stethoscope className="h-5 w-5 text-primary" />
                 <h3 className="text-[18px] font-bold text-[#0f172a]">Conditions</h3>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={addCondition}>
-                <Plus className="h-5 w-5 text-[#00438f]" />
+                <Plus className="h-5 w-5 text-primary" />
               </Button>
             </div>
             <div className="space-y-2 mb-4">
@@ -568,7 +568,7 @@ export default function CustomerEditForm({ customer, onCancel, onSaved, onDelete
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel} className="border-[#cbd5e1] text-[#334155] hover:bg-[#f1f5f9] rounded-[8px]">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-[#00438f] hover:bg-[#003366] text-white rounded-[8px]">
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-[#003366] text-white rounded-[8px]">
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>

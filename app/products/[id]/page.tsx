@@ -221,7 +221,7 @@ export default function ProductDetailPage() {
       <AppShell title="Product">
         <div className="p-8 space-y-4">
           <p className="text-[#64748b]">Product not found.</p>
-          <Button asChild variant="outline" className="border-[#00438f] text-[#00438f]">
+          <Button asChild variant="outline" className="border-primary text-primary">
             <Link href={from}>
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to Products
@@ -237,7 +237,7 @@ export default function ProductDetailPage() {
       <div className="bg-[#f5f7f8] min-h-screen">
         <div className="border-b border-[#e2e8f0] bg-white px-8 py-4">
           <div className="flex flex-col gap-4">
-            <Button asChild variant="outline" size="sm" className="w-fit border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10">
+            <Button asChild variant="outline" size="sm" className="w-fit border-primary text-primary hover:bg-primary/10">
               <Link href={from} className="flex items-center gap-2">
                 <ChevronLeft className="h-3 w-3" />
                 Back to Products
@@ -268,7 +268,7 @@ export default function ProductDetailPage() {
                 <h1 className="text-[30px] font-bold text-[#0f172a] tracking-tight">{product.name}</h1>
                 {product.brand && (
                   <p className="text-base text-[#64748b] mt-1">
-                    Brand: <span className="font-medium text-[#00438f]">{product.brand}</span>
+                    Brand: <span className="font-medium text-primary">{product.brand}</span>
                   </p>
                 )}
               </div>
@@ -282,7 +282,7 @@ export default function ProductDetailPage() {
                   History
                 </Button>
                 <Button
-                  className="bg-[#00438f] hover:bg-[#003366] text-white rounded-xl shadow-[0px_10px_15px_-3px_rgba(0,67,143,0.2)]"
+                  className="bg-primary hover:bg-[#003366] text-white rounded-xl shadow-[0px_10px_15px_-3px_rgba(0,67,143,0.2)]"
                   onClick={() => setEditOpen(true)}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
@@ -294,23 +294,23 @@ export default function ProductDetailPage() {
 
           <Tabs defaultValue="overview" className="w-full" onValueChange={(v) => { if (v === "matching") fetchMatchingCustomers() }}>
             <TabsList className="bg-transparent border-b-2 border-transparent gap-8 px-0 h-auto">
-              <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-bold text-sm">
+              <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-bold text-sm">
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="specifications" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
+              <TabsTrigger value="specifications" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
                 Specifications
               </TabsTrigger>
-              <TabsTrigger value="compliance" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
+              <TabsTrigger value="compliance" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
                 Compliance & Diet
               </TabsTrigger>
-              <TabsTrigger value="nutrition" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
+              <TabsTrigger value="nutrition" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b]">
                 Nutrition
               </TabsTrigger>
-              <TabsTrigger value="matching" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
+              <TabsTrigger value="matching" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 Matching Customers
               </TabsTrigger>
-              <TabsTrigger value="intelligence" className="data-[state=active]:border-b-2 data-[state=active]:border-[#00438f] data-[state=active]:text-[#00438f] rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
+              <TabsTrigger value="intelligence" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none pb-4 pt-4 font-medium text-sm text-[#64748b] flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5" />
                 Intelligence
               </TabsTrigger>
@@ -358,7 +358,7 @@ export default function ProductDetailPage() {
                     {product.sourceUrl && (
                       <div className="col-span-2">
                         <dt className="text-[#94a3b8] font-medium">Source URL</dt>
-                        <dd><a href={product.sourceUrl} target="_blank" rel="noreferrer" className="text-[#00438f] hover:underline break-all">{product.sourceUrl}</a></dd>
+                        <dd><a href={product.sourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{product.sourceUrl}</a></dd>
                       </div>
                     )}
                   </dl>

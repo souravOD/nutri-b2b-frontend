@@ -79,7 +79,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               asChild
             >
               <Link href="/customers" className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               onClick={() => setNotesOpen(true)}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -110,7 +110,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             </Button>
             <Button
               variant="outline"
-              className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+              className="border-primary text-primary hover:bg-primary/10"
               asChild
             >
               <Link href={`/customers/${customer.id}/edit`}>
@@ -118,7 +118,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
               </Link>
             </Button>
             <Button
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              className="bg-primary hover:bg-[#003366] text-white"
               onClick={() => router.push(`/customers/${customer.id}/matches`)}
             >
               Match Products
@@ -134,7 +134,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
             <div className="relative shrink-0">
               <Avatar className="h-[96px] w-[96px] rounded-full border-4 border-white ring-2 ring-[#e2e8f0]">
                 <AvatarImage src={customer.avatar} alt={customer.name} />
-                <AvatarFallback className="bg-[#f1f5f9] text-[#00438f] text-2xl font-bold">
+                <AvatarFallback className="bg-[#f1f5f9] text-primary text-2xl font-bold">
                   {getInitials(customer.name)}
                 </AvatarFallback>
               </Avatar>
@@ -177,7 +177,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
         {/* Health Profile section - cards (Age, Weight, Height, etc.) per Figma */}
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-5 w-5 text-[#00438f]" />
+            <Activity className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold text-[#0f172a]">Health Profile</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-4">
@@ -197,7 +197,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                 <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider truncate">
                   {label}
                 </p>
-                <p className="text-[20px] font-semibold text-[#00438f] mt-1 truncate">{String(value)}</p>
+                <p className="text-[20px] font-semibold text-primary mt-1 truncate">{String(value)}</p>
               </Card>
             ))}
           </div>
@@ -209,7 +209,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
           <div className="lg:col-span-2">
             <Card className="p-6 border-[rgba(0,67,143,0.1)] rounded-xl shadow-sm">
               <div className="flex items-center gap-2 mb-6">
-                <Apple className="h-5 w-5 text-[#00438f]" />
+                <Apple className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold text-[#0f172a]">Diet & Macros</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-8">
@@ -220,7 +220,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                   <div className="flex flex-wrap gap-2">
                     {healthGoal && (
                       <span
-                        className="px-3 py-1.5 rounded-lg bg-[rgba(0,67,143,0.15)] text-[#00438f] text-sm font-semibold"
+                        className="px-3 py-1.5 rounded-lg bg-[rgba(0,67,143,0.15)] text-primary text-sm font-semibold"
                       >
                         {healthGoal}
                       </span>
@@ -229,7 +229,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                       dietGoals.map((g) => (
                         <span
                           key={g}
-                          className="px-3 py-1.5 rounded-lg bg-[rgba(0,67,143,0.1)] text-[#00438f] text-sm font-medium"
+                          className="px-3 py-1.5 rounded-lg bg-[rgba(0,67,143,0.1)] text-primary text-sm font-medium"
                         >
                           {g}
                         </span>
@@ -245,7 +245,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: "Calories", value: macro.calories, unit: "kcal", color: "#00438f" },
+                      { label: "Calories", value: macro.calories, unit: "kcal", color: "var(--primary)" },
                       { label: "Protein", value: macro.protein_g, unit: "g", color: "#3b82f6" },
                       { label: "Carbs", value: macro.carbs_g, unit: "g", color: "#22c55e" },
                       { label: "Fat", value: macro.fat_g, unit: "g", color: "#f97316" },
@@ -278,7 +278,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
           <div>
             <Card className="p-6 border-[rgba(0,67,143,0.1)] rounded-xl shadow-sm h-fit">
               <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="h-5 w-5 text-[#00438f]" />
+                <AlertTriangle className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold text-[#0f172a]">Dietary Restrictions</h2>
               </div>
 
@@ -306,7 +306,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
 
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <Stethoscope className="h-5 w-5 text-[#00438f]" />
+                    <Stethoscope className="h-5 w-5 text-primary" />
                     <p className="text-[10px] font-semibold text-[#94a3b8] uppercase tracking-wider">
                       Medical Conditions
                     </p>
@@ -337,14 +337,14 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
         <Card className="p-6 border-[rgba(0,67,143,0.1)] rounded-xl shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#00438f]" />
+              <Sparkles className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-bold text-[#0f172a]">Recommended Products</h2>
             </div>
             {!recLoaded && (
               <Button
                 variant="outline"
                 size="sm"
-                className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+                className="border-primary text-primary hover:bg-primary/10"
                 onClick={fetchRecommendations}
                 disabled={recLoading}
               >
@@ -397,7 +397,7 @@ export default function CustomerProfileDetailView({ customer, onDeleted, onSaved
                   </div>
                   <div className="flex-shrink-0 text-right">
                     {p.score !== undefined && (
-                      <span className="text-sm font-bold text-[#00438f]">{Math.round((p.score ?? 0) * 100)}%</span>
+                      <span className="text-sm font-bold text-primary">{Math.round((p.score ?? 0) * 100)}%</span>
                     )}
                     {p.calories !== undefined && (
                       <p className="text-xs text-[#94a3b8] mt-0.5">{p.calories} kcal</p>

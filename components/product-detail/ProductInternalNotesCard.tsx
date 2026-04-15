@@ -44,8 +44,8 @@ export default function ProductInternalNotesCard({ product }: { product: any }) 
   return (
     <div className="bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.1)] rounded-[16px] p-[25px] flex flex-col gap-[12px]">
       <div className="flex items-center gap-2">
-        <FileText className="h-4 w-4 shrink-0 text-[#00438f]" />
-        <h3 className="text-[12px] font-bold uppercase tracking-[1.2px] text-[#00438f] leading-[16px]">
+        <FileText className="h-4 w-4 shrink-0 text-primary" />
+        <h3 className="text-[12px] font-bold uppercase tracking-[1.2px] text-primary leading-[16px]">
           Internal Vendor Notes
         </h3>
       </div>
@@ -61,7 +61,7 @@ export default function ProductInternalNotesCard({ product }: { product: any }) 
           />
           <Button
             size="sm"
-            className="bg-[#00438f] hover:bg-[#003366] text-white"
+            className="bg-primary hover:bg-[#003366] text-white"
             onClick={handleSave}
             disabled={noteLoading || noteSaving}
           >
@@ -83,7 +83,7 @@ export default function ProductInternalNotesCard({ product }: { product: any }) 
           <button
             type="button"
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1 text-[#00438f] font-bold text-[12px] leading-[16px] hover:underline"
+            className="flex items-center gap-1 text-primary font-bold text-[12px] leading-[16px] hover:underline"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
             {noteText ? "Edit note" : "Add internal note"}

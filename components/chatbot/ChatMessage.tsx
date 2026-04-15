@@ -21,7 +21,7 @@ export default function ChatMessage({ role, content, fallback }: Props) {
         className={cn(
           "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
           isUser
-            ? "bg-[#00438f] text-white"
+            ? "bg-primary text-white"
             : "bg-[#f1f5f9] text-[#0f172a] border border-[#e2e8f0]"
         )}
       >

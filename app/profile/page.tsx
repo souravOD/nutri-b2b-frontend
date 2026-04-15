@@ -388,7 +388,7 @@ export default function ProfilePage() {
             <Button
               type="submit"
               disabled={saving}
-              className="bg-[#00438f] hover:bg-[#003366] text-white"
+              className="bg-primary hover:bg-[#003366] text-white"
             >
               <Save className="h-4 w-4 mr-2" />
               {saving ? "Saving…" : "Save changes"}

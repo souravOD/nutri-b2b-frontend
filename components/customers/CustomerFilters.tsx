@@ -39,13 +39,13 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
       {/* Status pills: All | Active | Archived per Figma */}
       <Tabs value={status} onValueChange={handleStatusChange as (value: string) => void} className="shrink-0">
         <TabsList className="inline-grid grid-cols-3 w-auto shrink-0 bg-[#f1f5f9]">
-          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
             All
           </TabsTrigger>
-          <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
+          <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
             Active
           </TabsTrigger>
-          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-lg">
+          <TabsTrigger value="archived" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
             Archived
           </TabsTrigger>
         </TabsList>
@@ -65,7 +65,7 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
                 size="sm"
                 className={`rounded-full h-8 px-3 text-sm shrink-0 ${
                   tags.includes(tag)
-                    ? "bg-[#00438f] hover:bg-[#003366] text-white"
+                    ? "bg-primary hover:bg-[#003366] text-white"
                     : "bg-[#f1f5f9] border-[#e2e8f0] hover:bg-[#e2e8f0] text-[#0f172a]"
                 }`}
                 onClick={() => handleTagToggle(tag)}
@@ -91,7 +91,7 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
                     <DropdownMenuItem
                       key={tag}
                       onClick={() => handleTagToggle(tag)}
-                      className={tags.includes(tag) ? "bg-[#00438f]/10 text-[#00438f]" : ""}
+                      className={tags.includes(tag) ? "bg-primary/10 text-primary" : ""}
                     >
                       {tag}
                     </DropdownMenuItem>
@@ -105,7 +105,7 @@ export default function CustomerFilters({ status, tags, allTags, onChange }: Pro
 
       {/* Clear All */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={handleClearAll} className="gap-2 text-[#64748b] hover:text-[#00438f] shrink-0">
+        <Button variant="ghost" size="sm" onClick={handleClearAll} className="gap-2 text-[#64748b] hover:text-primary shrink-0">
           <X className="h-4 w-4" />
           Clear All
         </Button>

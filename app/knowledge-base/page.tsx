@@ -483,7 +483,7 @@ export default function KnowledgeBasePage() {
 
           {/* Header */}
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#00438f]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <BookOpen className="h-5 w-5 text-white" />
             </div>
             <div>

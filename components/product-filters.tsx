@@ -297,7 +297,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
             {activeCount > 0 && (
               <Badge
                 variant="secondary"
-                className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#00438f] text-white"
+                className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-primary text-white"
               >
                 {activeCount}
               </Badge>
@@ -328,7 +328,7 @@ export default function ProductFilters({ filters, onChange, onClear, data }: Pro
           {activeCount > 0 && (
             <Badge
               variant="secondary"
-              className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-[#00438f] text-white"
+              className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-primary text-white"
             >
               {activeCount}
             </Badge>

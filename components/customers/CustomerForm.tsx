@@ -208,7 +208,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
               <Label className={labelClass}>Tags</Label>
               <div className="bg-white border border-[#e2e8f0] rounded-[8px] min-h-[46px] px-2 py-2 flex flex-wrap items-center gap-2">
                 {tags.map((t) => (
-                  <span key={t} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-[#00438f] text-[12px] font-semibold flex items-center gap-1">
+                  <span key={t} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-primary text-[12px] font-semibold flex items-center gap-1">
                     {t}
                     <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} className="hover:opacity-70" aria-label={`Remove ${t}`}>
                       <X className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
                 ))}
                 <div className="flex items-center gap-1 flex-1 min-w-[120px]">
                   <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add a tag" className="border-0 h-8 px-2 py-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())} />
-                  <Button type="button" onClick={addTag} size="icon" variant="ghost" className="h-8 w-8 shrink-0 rounded-full text-[#00438f] hover:bg-[rgba(0,67,143,0.1)]">
+                  <Button type="button" onClick={addTag} size="icon" variant="ghost" className="h-8 w-8 shrink-0 rounded-full text-primary hover:bg-[rgba(0,67,143,0.1)]">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -291,7 +291,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
             {preferred.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {preferred.map((code) => (
-                  <span key={code} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-[#00438f] text-[12px] font-semibold flex items-center gap-1">
+                  <span key={code} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-primary text-[12px] font-semibold flex items-center gap-1">
                     {dietOptions.find((d) => d.code === code)?.label ?? code}
                     <button type="button" onClick={() => setPreferred(preferred.filter((x) => x !== code))} className="hover:opacity-70" aria-label={`Remove ${code}`}>
                       <X className="h-3.5 w-3.5" />
@@ -392,13 +392,13 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
                   </select>
                   <Input value={conditionCustomInput} onChange={(e) => setConditionCustomInput(e.target.value)} placeholder="Add health condition" className={`${inputClass} flex-1`} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCondition())} />
                   <Button type="button" onClick={addCondition} size="icon" className="h-[42px] w-[42px] shrink-0 bg-[rgba(0,67,143,0.05)] border border-[rgba(0,67,143,0.2)] hover:bg-[rgba(0,67,143,0.1)] rounded-[8px]">
-                    <Plus className="h-4 w-4 text-[#00438f]" />
+                    <Plus className="h-4 w-4 text-primary" />
                   </Button>
                 </div>
                 {conditions.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {conditions.map((code) => (
-                      <span key={code} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-[#00438f] text-[12px] font-semibold flex items-center gap-1">
+                      <span key={code} className="bg-[rgba(0,67,143,0.1)] rounded px-2 py-1 text-primary text-[12px] font-semibold flex items-center gap-1">
                         {conditionOptions.find((c) => c.conditionCode === code)?.label ?? code}
                         <button type="button" onClick={() => setConditions(conditions.filter((x) => x !== code))} className="hover:opacity-70" aria-label={`Remove ${code}`}>
                           <X className="h-3.5 w-3.5" />
@@ -438,7 +438,7 @@ export default function CustomerForm({ onClose, onCreated }: Props) {
         {/* Footer */}
         <div className="flex justify-end gap-2 pt-4 border-t border-[#e2e8f0]">
           <Button variant="outline" onClick={onClose} className="border-[#e2e8f0] text-[#64748b] hover:bg-[#f1f5f9] rounded-[8px]">Cancel</Button>
-          <Button type="button" onClick={handleSubmit} disabled={saving} className="bg-[#00438f] hover:bg-[#003366] text-white rounded-[8px]">
+          <Button type="button" onClick={handleSubmit} disabled={saving} className="bg-primary hover:bg-[#003366] text-white rounded-[8px]">
             {saving ? "Adding…" : "Add Customer"}
           </Button>
         </div>

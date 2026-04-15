@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Suspense } from "react";
 import BrandingApplicator from "@/components/branding-applicator";
+import { NotificationsProvider } from "@/components/notifications-provider";
 
 export const metadata: Metadata = {
   title: "Odyssey Nutrition B2B Console",
@@ -27,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="font-sans antialiased">
         <BrandingApplicator />
-        <AuthProvider><Suspense fallback={null}>{children}</Suspense></AuthProvider>
+        <AuthProvider><NotificationsProvider><Suspense fallback={null}>{children}</Suspense></NotificationsProvider></AuthProvider>
         <Toaster />
       </body>
     </html>

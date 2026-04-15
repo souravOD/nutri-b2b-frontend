@@ -4,7 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { UserCheck, UserX, Mail, Phone } from "lucide-react"
 import type { UICustomer } from "@/types/customer"
 
@@ -35,26 +34,13 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
     }
   }
 
-  const restrictions = customer.restrictions ?? { required: [], preferred: [], allergens: [], conditions: [] }
-  const healthChips = [
-    ...(restrictions.required ?? []).slice(0, 2),
-    ...(restrictions.allergens ?? []).slice(0, 2),
-    ...(restrictions.conditions ?? []).slice(0, 2),
-  ].slice(0, 4)
-
-  const remainingHealthCount =
-    (restrictions.required?.length ?? 0) +
-    (restrictions.allergens?.length ?? 0) +
-    (restrictions.conditions?.length ?? 0) -
-    healthChips.length
-
   const tags = customer.tags ?? []
   const visibleTags = tags.slice(0, 3)
   const remainingTagsCount = tags.length - visibleTags.length
 
   return (
     <Card
-      className="hover:shadow-lg hover:border-[#00438f]/30 transition-all cursor-pointer border-[#e2e8f0] rounded-xl"
+      className="hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer border-[#e2e8f0] rounded-xl"
       onClick={() => onOpen?.(customer.id)}
     >
       <CardHeader className="pb-3">
@@ -62,7 +48,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <Avatar className="h-11 w-11 shrink-0 ring-2 ring-[#f0f4f8]">
               <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
-              <AvatarFallback className="bg-[#00438f]/10 text-[#00438f] font-medium text-sm">
+              <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
                 {getInitials(customer.name)}
               </AvatarFallback>
             </Avatar>
@@ -91,46 +77,11 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
       </CardHeader>
 
       <CardContent className="pt-0 space-y-3">
-        {/* Health Snapshot */}
-        {healthChips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-              {healthChips.map((chip, index) => (
-                <Badge key={index} variant="outline" className="text-xs border-[#e2e8f0]">
-                  {chip}
-                </Badge>
-              ))}
-              {remainingHealthCount > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs border-[#e2e8f0]">
-                        +{remainingHealthCount}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="space-y-1">
-                        {(restrictions.required ?? []).slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">{item}</div>
-                        ))}
-                        {(restrictions.allergens ?? []).slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">{item}</div>
-                        ))}
-                        {(restrictions.conditions ?? []).slice(2).map((item, i) => (
-                          <div key={i} className="text-xs">{item}</div>
-                        ))}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-          </div>
-        )}
-
         {/* Tags */}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {visibleTags.map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs bg-[#f1f5f9] text-[#00438f]">
+              <Badge key={index} variant="secondary" className="text-xs bg-[#f1f5f9] text-primary">
                 {tag}
               </Badge>
             ))}
@@ -161,7 +112,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
             variant="ghost"
             size="sm"
             onClick={(e) => { e.stopPropagation(); onOpen?.(customer.id) }}
-            className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
+            className="text-primary hover:text-[#003366] hover:bg-primary/10"
           >
             View Profile
           </Button>
@@ -169,7 +120,7 @@ export default function CustomerCard({ customer, onOpen, onRunMatch }: Props) {
             variant="ghost"
             size="sm"
             onClick={(e) => { e.stopPropagation(); onRunMatch?.(customer.id) }}
-            className="text-[#00438f] hover:text-[#003366] hover:bg-[#00438f]/10"
+            className="text-primary hover:text-[#003366] hover:bg-primary/10"
           >
             Match Products
           </Button>

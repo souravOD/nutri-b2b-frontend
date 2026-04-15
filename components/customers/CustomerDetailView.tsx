@@ -747,7 +747,7 @@ export default function CustomerDetailView({
                   <Button
                     variant="outline"
                     onClick={() => setEditing(true)}
-                    className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+                    className="border-primary text-primary hover:bg-primary/10"
                   >
                     Edit
                   </Button>
@@ -762,7 +762,7 @@ export default function CustomerDetailView({
                     >
                       Cancel
                     </Button>
-                    <Button onClick={handleSaveHealth} className="bg-[#00438f] hover:bg-[#003366] text-white">Save</Button>
+                    <Button onClick={handleSaveHealth} className="bg-primary hover:bg-[#003366] text-white">Save</Button>
                   </>
                 )}
               </div>
@@ -838,7 +838,7 @@ export default function CustomerDetailView({
                 <Button
                   onClick={runMatch}
                   disabled={!MATCHING_ENABLED || matching}
-                  className="bg-[#00438f] hover:bg-[#003366] text-white whitespace-nowrap"
+                  className="bg-primary hover:bg-[#003366] text-white whitespace-nowrap"
                 >
                   {matching ? "Running..." : "Run New Match"}
                 </Button>

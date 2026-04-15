@@ -77,7 +77,7 @@ export default function SubstitutionsCard({ productId, customerId }: Props) {
                         <div className="min-w-0">
                           <Link
                             href={`/products/${s.id}`}
-                            className="text-sm font-semibold text-[#00438f] hover:underline flex items-center gap-1"
+                            className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
                           >
                             {s.name}
                             <ExternalLink className="h-3 w-3 shrink-0" />
@@ -87,7 +87,7 @@ export default function SubstitutionsCard({ productId, customerId }: Props) {
                           )}
                         </div>
                         {s.score !== undefined && (
-                          <span className="text-sm font-bold text-[#00438f] shrink-0">
+                          <span className="text-sm font-bold text-primary shrink-0">
                             {Math.round(s.score * 100)}%
                           </span>
                         )}
@@ -95,7 +95,7 @@ export default function SubstitutionsCard({ productId, customerId }: Props) {
                       {s.score !== undefined && (
                         <div className="h-1 bg-[#e2e8f0] rounded-full">
                           <div
-                            className="h-1 bg-[#00438f] rounded-full transition-all"
+                            className="h-1 bg-primary rounded-full transition-all"
                             style={{ width: `${Math.round(s.score * 100)}%` }}
                           />
                         </div>
@@ -106,7 +106,7 @@ export default function SubstitutionsCard({ productId, customerId }: Props) {
                 <div className="pt-4 text-center border-t border-[#f1f5f9] mt-2">
                   <Link
                     href={`/products?substitute_for=${productId}`}
-                    className="text-sm font-semibold text-[#00438f] hover:underline"
+                    className="text-sm font-semibold text-primary hover:underline"
                   >
                     View all alternatives
                   </Link>

@@ -388,7 +388,7 @@ export default function UserManagementPage() {
                         <p className="text-[16px] text-[#475569]">Manage team members, roles, and permissions</p>
                     </div>
                     <Button
-                        className="gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold rounded-[8px] px-5 py-[10px]"
+                        className="gap-2 bg-primary hover:bg-[#003366] text-white font-bold rounded-[8px] px-5 py-[10px]"
                         onClick={openInviteDialog}
                     >
                         <UserPlus className="h-4 w-4" />
@@ -402,7 +402,7 @@ export default function UserManagementPage() {
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-[14px] font-medium text-[#64748b]">Total Users</CardTitle>
                             <div className="flex size-[40px] items-center justify-center rounded-[8px] bg-[rgba(0,67,143,0.1)]">
-                                <Users className="h-4 w-4 text-[#00438f]" />
+                                <Users className="h-4 w-4 text-primary" />
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -759,7 +759,7 @@ export default function UserManagementPage() {
                         <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={invSubmitting} className="font-bold text-[#475569]">
                             Cancel
                         </Button>
-                        <Button onClick={handleInvite} disabled={invSubmitting} className="gap-2 bg-[#00438f] hover:bg-[#003366] text-white font-bold shadow-[0px_10px_15px_-3px_rgba(0,67,143,0.2),0px_4px_6px_-4px_rgba(0,67,143,0.2)]">
+                        <Button onClick={handleInvite} disabled={invSubmitting} className="gap-2 bg-primary hover:bg-[#003366] text-white font-bold shadow-[0px_10px_15px_-3px_rgba(0,67,143,0.2),0px_4px_6px_-4px_rgba(0,67,143,0.2)]">
                             <Send className="h-4 w-4" />
                             {invSubmitting ? "Sending…" : "Send Invitation"}
                         </Button>

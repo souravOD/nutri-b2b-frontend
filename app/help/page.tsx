@@ -105,10 +105,10 @@ export default function HelpPage() {
         <div className="grid grid-cols-4 gap-4">
           {QUICK_LINKS.map(({ label, description, href, icon: Icon }) => (
             <Link key={href} href={href} className="group">
-              <Card className="h-full cursor-pointer border border-[#e2e8f0] hover:border-[#00438f] hover:shadow-md transition-all duration-150">
+              <Card className="h-full cursor-pointer border border-[#e2e8f0] hover:border-primary hover:shadow-md transition-all duration-150">
                 <CardContent className="pt-6 pb-6 flex flex-col gap-4">
                   <div className="h-12 w-12 rounded-lg bg-[#eff6ff] flex items-center justify-center shrink-0">
-                    <Icon className="h-6 w-6 text-[#00438f]" />
+                    <Icon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-[#1e293b] leading-snug">{label}</p>
@@ -127,7 +127,7 @@ export default function HelpPage() {
             <h2 className="text-xl font-semibold text-[#1e293b]">Frequently Asked Questions</h2>
             <Link
               href="/knowledge-base"
-              className="text-sm font-medium text-[#00438f] hover:underline"
+              className="text-sm font-medium text-primary hover:underline"
             >
               View all articles
             </Link>

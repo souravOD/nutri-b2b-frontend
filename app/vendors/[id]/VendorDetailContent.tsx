@@ -181,7 +181,7 @@ export function VendorDetailContent(props: VendorDetailContentProps) {
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <StatusBadge status={vendor.status} />
                 {vendor.slug && (
-                  <span className="inline-flex items-center rounded-[4px] bg-[#f1f5f9] px-2 py-0.5 font-mono text-sm text-[#00438f]">
+                  <span className="inline-flex items-center rounded-[4px] bg-[#f1f5f9] px-2 py-0.5 font-mono text-sm text-primary">
                     {vendor.slug}
                   </span>
                 )}
@@ -202,7 +202,7 @@ export function VendorDetailContent(props: VendorDetailContentProps) {
                   <ShieldCheck className="h-4 w-4 mr-1" /> Reactivate
                 </Button>
               ) : (
-                <Button size="sm" className="bg-[#00438f] hover:bg-[#003366] text-white" onClick={handleSuspend}>
+                <Button size="sm" className="bg-primary hover:bg-[#003366] text-white" onClick={handleSuspend}>
                   <ShieldOff className="h-4 w-4 mr-1" /> Suspend Vendor
                 </Button>
               )}
@@ -235,7 +235,7 @@ export function VendorDetailContent(props: VendorDetailContentProps) {
             <div className="bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
               <div className="border-b border-[#f1f5f9] py-4 px-6 flex items-center justify-between">
                 <h2 className="text-[16px] font-bold text-[#0f172a]">Vendor Profile Information</h2>
-                <button type="button" onClick={openEdit} className="text-[14px] font-semibold text-[#00438f] hover:underline">
+                <button type="button" onClick={openEdit} className="text-[14px] font-semibold text-primary hover:underline">
                   Update details
                 </button>
               </div>
@@ -352,7 +352,7 @@ export function VendorDetailContent(props: VendorDetailContentProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={editSaving} className="bg-[#00438f] hover:bg-[#003366] text-white">{editSaving ? "Saving..." : "Save"}</Button>
+            <Button onClick={saveEdit} disabled={editSaving} className="bg-primary hover:bg-[#003366] text-white">{editSaving ? "Saving..." : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

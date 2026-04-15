@@ -18,7 +18,7 @@ export default function ComplianceCard({ product }: { product: any }) {
               certifications.map((c: string) => (
                 <span
                   key={c}
-                  className="px-3 py-1 rounded-lg bg-[rgba(0,67,143,0.1)] border border-[rgba(0,67,143,0.2)] text-[#00438f] text-xs font-bold"
+                  className="px-3 py-1 rounded-lg bg-[rgba(0,67,143,0.1)] border border-[rgba(0,67,143,0.2)] text-primary text-xs font-bold"
                 >
                   {c}
                 </span>

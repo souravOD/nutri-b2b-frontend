@@ -22,29 +22,27 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
 
 // --- Discovery / Landing page APIs ---
 
-// TODO: Uncomment when db:push is run to create user_searches table
-// export async function getRecentSearches(): Promise<string[]> {
-//   try {
-//     const res = await apiFetch("/api/v1/search/recent");
-//     const data = await res.json().catch(() => ({ data: [] }));
-//     return Array.isArray(data?.data) ? data.data : [];
-//   } catch {
-//     return [];
-//   }
-// }
+export async function getRecentSearches(): Promise<string[]> {
+  try {
+    const res = await apiFetch("/api/v1/search/recent");
+    const data = await res.json().catch(() => ({ data: [] }));
+    return Array.isArray(data?.data) ? data.data : [];
+  } catch {
+    return [];
+  }
+}
 
-// TODO: Uncomment when db:push is run to create user_searches table
-// export async function saveRecentSearch(query: string): Promise<void> {
-//   try {
-//     await apiFetch("/api/v1/search/recent", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ query }),
-//     });
-//   } catch {
-//     // fire-and-forget, ignore errors
-//   }
-// }
+export async function saveRecentSearch(query: string): Promise<void> {
+  try {
+    await apiFetch("/api/v1/search/recent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+  } catch {
+    // fire-and-forget, ignore errors
+  }
+}
 
 export type TrendingCategory = {
   id: string;

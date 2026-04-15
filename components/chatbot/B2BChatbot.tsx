@@ -80,7 +80,7 @@ export default function B2BChatbot() {
     return (
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-[#00438f] hover:bg-[#003366] z-50"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-[#003366] z-50"
         size="icon"
       >
         <MessageCircle className="h-6 w-6" />
@@ -125,7 +125,7 @@ export default function B2BChatbot() {
           <Button
             variant="outline"
             size="sm"
-            className="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10"
+            className="border-primary text-primary hover:bg-primary/10"
             onClick={handleExportReport}
           >
             Export CSV

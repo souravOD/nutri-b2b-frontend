@@ -732,13 +732,13 @@ export default function ProductsPage() {
                   initialOpen={importOpen}
                   onClose={importOpen ? clearImportParam : undefined}
                   triggerLabel="Import"
-                  triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+                  triggerClassName="border-primary text-primary hover:bg-primary/10 bg-white"
                 />
               </PermissionGate>
               <PermissionGate permission="write:products">
                 <Button
                   onClick={() => setCreateOpen(true)}
-                  className="bg-[#00438f] hover:bg-[#003366] text-white"
+                  className="bg-primary hover:bg-[#003366] text-white"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
@@ -760,7 +760,7 @@ export default function ProductsPage() {
                 placeholder="Search products, SKUs, or barcodes..."
                 value={url.q}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-[41px] bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] focus-visible:ring-2 focus-visible:ring-[#00438f]/30 placeholder:text-[#6b7280]"
+                className="pl-[41px] bg-[#f8fafc] border-[#e2e8f0] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] focus-visible:ring-2 focus-visible:ring-primary/30 placeholder:text-[#6b7280]"
                 aria-label="Search products"
               />
             </div>
@@ -792,11 +792,11 @@ export default function ProductsPage() {
             </DropdownMenu>
             <Tabs value={view} onValueChange={(v) => handleViewChange(v as "table" | "cards")} className="shrink-0">
               <TabsList className="bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg p-1">
-                <TabsTrigger value="table" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-md">
+                <TabsTrigger value="table" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md">
                   <ListIcon className="h-4 w-4" />
                   Table
                 </TabsTrigger>
-                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#00438f] data-[state=active]:shadow-sm rounded-md">
+                <TabsTrigger value="cards" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md">
                   <Grid3X3 className="h-4 w-4" />
                   Cards
                 </TabsTrigger>
@@ -831,8 +831,8 @@ export default function ProductsPage() {
         {filtered.length === 0 ? (
           <Card className="border-dashed border-2 border-[#e2e8f0] rounded-xl bg-[#f8fafc]">
             <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="rounded-full bg-[#00438f]/10 p-5 mb-6">
-                <Package className="h-10 w-10 text-[#00438f]" />
+              <div className="rounded-full bg-primary/10 p-5 mb-6">
+                <Package className="h-10 w-10 text-primary" />
               </div>
               <h3 className="text-xl font-semibold text-[#0f172a] mb-2">No products found</h3>
               <p className="text-muted-foreground mb-8 max-w-md">
@@ -850,7 +850,7 @@ export default function ProductsPage() {
                     initialOpen={importOpen}
                     onClose={importOpen ? clearImportParam : undefined}
                     triggerLabel="Import"
-                    triggerClassName="border-[#00438f] text-[#00438f] hover:bg-[#00438f]/10 bg-white"
+                    triggerClassName="border-primary text-primary hover:bg-primary/10 bg-white"
                   />
                 </PermissionGate>
                 <PermissionGate permission="write:products">
@@ -874,7 +874,7 @@ export default function ProductsPage() {
             {filtered.map((p) => (
               <Card
                 key={p.id}
-                className="p-3 cursor-pointer border-[#e2e8f0] rounded-xl hover:shadow-lg hover:border-[#00438f]/30 transition-all"
+                className="p-3 cursor-pointer border-[#e2e8f0] rounded-xl hover:shadow-lg hover:border-primary/30 transition-all"
                 onClick={() => handleRowClick(p)}
               >
                 <div className="flex items-center gap-3">

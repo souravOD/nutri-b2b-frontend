@@ -21,7 +21,7 @@ export default function ChatSuggestions({ onSelect }: Props) {
           key={text}
           variant="outline"
           size="sm"
-          className="border-[#e2e8f0] text-[#475569] hover:bg-[#f8fafc] hover:text-[#00438f]"
+          className="border-[#e2e8f0] text-[#475569] hover:bg-[#f8fafc] hover:text-primary"
           onClick={() => onSelect(text)}
         >
           {text}

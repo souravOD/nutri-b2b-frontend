@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import AppShell from "@/components/app-shell"
@@ -14,11 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Package, Users, Briefcase, X, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Package, Users, Briefcase, X, Plus, ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/backend"
-// TODO: Uncomment when db:push is run to create user_searches table
-// import { saveRecentSearch } from "@/lib/api-search"
+import { getRecentSearches, saveRecentSearch } from "@/lib/api-search"
 import SearchLandingView from "@/components/search/SearchLandingView"
 
 type Product = {
@@ -334,9 +333,20 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false)
   const debouncedQ = useDebounced(query, 350);
 
-  // RAG search suggestions
+  // Search suggestions dropdown
   const [suggestions, setSuggestions] = useState<string[]>([])
+  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
   const debouncedSuggestQ = useDebounced(query, 400)
+
+  // Fetch recent searches on mount
+  useEffect(() => {
+    getRecentSearches().then(setRecentSearches).catch(() => {})
+  }, [])
+
+  // Fetch RAG suggestions as user types
   useEffect(() => {
     if (debouncedSuggestQ.length < 3 || activeTab !== "products") {
       setSuggestions([])
@@ -354,6 +364,52 @@ export default function SearchPage() {
       .catch(() => {})
     return () => { cancelled = true }
   }, [debouncedSuggestQ, activeTab])
+
+  // Reset selected index when dropdown items change
+  useEffect(() => { setSelectedIndex(-1) }, [suggestions, recentSearches])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const dropdownItems: string[] = query.length >= 3 ? suggestions : recentSearches.slice(0, 5)
+  const isShowingRecent = query.length < 3
+
+  const applyDropdownItem = useCallback((item: string) => {
+    setQuery(item)
+    setShowDropdown(false)
+    saveRecentSearch(item).catch(() => {})
+    // Refresh recent searches after saving
+    getRecentSearches().then(setRecentSearches).catch(() => {})
+  }, [])
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" && showDropdown && dropdownItems.length > 0) {
+      e.preventDefault()
+      setSelectedIndex(i => Math.min(i + 1, dropdownItems.length - 1))
+    } else if (e.key === "ArrowUp" && showDropdown && dropdownItems.length > 0) {
+      e.preventDefault()
+      setSelectedIndex(i => Math.max(i - 1, -1))
+    } else if (e.key === "Enter") {
+      if (showDropdown && selectedIndex >= 0) {
+        e.preventDefault()
+        applyDropdownItem(dropdownItems[selectedIndex])
+      } else if (query.trim().length >= 2) {
+        setShowDropdown(false)
+        saveRecentSearch(query.trim()).then(() => getRecentSearches().then(setRecentSearches)).catch(() => {})
+      }
+    } else if (e.key === "Escape") {
+      setShowDropdown(false)
+      setSelectedIndex(-1)
+    }
+  }
 
   // Filters state
   const [productFilters, setProductFilters] = useState({
@@ -407,13 +463,11 @@ export default function SearchPage() {
   load();
 }, []);
 
-  // Update URL when query changes; save non-empty queries to search history
+  // Update URL when query changes
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
     if (query) {
       params.set("q", query)
-      // TODO: Uncomment when db:push is run to create user_searches table
-      // saveRecentSearch(query) // fire-and-forget
     } else {
       params.delete("q")
     }
@@ -670,33 +724,47 @@ export default function SearchPage() {
         {/* Page Title */}
         <h1 className="text-[36px] font-extrabold text-[#0f172a] leading-10">Search</h1>
 
-        {/* Search Input - Figma: pt-16 pb-24 around input */}
-        <div className="relative pt-4 pb-2">
-          <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#6b7280]" />
+        {/* Search Input with suggestions dropdown */}
+        <div className="relative pt-4 pb-2" ref={searchContainerRef}>
+          <Search className="absolute left-4 top-[calc(50%+8px)] h-[18px] w-[18px] -translate-y-1/2 text-[#6b7280] pointer-events-none z-10" />
           <Input
             id="search-input"
             placeholder="Search products, customers, jobs... (Press '/' to focus)"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setShowDropdown(true) }}
+            onFocus={() => setShowDropdown(true)}
+            onKeyDown={handleSearchKeyDown}
+            autoComplete="off"
             className="h-[56px] pl-12 bg-white border border-[#e2e8f0] rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] text-[18px] placeholder:text-[#6b7280]"
           />
-        </div>
 
-        {/* RAG Search Suggestions */}
-        {suggestions.length > 0 && (
-          <div className="flex flex-wrap gap-2 pb-4">
-            <span className="text-xs text-[#94a3b8] self-center">Try:</span>
-            {suggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setQuery(typeof s === "string" ? s : (s as any).text ?? String(s))}
-                className="px-3 py-1 rounded-full text-xs font-medium bg-[#f1f5f9] text-[#00438f] border border-[#e2e8f0] hover:bg-[#00438f]/10 transition-colors"
-              >
-                {typeof s === "string" ? s : (s as any).text ?? String(s)}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Dropdown */}
+          {showDropdown && dropdownItems.length > 0 && (
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#e2e8f0] rounded-[12px] shadow-lg overflow-hidden">
+              {isShowingRecent && (
+                <div className="px-4 pt-2 pb-1">
+                  <span className="text-xs font-medium text-[#94a3b8] uppercase tracking-wide">Recent searches</span>
+                </div>
+              )}
+              {dropdownItems.map((item, i) => (
+                <button
+                  key={i}
+                  onMouseDown={(e) => { e.preventDefault(); applyDropdownItem(item) }}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                    i === selectedIndex ? "bg-[#f1f5f9]" : "hover:bg-[#f8fafc]"
+                  }`}
+                >
+                  {isShowingRecent
+                    ? <Clock className="h-3.5 w-3.5 text-[#94a3b8] shrink-0" />
+                    : <Search className="h-3.5 w-3.5 text-primary shrink-0" />
+                  }
+                  <span className="truncate text-[#0f172a]">{item}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Active Filters */}
         {hasActiveFilters() && (
@@ -815,28 +883,28 @@ export default function SearchPage() {
             <TabsList className="h-auto p-0 bg-transparent border-0 flex gap-0">
               <TabsTrigger
                 value="products"
-                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-[14px] pt-[12px] px-6 data-[state=active]:text-primary data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
               >
                 Products
-                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "products" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "products" ? "bg-[rgba(0,67,143,0.1)] text-primary" : "bg-[#f1f5f9] text-[#64748b]"}`}>
                   {filteredProducts.length.toLocaleString()}
                 </span>
               </TabsTrigger>
               <TabsTrigger
                 value="customers"
-                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-[14px] pt-[12px] px-6 data-[state=active]:text-primary data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
               >
                 Customers
-                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "customers" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "customers" ? "bg-[rgba(0,67,143,0.1)] text-primary" : "bg-[#f1f5f9] text-[#64748b]"}`}>
                   {filteredCustomers.length.toLocaleString()}
                 </span>
               </TabsTrigger>
               <TabsTrigger
                 value="jobs"
-                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-[#00438f] pb-[14px] pt-[12px] px-6 data-[state=active]:text-[#00438f] data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
+                className="flex items-center gap-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-[14px] pt-[12px] px-6 data-[state=active]:text-primary data-[state=inactive]:text-[#64748b] font-semibold text-[14px] bg-transparent shadow-none"
               >
                 Jobs
-                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "jobs" ? "bg-[rgba(0,67,143,0.1)] text-[#00438f]" : "bg-[#f1f5f9] text-[#64748b]"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${activeTab === "jobs" ? "bg-[rgba(0,67,143,0.1)] text-primary" : "bg-[#f1f5f9] text-[#64748b]"}`}>
                   {filteredJobs.length.toLocaleString()}
                 </span>
               </TabsTrigger>
@@ -1101,7 +1169,7 @@ export default function SearchPage() {
                       <CardContent className="p-0">
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-full bg-[#e6ecf4] flex items-center justify-center shrink-0">
-                            <Users className="h-5 w-5 text-[#00438f]" />
+                            <Users className="h-5 w-5 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-[#0f172a]">{customer.name || "Unnamed Customer"}</h3>
@@ -1267,7 +1335,7 @@ export default function SearchPage() {
                   variant="ghost"
                   size="icon"
                   className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
-                    currentPage === pageNum ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                    currentPage === pageNum ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-[#0f172a]"
                   }`}
                   onClick={() => setCurrentPage(pageNum)}
                 >
@@ -1280,7 +1348,7 @@ export default function SearchPage() {
                   variant="ghost"
                   size="icon"
                   className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
-                    currentPage === 1 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                    currentPage === 1 ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-[#0f172a]"
                   }`}
                   onClick={() => setCurrentPage(1)}
                 >
@@ -1290,7 +1358,7 @@ export default function SearchPage() {
                   variant="ghost"
                   size="icon"
                   className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
-                    currentPage === 2 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                    currentPage === 2 ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-[#0f172a]"
                   }`}
                   onClick={() => setCurrentPage(2)}
                 >
@@ -1300,7 +1368,7 @@ export default function SearchPage() {
                   variant="ghost"
                   size="icon"
                   className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
-                    currentPage === 3 ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                    currentPage === 3 ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-[#0f172a]"
                   }`}
                   onClick={() => setCurrentPage(3)}
                 >
@@ -1311,7 +1379,7 @@ export default function SearchPage() {
                   variant="ghost"
                   size="icon"
                   className={`h-10 w-10 rounded-[8px] text-[16px] font-medium ${
-                    currentPage === totalPages ? "bg-[#00438f] text-white hover:bg-[#00438f] hover:text-white" : "text-[#0f172a]"
+                    currentPage === totalPages ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-[#0f172a]"
                   }`}
                   onClick={() => setCurrentPage(totalPages)}
                 >
