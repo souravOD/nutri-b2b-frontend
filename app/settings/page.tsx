@@ -68,6 +68,7 @@ const SETTINGS_KEYS = {
   integrationNutritionLabelKey: "integration.nutrition_label.api_key",
   integrationComplianceKey: "integration.compliance_checker.api_key",
   integrationGa4Id: "integration.ga4_measurement_id",
+  integrationMixpanelToken: "integration.mixpanel_token",
   accessRevocationGraceDays: "access_revocation_grace_days",
   emailTemplateOnboarding: "email_template.onboarding",
   emailTemplateReengagement: "email_template.reengagement",
@@ -551,6 +552,7 @@ export default function SettingsPage() {
   const [nutritionLabelApiKey, setNutritionLabelApiKey] = useState("")
   const [complianceApiKey, setComplianceApiKey] = useState("")
   const [ga4MeasurementId, setGa4MeasurementId] = useState("")
+  const [mixpanelToken, setMixpanelToken] = useState("")
   const [integrationDialogOpen, setIntegrationDialogOpen] = useState(false)
   const [integrationDialogTarget, setIntegrationDialogTarget] = useState<"usda" | "nutrition_label" | "compliance_checker" | null>(null)
   const [integrationDialogKey, setIntegrationDialogKey] = useState("")
@@ -942,6 +944,7 @@ export default function SettingsPage() {
         if (map.has(SETTINGS_KEYS.integrationNutritionLabelKey)) setNutritionLabelApiKey(map.get(SETTINGS_KEYS.integrationNutritionLabelKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationComplianceKey)) setComplianceApiKey(map.get(SETTINGS_KEYS.integrationComplianceKey) ?? "")
         if (map.has(SETTINGS_KEYS.integrationGa4Id)) setGa4MeasurementId(map.get(SETTINGS_KEYS.integrationGa4Id) ?? "")
+        if (map.has(SETTINGS_KEYS.integrationMixpanelToken)) setMixpanelToken(map.get(SETTINGS_KEYS.integrationMixpanelToken) ?? "")
         if (map.has(SETTINGS_KEYS.emailTemplateOnboarding)) {
           try { setOnboardingTemplate(JSON.parse(map.get(SETTINGS_KEYS.emailTemplateOnboarding)!)) } catch { /* use default */ }
         }
@@ -1644,8 +1647,8 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="size-[48px] rounded-[8px] bg-[#fef3c7] flex items-center justify-center shrink-0">
-                    <BarChart3 className="h-6 w-6 text-[#d97706]" />
+                  <div className="size-[48px] rounded-[8px] border border-[#e2e8f0] bg-white flex items-center justify-center shrink-0 p-2">
+                    <img src="/logos/google-analytics.png" alt="Google Analytics" className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1 space-y-2">
                     <h3 className="font-bold text-[14px] text-[#0f172a]">Google Analytics 4</h3>
@@ -1682,6 +1685,64 @@ export default function SettingsPage() {
                         </span>
                       )}
                     </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Mixpanel */}
+            <Card className="rounded-[12px] border border-[#e2e8f0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+              <CardHeader className="border-b border-[#f1f5f9] pb-[25px] pt-6 px-6">
+                <CardTitle className="text-[18px] font-bold text-[#0f172a]">Mixpanel Analytics</CardTitle>
+                <CardDescription className="text-[14px] text-[#64748b]">Connect your Mixpanel project to track product usage with per-user event streams</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="size-[48px] rounded-[8px] border border-[#e2e8f0] bg-white flex items-center justify-center shrink-0 p-2">
+                    <img src="/logos/mixpanel.png" alt="Mixpanel" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-bold text-[14px] text-[#0f172a]">Mixpanel Project Token</h3>
+                    <p className="text-[12px] text-[#64748b]">
+                      Enter your Mixpanel project token to enable event tracking alongside GA4.
+                      Events fired via <span className="font-mono">trackEvent()</span> will automatically mirror to both providers.
+                      Find your token in <span className="font-mono">mixpanel.com → Settings → Project</span>.
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        placeholder="e.g. a1b2c3d4e5f6..."
+                        value={mixpanelToken}
+                        onChange={(e) => setMixpanelToken(e.target.value.trim())}
+                        className="max-w-xs font-mono border-[#e2e8f0] text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={!mixpanelToken.trim()}
+                        onClick={async () => {
+                          try {
+                            await apiFetch(`/api/settings/${SETTINGS_KEYS.integrationMixpanelToken}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ value: mixpanelToken.trim() }),
+                            })
+                            toast({ title: "Mixpanel token saved" })
+                          } catch {
+                            toast({ title: "Failed to save", variant: "destructive" })
+                          }
+                        }}
+                        className="bg-primary hover:bg-[#003366] text-white"
+                      >
+                        Save
+                      </Button>
+                      {mixpanelToken && (
+                        <span className="bg-[#fce7f3] text-[#9d174d] text-[12px] font-medium rounded-full px-2.5 py-0.5 inline-flex items-center gap-1.5">
+                          <span className="size-1.5 rounded-full bg-[#ec4899]" />Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#94a3b8] mt-1">
+                      Events tracked: page_view, campaign_created, segment_created, member_exported, and all portal interactions via the shared trackEvent() utility.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -1798,10 +1859,16 @@ export default function SettingsPage() {
                         key={p}
                         size="sm"
                         variant={crmProvider === p ? "default" : "outline"}
-                        className={`capitalize ${crmProvider === p ? "bg-primary text-white" : "border-[#cbd5e1] text-[#334155]"}`}
+                        className={`gap-2 ${crmProvider === p ? "bg-primary text-white" : "border-[#cbd5e1] text-[#334155]"}`}
                         onClick={() => setCrmProvider(p)}
                       >
-                        {p === "none" ? "Disabled" : p.charAt(0).toUpperCase() + p.slice(1)}
+                        {p === "hubspot" && (
+                          <img src="/logos/hubspot.png" alt="HubSpot" className="w-4 h-4 object-contain" />
+                        )}
+                        {p === "salesforce" && (
+                          <img src="/logos/salesforce.png" alt="Salesforce" className="w-4 h-4 object-contain" />
+                        )}
+                        {p === "none" ? "Disabled" : p === "hubspot" ? "HubSpot" : "Salesforce"}
                       </Button>
                     ))}
                   </div>
@@ -1871,15 +1938,15 @@ export default function SettingsPage() {
                   return (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
-                        { name: "Tableau", letter: "T", bg: "bg-[#dbeafe]", text: "text-[#1e40af]", label: "JDBC Connection String", value: `jdbc:tableau://api.nutriportal.com:443/b2b?api_key=${liveKeyPrefix}...` },
-                        { name: "Power BI", letter: "P", bg: "bg-[#fef9c3]", text: "text-[#854d0e]", label: "OData Feed URL", value: `https://api.nutriportal.com/odata/v1/analytics?api_key=${liveKeyPrefix}...` },
-                        { name: "Looker", letter: "L", bg: "bg-[#dcfce7]", text: "text-[#166534]", label: "LookML Connection", value: `connection: nutriportal\nhost: api.nutriportal.com\nport: 443\napi_key: ${liveKeyPrefix}...` },
-                        { name: "Metabase", letter: "M", bg: "bg-[#f3e8ff]", text: "text-[#6b21a8]", label: "REST API URL", value: `https://api.nutriportal.com/api/v3/dataset?api_key=${liveKeyPrefix}...` },
+                        { name: "Tableau",  logo: "/logos/tableau.png", label: "JDBC Connection String", value: `jdbc:tableau://api.nutriportal.com:443/b2b?api_key=${liveKeyPrefix}...` },
+                        { name: "Power BI", logo: "/logos/powerbi.png",  label: "OData Feed URL",         value: `https://api.nutriportal.com/odata/v1/analytics?api_key=${liveKeyPrefix}...` },
+                        { name: "Looker",   logo: "/logos/looker.png",   label: "LookML Connection",      value: `connection: nutriportal\nhost: api.nutriportal.com\nport: 443\napi_key: ${liveKeyPrefix}...` },
+                        { name: "Metabase", logo: "/logos/metabase.png", label: "REST API URL",           value: `https://api.nutriportal.com/api/v3/dataset?api_key=${liveKeyPrefix}...` },
                       ].map((c) => (
                         <div key={c.name} className="rounded-lg border border-[#e2e8f0] p-4 space-y-3">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
-                              <span className={`text-[15px] font-bold ${c.text}`}>{c.letter}</span>
+                            <div className="w-10 h-10 rounded-lg border border-[#e2e8f0] bg-white flex items-center justify-center shrink-0 p-1">
+                              <img src={c.logo} alt={c.name} className="w-full h-full object-contain" />
                             </div>
                             <span className="font-semibold text-[#0f172a] text-[14px]">{c.name}</span>
                           </div>

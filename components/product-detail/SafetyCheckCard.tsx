@@ -36,9 +36,18 @@ export default function SafetyCheckCard({ productId, allergens = [] }: Props) {
     setResult(null)
     try {
       const data = await runSafetyCheck({ product_ids: [productId] })
+      const rawConflicts: any[] = Array.isArray((data as any).conflicts) ? (data as any).conflicts : []
       setResult({
-        conflicts: Array.isArray((data as any).conflicts) ? (data as any).conflicts : [],
-        summary: (data as any).summary,
+        conflicts: rawConflicts.map((c: any) => ({
+          customer_id: c.customer_id,
+          customer_name: c.customer_name,
+          allergen: c.conflict_allergen ?? c.allergen,
+          condition: c.customer_severity,
+          reason: c.conflict_allergen
+            ? `Allergen conflict: ${c.conflict_allergen}${c.customer_severity ? ` (${c.customer_severity})` : ""}`
+            : (c.reason ?? undefined),
+        })),
+        summary: (data as any).summary_str ?? (typeof (data as any).summary === "string" ? (data as any).summary : undefined),
         fallback: (data as any).fallback,
         checkedAt: new Date().toISOString(),
       })

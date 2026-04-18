@@ -47,7 +47,7 @@ export default function ProductIntelCard({ productId }: { productId: string }) {
           </div>
           <h3 className="text-[18px] font-bold text-[#0f172a] mb-2">Product Intelligence</h3>
           <p className="text-sm text-[#64748b] leading-relaxed max-w-[320px]">
-            No intelligence data available for this product yet. Run a safety check or update specifications to generate AI insights.
+            No intelligence data available for this product yet. Add ingredients, allergens, or dietary tags to the product to generate insights.
           </p>
         </div>
       )}

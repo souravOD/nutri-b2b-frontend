@@ -37,6 +37,15 @@ import ImportWizard from "@/components/import-wizard"
 import { useToast } from "@/hooks/use-toast"
 import { PermissionGate } from "@/components/PermissionGate"
 import { Search as SearchIcon, Columns, Eye, EyeOff, MoreHorizontal, Plus, Grid3X3, List as ListIcon, Package } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 
 type Product = {
@@ -277,11 +286,24 @@ export default function ProductsPage() {
   }, [router, pathname, searchParams])
   const { toast } = useToast()
 
-  const handleSearch = (value: string) => set({ q: value || null })
+  const handleSearch = (value: string) => {
+    set({ q: value || null })
+    currentQueryRef.current = value.trim().toLowerCase()
+    currentPageRef.current = 1
+    setPage(1)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => load(), 350)
+  }
   const handleViewChange = (v: "table" | "cards") => set({ view: v })
   const query = url.q.trim().toLowerCase()
   const view = url.view
+  const PAGE_SIZE = 50
   const [data, setData] = React.useState<Product[]>([])
+  const [total, setTotal] = React.useState(0)
+  const [page, setPage] = React.useState(1)
+  const currentPageRef = React.useRef(1)
+  const currentQueryRef = React.useRef("")
+  const searchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [selected, setSelected] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -323,7 +345,11 @@ export default function ProductsPage() {
   const load = React.useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch("/products")
+      const params = new URLSearchParams()
+      params.set("page", String(currentPageRef.current))
+      params.set("limit", String(50))
+      if (currentQueryRef.current) params.set("q", currentQueryRef.current)
+      const res = await apiFetch(`/products?${params}`)
       const text = await res.text()
       let json: any = null
       try { json = text ? JSON.parse(text) : null } catch { json = null }
@@ -335,12 +361,11 @@ export default function ProductsPage() {
         return
       }
 
-      // Accept: [ ... ]  OR  {items:[...]}  OR  {data:[...]}  OR  {results:[...]}
       const items = normalizeListResponse(json)
       setData(items.map(toProduct))
+      setTotal(json?.total ?? items.length)
       setError(null)
 
-      // Fetch quality scores (non-fatal)
       try {
         const qRes = await apiFetch("/api/quality/vendor-summary")
         if (qRes.ok) {
@@ -357,6 +382,13 @@ export default function ProductsPage() {
       setLoading(false)
     }
   }, [])
+
+  const goToPage = React.useCallback((p: number) => {
+    currentPageRef.current = p
+    setPage(p)
+    load()
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [load])
 
   React.useEffect(() => {
     load()
@@ -820,7 +852,14 @@ export default function ProductsPage() {
             ? "Loading…"
             : (
                 <>
-                  Showing <span className="font-bold text-[#0f172a]">{filtered.length}</span> of <span className="font-bold text-[#0f172a]">{data.length}</span> products
+                  Showing <span className="font-bold text-[#0f172a]">{filtered.length}</span>
+                  {filtered.length < data.length && (
+                    <> (filtered from <span className="font-bold text-[#0f172a]">{data.length}</span>)</>
+                  )}
+                  {" "}of <span className="font-bold text-[#0f172a]">{total}</span> products
+                  {total > PAGE_SIZE && (
+                    <span className="ml-2 text-[#94a3b8]">· page {page} of {Math.ceil(total / PAGE_SIZE)}</span>
+                  )}
                 </>
               )}
         </div>
@@ -934,6 +973,63 @@ export default function ProductsPage() {
             </Button>
           </div>
         )}
+
+        {/* Pagination */}
+        {!loading && total > PAGE_SIZE && (() => {
+          const totalPages = Math.ceil(total / PAGE_SIZE)
+          const pages: (number | "...")[] = []
+          if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i)
+          } else if (page <= 4) {
+            pages.push(1, 2, 3, 4, 5, "...", totalPages)
+          } else if (page >= totalPages - 3) {
+            pages.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+          } else {
+            pages.push(1, "...", page - 1, page, page + 1, "...", totalPages)
+          }
+          return (
+            <div className="flex flex-col items-center gap-2 mt-2 sm:flex-row sm:justify-between">
+              <p className="text-sm text-[#64748b]">
+                Page <span className="font-medium text-[#0f172a]">{page}</span> of{" "}
+                <span className="font-medium text-[#0f172a]">{totalPages}</span>
+                <span className="ml-1">({total.toLocaleString()} products)</span>
+              </p>
+              <Pagination className="w-auto mx-0">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => page > 1 && goToPage(page - 1)}
+                      className={page === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  {pages.map((p, i) =>
+                    p === "..." ? (
+                      <PaginationItem key={`ellipsis-${i}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          isActive={p === page}
+                          onClick={() => goToPage(p as number)}
+                          className="cursor-pointer"
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => page < totalPages && goToPage(page + 1)}
+                      className={page === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Create dialog (controlled), mirrors Customers page UX */}

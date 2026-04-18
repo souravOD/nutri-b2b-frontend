@@ -38,7 +38,7 @@ function hexToOklch(hex: string): string | null {
  * Renders nothing visible — side-effects only.
  */
 export default function BrandingApplicator() {
-  const { primaryColor, secondaryColor, accentColor, faviconUrl, fontUrl, ga4MeasurementId } = useBrandingConfig();
+  const { primaryColor, secondaryColor, accentColor, faviconUrl, fontUrl, ga4MeasurementId, mixpanelToken } = useBrandingConfig();
 
   useEffect(() => {
     if (!primaryColor) return;
@@ -109,6 +109,43 @@ export default function BrandingApplicator() {
     ].join("\n");
     document.head.appendChild(initScript);
   }, [ga4MeasurementId]);
+
+  // Mixpanel — inject CDN snippet and initialise with per-vendor token.
+  // Uses the same deferred-script pattern as GA4.
+  // window.mixpanel is then available globally for trackEvent() in analytics.ts.
+  useEffect(() => {
+    if (!mixpanelToken) return;
+    if (document.getElementById("vendor-mixpanel-script")) return; // already injected
+
+    // Mixpanel's official snippet (minified stub) — queues calls until the
+    // async bundle loads, so trackEvent() calls made during page init are safe.
+    const stub = document.createElement("script");
+    stub.id = "vendor-mixpanel-script";
+    stub.textContent = [
+      `(function(f,b){if(!b.__SV){var e,g,i,h;window.mixpanel=b;`,
+      `b._i=[];b.init=function(e,f,c){function g(a,d){var b=d.split(".");`,
+      `2==b.length&&(a=a[b[0]],d=b[1]);a[d]=function(){a.push([d].concat(`,
+      `Array.prototype.slice.call(arguments,0)))}}var a=b;"undefined"!==`,
+      `typeof c?a=b[c]=[]:c="mixpanel";a.people=a.people||[];`,
+      `a.toString=function(a){var d="mixpanel";"mixpanel"!==c&&(d+="."+c);`,
+      `a||(d+=" (stub)");return d};a.people.toString=function(){return`,
+      `a.toString(1)+".people (stub)"};i="disable time_event track`,
+      `track_pageview track_links track_forms track_with_groups add_group`,
+      `set_group remove_group register register_once alias unregister`,
+      `identify name_tag set_config reset opt_in_tracking opt_out_tracking`,
+      `has_opted_in_tracking has_opted_out_tracking clear_opt_in_out_tracking`,
+      `start_batch_senders people.set people.set_once people.unset`,
+      `people.increment people.append people.union people.track_charge`,
+      `people.clear_charges people.delete_user people.remove".split(" ");`,
+      `for(h=0;h<i.length;h++)g(a,i[h]);b._i.push([e,f,c])};`,
+      `b.__SV=1.2;e=f.createElement("script");e.type="text/javascript";`,
+      `e.async=!0;e.src="https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";`,
+      `g=f.getElementsByTagName("script")[0];g.parentNode.insertBefore(e,g)`,
+      `}})(document,window.mixpanel||[]);`,
+      `mixpanel.init("${mixpanelToken.replace(/"/g, "")}",{persistence:"localStorage"});`,
+    ].join("");
+    document.head.appendChild(stub);
+  }, [mixpanelToken]);
 
   return null;
 }

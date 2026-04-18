@@ -14,6 +14,7 @@ export type BrandingConfig = {
   accentColor: string | null;
   fontUrl: string | null;
   ga4MeasurementId: string | null;
+  mixpanelToken: string | null;
 };
 
 const DEFAULT_COPYRIGHT = "© 2024. All rights reserved.";
@@ -36,6 +37,7 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
     accentColor: null,
     fontUrl: null,
     ga4MeasurementId: null,
+    mixpanelToken: null,
   }));
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export function useBrandingConfig(vendorSlug?: string): BrandingConfig {
             accentColor: data?.accentColor || null,
             fontUrl: data?.fontUrl || null,
             ga4MeasurementId: data?.ga4MeasurementId || null,
+            mixpanelToken: data?.mixpanelToken || null,
           });
         }
       } catch {
